@@ -1,0 +1,14 @@
+{
+  "CHIAVE_FORMA_INTERNO": {
+    "name": "FORMA (interno / dogfood)",
+    "allowed_scopes": ["forma-core", "andrea"]
+  },
+  "CHIAVE_ATS": {
+    "name": "Al Tuo Servizio (ATS)",
+    "allowed_scopes": ["ats"]
+  },
+  "CHIAVE_HRH": {
+    "name": "Home Restaurant Hotel",
+    "allowed_scopes": ["hrh"]
+  }
+}
