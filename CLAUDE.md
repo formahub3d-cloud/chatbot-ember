@@ -1,6 +1,6 @@
 # CLAUDE.md — Contesto progetto per Claude Code
 
-> Leggi questo file prima di lavorare. È il contesto del progetto **Ember** (ex "Jarvis": rebrand 2026-07; il dominio Railway `jarvis-production-e680.up.railway.app` conserva il vecchio nome).
+> Leggi questo file prima di lavorare. È il contesto del progetto **Ember** (ex "Jarvis": rebrand 2026-07; dominio pubblico `ember.formahub.it`; il dominio Railway `jarvis-production-e680.up.railway.app` resta attivo come alias).
 
 ## Cos'è
 

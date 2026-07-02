@@ -13,7 +13,7 @@ Browser ──(POST /api/ember, senza chiave)──▶  Proxy (ha la chiave)  �
 ### A. Next.js (stack FORMA) — `nextjs-route.js`
 1. Copia il file in `app/api/ember/route.js` del sito.
 2. Imposta le variabili d'ambiente:
-   - `EMBER_API = https://jarvis-production-e680.up.railway.app`
+   - `EMBER_API = https://ember.formahub.it`
    - `EMBER_TENANT_KEY = <chiave del cliente>` (es. `CHIAVE_HRH`)
 3. Nel widget usa: `data-proxy="/api/ember"` (niente `data-key`).
 

@@ -6,7 +6,7 @@
 // aggiunge la chiave e inoltra a Ember.
 //
 // Variabili d'ambiente da impostare sul sito (es. su Vercel/Railway):
-//   EMBER_API         = https://jarvis-production-e680.up.railway.app
+//   EMBER_API         = https://ember.formahub.it
 //   EMBER_TENANT_KEY  = CHIAVE_DEL_CLIENTE   (es. CHIAVE_HRH)
 
 export const runtime = "edge"; // veloce ed economico; rimuovi se preferisci Node

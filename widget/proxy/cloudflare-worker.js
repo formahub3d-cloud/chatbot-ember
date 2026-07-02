@@ -4,7 +4,7 @@
 // Deploy (dashboard Cloudflare → Workers):
 //   1. Crea un Worker, incolla questo codice.
 //   2. Settings → Variables: aggiungi
-//        EMBER_API        = https://jarvis-production-e680.up.railway.app   (Variable)
+//        EMBER_API        = https://ember.formahub.it   (Variable)
 //        EMBER_TENANT_KEY = CHIAVE_DEL_CLIENTE                              (Secret)
 //        ALLOW_ORIGIN      = https://www.sitodelcliente.it                   (Variable, opzionale)
 //   3. Punta il widget al Worker:  data-proxy="https://ember-hrh.tuosub.workers.dev"
