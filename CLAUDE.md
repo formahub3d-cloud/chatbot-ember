@@ -36,7 +36,7 @@ Un tenant vede solo i suoi `allowed_scopes` (in `tenants.json`).
 - `app/ocr.py` — OCR documenti (Mistral OCR)
 - `app/extract.py` — estrazione campi (regex UniLav + LLM generico)
 - `app/writeback.py` — scrive la nota nel vault (Notion = TODO)
-- `app/main.py` — API: `/health` `/ingest` `/chat` `/upload`
+- `app/main.py` — API: `/health` `/ingest` `/chat` (con `{"stream": true}` risponde SSE: `event: sources` → `data: {"delta"}` → `event: done`) `/upload`
 
 ## Comandi
 

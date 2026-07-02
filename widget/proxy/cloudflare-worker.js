@@ -30,12 +30,22 @@ export default {
     const message = (body && typeof body.message === "string") ? body.message.slice(0, 2000) : "";
     if (!message.trim()) return json({ answer: "Messaggio vuoto." }, 400, cors);
 
+    const stream = body && body.stream === true; // il widget chiede lo streaming SSE
+
     try {
       const r = await fetch(API_BASE.replace(/\/$/, "") + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Tenant-Key": TENANT_KEY },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, stream }),
       });
+      // SSE pass-through: se Ember risponde in streaming, lo inoltriamo così com'è.
+      const ct = r.headers.get("content-type") || "";
+      if (ct.includes("text/event-stream") && r.body) {
+        return new Response(r.body, {
+          status: r.status,
+          headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+        });
+      }
       const data = await r.json().catch(() => ({ answer: "Risposta non valida dal servizio." }));
       return json(data, r.status, cors);
     } catch {

@@ -100,6 +100,39 @@
     body.appendChild(m); body.scrollTop = body.scrollHeight; return m;
   }
 
+  function addSources(m, sources){
+    if(!sources || !sources.length) return;
+    var s2 = document.createElement("div"); s2.className = "jv-src";
+    s2.textContent = "Fonti: " + sources.join(", ");
+    m.appendChild(s2); body.scrollTop = body.scrollHeight;
+  }
+
+  // Legge una risposta SSE (text/event-stream) e aggiorna il messaggio token per token.
+  async function readSSE(r, m){
+    var reader = r.body.getReader(), dec = new TextDecoder();
+    var buf = "", acc = "", sources = null, idx;
+    for(;;){
+      var chunk = await reader.read(); if (chunk.done) break;
+      buf += dec.decode(chunk.value, {stream:true});
+      while((idx = buf.indexOf("\n\n")) !== -1){
+        var block = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        var event = null, data = "";
+        block.split("\n").forEach(function(l){
+          if (l.indexOf("event:") === 0) event = l.slice(6).trim();
+          else if (l.indexOf("data:") === 0) data += l.slice(5).trim();
+        });
+        if (!data) continue;
+        var obj; try { obj = JSON.parse(data); } catch(e){ continue; }
+        if (event === "sources") sources = obj.sources;
+        else if (event === "error") { acc += (acc ? "\n" : "") + "⚠️ " + (obj.message || "Errore."); m.textContent = acc; }
+        else if (event === "done") { /* fine stream */ }
+        else if (obj.delta) { acc += obj.delta; m.textContent = acc; body.scrollTop = body.scrollHeight; }
+      }
+    }
+    if (!acc) m.textContent = "(nessuna risposta)";
+    addSources(m, sources);
+  }
+
   async function ask(){
     var q = input.value.trim(); if(!q) return;
     input.value = ""; addMsg("u", q); send.disabled = true;
@@ -107,17 +140,24 @@
     try{
       // Modalità proxy: POST all'endpoint del sito (la chiave la mette il server).
       // Modalità diretta: POST a Ember con l'header X-Tenant-Key.
+      // Chiediamo sempre lo stream: se il server (o il proxy) risponde JSON
+      // classico, il fallback sotto lo gestisce comunque.
       var url = PROXY || (API + "/chat");
       var headers = {"Content-Type":"application/json"};
       if (!PROXY) headers["X-Tenant-Key"] = KEY;
       var r = await fetch(url, {
         method:"POST",
         headers: headers,
-        body: JSON.stringify({message:q})
+        body: JSON.stringify({message:q, stream:true})
       });
-      t.remove();
-      if(!r.ok){ addMsg("a","⚠️ Errore "+r.status+". Riprova tra poco."); }
-      else { var data = await r.json(); addMsg("a", data.answer || "(nessuna risposta)", data.sources); }
+      if(!r.ok){ t.remove(); addMsg("a","⚠️ Errore "+r.status+". Riprova tra poco."); }
+      else if (((r.headers.get("content-type") || "").indexOf("text/event-stream") !== -1) && r.body && window.TextDecoder){
+        t.remove();
+        await readSSE(r, addMsg("a", ""));
+      } else {
+        var data = await r.json(); t.remove();
+        addMsg("a", data.answer || "(nessuna risposta)", data.sources);
+      }
     }catch(e){ t.remove(); addMsg("a","⚠️ Connessione non riuscita. Verifica che il servizio sia attivo."); }
     send.disabled = false; input.focus();
   }

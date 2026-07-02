@@ -95,3 +95,77 @@ def chat(system: str, user: str) -> str:
         return r.json()["content"][0]["text"]
 
     raise ValueError(f"LLM_PROVIDER non supportato: {settings.llm_provider}")
+
+
+def chat_stream(system: str, user: str):
+    """Come chat(), ma in streaming: genera i token man mano che arrivano.
+
+    Ritorna un generatore di stringhe (delta di testo). Usato dall'endpoint
+    SSE /chat con {"stream": true}. Niente retry qui: lo stream o parte o
+    fallisce subito (gli errori pre-stream sollevano httpx.HTTPStatusError).
+    """
+    if settings.llm_provider == "mistral":
+        with httpx.stream(
+            "POST",
+            f"{MISTRAL_BASE}/chat/completions",
+            headers={"Authorization": f"Bearer {settings.mistral_api_key}"},
+            json={
+                "model": settings.mistral_llm_model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                "temperature": 0.2,
+                "stream": True,
+            },
+            timeout=120,
+        ) as r:
+            r.raise_for_status()
+            import json as _json
+            for line in r.iter_lines():
+                if not line or not line.startswith("data:"):
+                    continue
+                payload = line[5:].strip()
+                if payload == "[DONE]":
+                    break
+                try:
+                    delta = _json.loads(payload)["choices"][0]["delta"].get("content")
+                except (KeyError, IndexError, ValueError):
+                    continue
+                if delta:
+                    yield delta
+        return
+
+    if settings.llm_provider == "claude":
+        with httpx.stream(
+            "POST",
+            f"{ANTHROPIC_BASE}/messages",
+            headers={
+                "x-api-key": settings.anthropic_api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": settings.claude_llm_model,
+                "max_tokens": 1024,
+                "system": system,
+                "messages": [{"role": "user", "content": user}],
+                "stream": True,
+            },
+            timeout=120,
+        ) as r:
+            r.raise_for_status()
+            import json as _json
+            for line in r.iter_lines():
+                if not line or not line.startswith("data:"):
+                    continue
+                try:
+                    ev = _json.loads(line[5:].strip())
+                except ValueError:
+                    continue
+                if ev.get("type") == "content_block_delta":
+                    delta = ev.get("delta", {}).get("text")
+                    if delta:
+                        yield delta
+        return
+
+    raise ValueError(f"LLM_PROVIDER non supportato: {settings.llm_provider}")

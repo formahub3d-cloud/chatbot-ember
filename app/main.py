@@ -4,6 +4,7 @@ Endpoint:
   GET  /health            stato e provider attivi
   POST /ingest            (admin) reindicizza il cervello su Qdrant
   POST /chat              (tenant) domanda → risposta limitata allo scope del tenant
+                          con {"stream": true} risposta SSE token per token
   POST /upload            (tenant) carica un contratto → OCR + estrazione → ANTEPRIMA
                           dei campi (NON consolida: richiede conferma umana)
 """
@@ -37,6 +38,7 @@ def rate_ok(key: str) -> bool:
 
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from .config import settings
@@ -74,6 +76,7 @@ def tenant_or_401(key: str) -> dict:
 
 class ChatIn(BaseModel):
     message: str
+    stream: bool = False  # true → risposta SSE (text/event-stream) token per token
 
 
 @app.get("/health")
@@ -96,9 +99,35 @@ def do_ingest(authorization: str = Header(default="")):
 
 @app.post("/chat")
 def do_chat(body: ChatIn, x_tenant_key: str = Header(default="")):
+    """Risposta del chatbot. Con {"stream": true} nel body la risposta è SSE:
+    `event: sources` (fonti+scope) → N × `data: {"delta": ...}` → `event: done`.
+    Senza flag resta il JSON classico {answer, sources, scopes} (retro-compat)."""
     tenant = tenant_or_401(x_tenant_key)
     if not rate_ok(x_tenant_key):
         raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.")
+    if body.stream:
+        try:
+            gen = rag.answer_stream(body.message, tenant["allowed_scopes"])
+            first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
+        except HTTPException:
+            raise
+        except Exception:
+            log.exception("chat stream failed")
+            raise HTTPException(500, "Errore interno del chatbot.")
+
+        def _stream():
+            yield first
+            try:
+                yield from gen
+            except Exception:
+                log.exception("chat stream interrotto")
+                yield 'event: error\ndata: {"message": "Stream interrotto."}\n\n'
+
+        return StreamingResponse(
+            _stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
     try:
         return rag.answer(body.message, tenant["allowed_scopes"])
     except HTTPException:
