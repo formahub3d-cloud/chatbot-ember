@@ -1,21 +1,21 @@
-// Proxy Jarvis per siti Next.js (App Router).
-// Posiziona questo file in:  app/api/jarvis/route.js
+// Proxy Ember per siti Next.js (App Router).
+// Posiziona questo file in:  app/api/ember/route.js
 //
 // Tiene la CHIAVE TENANT lato server (variabile d'ambiente), così NON finisce mai
-// nell'HTML/browser. Il widget chiama "/api/jarvis" (stesso dominio), questo route
-// aggiunge la chiave e inoltra a Jarvis.
+// nell'HTML/browser. Il widget chiama "/api/ember" (stesso dominio), questo route
+// aggiunge la chiave e inoltra a Ember.
 //
 // Variabili d'ambiente da impostare sul sito (es. su Vercel/Railway):
-//   JARVIS_API         = https://jarvis-production-e680.up.railway.app
-//   JARVIS_TENANT_KEY  = CHIAVE_DEL_CLIENTE   (es. CHIAVE_HRH)
+//   EMBER_API         = https://jarvis-production-e680.up.railway.app
+//   EMBER_TENANT_KEY  = CHIAVE_DEL_CLIENTE   (es. CHIAVE_HRH)
 
 export const runtime = "edge"; // veloce ed economico; rimuovi se preferisci Node
 
 export async function POST(req) {
-  const api = process.env.JARVIS_API;
-  const key = process.env.JARVIS_TENANT_KEY;
+  const api = process.env.EMBER_API || process.env.JARVIS_API;            // JARVIS_*: retro-compat
+  const key = process.env.EMBER_TENANT_KEY || process.env.JARVIS_TENANT_KEY;
   if (!api || !key) {
-    return Response.json({ answer: "Proxy non configurato (JARVIS_API/JARVIS_TENANT_KEY)." }, { status: 500 });
+    return Response.json({ answer: "Proxy non configurato (EMBER_API/EMBER_TENANT_KEY)." }, { status: 500 });
   }
 
   let body;

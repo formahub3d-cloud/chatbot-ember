@@ -10,7 +10,7 @@ import httpx
 
 from .config import settings
 
-log = logging.getLogger("jarvis.providers")
+log = logging.getLogger("ember.providers")
 
 MISTRAL_BASE = "https://api.mistral.ai/v1"
 ANTHROPIC_BASE = "https://api.anthropic.com/v1"

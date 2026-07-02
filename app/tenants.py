@@ -15,7 +15,7 @@ from pathlib import Path
 
 from .config import settings
 
-log = logging.getLogger("jarvis.tenants")
+log = logging.getLogger("ember.tenants")
 
 _CACHE: dict = {"data": None, "ts": 0.0}
 _TTL = 60.0

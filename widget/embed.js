@@ -1,12 +1,12 @@
-/* Jarvis — widget di chat embeddable (vanilla JS, nessuna dipendenza).
+/* Ember — widget di chat embeddable (vanilla JS, nessuna dipendenza).
  * Funziona su qualsiasi sito (FORMA, ATS, ...). Una bolla flottante apre il pannello.
  *
  * USO — due modalità:
  *
  * 1) PROXY (consigliato in produzione): la chiave NON sta nel browser. Il widget
- *    chiama un endpoint del tuo sito che aggiunge la chiave lato server e inoltra a Jarvis.
+ *    chiama un endpoint del tuo sito che aggiunge la chiave lato server e inoltra a Ember.
  *    <script src="https://.../embed.js"
- *            data-proxy="/api/jarvis"
+ *            data-proxy="/api/ember"
  *            data-title="Assistente FORMA"
  *            data-accent="#0ED4E4"></script>
  *    (vedi cartella widget/proxy: route Next.js o Cloudflare Worker pronti)
@@ -14,21 +14,21 @@
  * 2) DIRETTA (solo pilota/demo): la chiave è nell'HTML. Accettabile perché di SOLA
  *    LETTURA e limitata allo scope del tenant, ma esposta a chi guarda il sorgente.
  *    <script src="https://.../embed.js"
- *            data-api="https://jarvis.tuodominio.it"
+ *            data-api="https://ember.tuodominio.it"
  *            data-key="CHIAVE_TENANT"
  *            data-title="Assistente FORMA" data-accent="#0ED4E4"></script>
  *
- * Oppure: window.JARVIS_CONFIG = { proxy } | { api, key }, title, accent prima dello script.
+ * Oppure: window.EMBER_CONFIG = { proxy } | { api, key }, title, accent prima dello script.
  */
 (function () {
   "use strict";
   var s = document.currentScript || {};
   var d = (s.dataset || {});
-  var CFG = window.JARVIS_CONFIG || {};
+  var CFG = window.EMBER_CONFIG || window.JARVIS_CONFIG || {}; // JARVIS_CONFIG: retro-compat
   var PROXY = (CFG.proxy || d.proxy || "").replace(/\/$/, "");
   var API   = (CFG.api   || d.api   || "http://localhost:8000").replace(/\/$/, "");
   var KEY   = CFG.key    || d.key   || "CHIAVE_FORMA_INTERNO";
-  var TITLE = CFG.title  || d.title || "Jarvis · Assistente";
+  var TITLE = CFG.title  || d.title || "Ember · Assistente";
   var ACC   = CFG.accent || d.accent || "#0ED4E4";
   var DARK  = "#0e0e10", LINE = "#26262e", TXT = "#f4f4f6", MUT = "#9a9aa6";
 
@@ -106,7 +106,7 @@
     var t = typing();
     try{
       // Modalità proxy: POST all'endpoint del sito (la chiave la mette il server).
-      // Modalità diretta: POST a Jarvis con l'header X-Tenant-Key.
+      // Modalità diretta: POST a Ember con l'header X-Tenant-Key.
       var url = PROXY || (API + "/chat");
       var headers = {"Content-Type":"application/json"};
       if (!PROXY) headers["X-Tenant-Key"] = KEY;

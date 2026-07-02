@@ -1,4 +1,4 @@
-"""Configurazione del servizio Jarvis. Legge le variabili da .env."""
+"""Configurazione del servizio Ember. Legge le variabili da .env."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

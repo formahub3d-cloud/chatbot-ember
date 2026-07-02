@@ -1,4 +1,4 @@
-# Deploy di Jarvis su Railway
+# Deploy di Ember su Railway
 
 Servizio separato sullo stesso account Railway di FORMA. ~10 minuti.
 Richiede il tuo account Railway e l'inserimento delle chiavi (azione tua: le credenziali non passano da me).
@@ -17,21 +17,21 @@ Dal **Terminale del Mac**, una riga alla volta:
 ```bash
 npm i -g @railway/cli            # installa la CLI (oppure: brew install railway)
 railway login                    # apre il browser: accedi al tuo account Railway
-cd "/Users/imac/Desktop/OVY-Cervello/chatbot-jarvis"
-railway init                     # crea il progetto — chiamalo: jarvis
+cd "/Users/imac/Desktop/OVY-Cervello/chatbot-ember"
+railway init                     # crea il progetto — chiamalo: ember
 railway up                       # carica + builda + deploya
 ```
 
 Quando il build finisce, genera il dominio pubblico:
 
 ```bash
-railway domain                   # stampa https://jarvis-xxxx.up.railway.app
+railway domain                   # stampa https://ember-xxxx.up.railway.app
 ```
 
 ## Variabili d'ambiente
 
 Impostale nella **dashboard** Railway (progetto → service → **Variables**) oppure via CLI
-`railway variables --set "NOME=valore"`. I valori sono nel tuo `chatbot-jarvis/.env` locale.
+`railway variables --set "NOME=valore"`. I valori sono nel tuo `chatbot-ember/.env` locale.
 
 | Variabile | Valore | Note |
 |---|---|---|
@@ -55,7 +55,7 @@ In cloud non c'è il file `tenants.json` (è gitignorato). Il codice legge la ma
 variabile `TENANTS_JSON` se presente. Genera il valore (JSON su una riga) dal Mac:
 
 ```bash
-cd "/Users/imac/Desktop/OVY-Cervello/chatbot-jarvis"
+cd "/Users/imac/Desktop/OVY-Cervello/chatbot-ember"
 python3 -c "import json;print(json.dumps(json.load(open('tenants.json')),separators=(',',':'),ensure_ascii=False))"
 ```
 
@@ -64,10 +64,10 @@ Copia l'output e incollalo come valore di `TENANTS_JSON` in Railway.
 ## Verifica post-deploy
 
 ```bash
-curl https://jarvis-xxxx.up.railway.app/health
+curl https://ember-xxxx.up.railway.app/health
 # {"status":"ok","llm":"mistral","embed":"mistral"}
 
-curl -X POST https://jarvis-xxxx.up.railway.app/chat \
+curl -X POST https://ember-xxxx.up.railway.app/chat \
   -H "X-Tenant-Key: <chiave FORMA>" -H "Content-Type: application/json" \
   -d '{"message":"Cosa fa FORMA?"}'
 ```
@@ -86,5 +86,5 @@ curl -X POST https://jarvis-xxxx.up.railway.app/chat \
 ## Alternativa — Deploy da repo GitHub
 
 Se preferisci l'auto-deploy ad ogni push (come per v4-forma): crea un repo privato dedicato,
-fai push di `chatbot-jarvis/`, poi su Railway **New Project → Deploy from GitHub repo**.
+fai push di `chatbot-ember/`, poi su Railway **New Project → Deploy from GitHub repo**.
 Stesso set di variabili. Richiede un token GitHub con accesso a quel nuovo repo.

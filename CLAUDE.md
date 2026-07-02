@@ -1,10 +1,10 @@
 # CLAUDE.md — Contesto progetto per Claude Code
 
-> Leggi questo file prima di lavorare. È il contesto del progetto **Jarvis**.
+> Leggi questo file prima di lavorare. È il contesto del progetto **Ember** (ex "Jarvis": rebrand 2026-07; il dominio Railway `jarvis-production-e680.up.railway.app` conserva il vecchio nome).
 
 ## Cos'è
 
-**Jarvis** è un chatbot AI **multi-tenant** che risponde attingendo al "cervello OVY"
+**Ember** è un chatbot AI **multi-tenant** che risponde attingendo al "cervello OVY"
 (un vault Obsidian di Andrea Aloia / FORMA). È un **prodotto FORMA**: FORMA lo usa
 internamente (tenant 0), **ATS** è il pilota, poi si vende ai clienti.
 
@@ -72,4 +72,4 @@ curl -X POST localhost:8000/chat -H "X-Tenant-Key: CHIAVE_ATS" \
 ## Riferimenti nel cervello
 
 - Architettura/costi/roadmap: `../forma/docs/doc-chatbot-cervello.md`
-- Audit visivo: `../audit-chatbot-jarvis.html`
+- Audit visivo: `../audit-chatbot-ember.html`

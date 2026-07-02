@@ -1,19 +1,19 @@
-# Jarvis — Widget di chat embeddable
+# Ember — Widget di chat embeddable
 
-Widget di chat che si collega al servizio Jarvis (`/chat`) con isolamento per **tenant/scope**.
+Widget di chat che si collega al servizio Ember (`/chat`) con isolamento per **tenant/scope**.
 Due versioni incluse, stessa UI (palette FORMA, bolla flottante):
 
 | File | Per chi | Come si usa |
 |---|---|---|
 | `embed.js` | Qualsiasi sito (ATS, landing, WordPress…) | un solo tag `<script>` |
-| `JarvisWidget.jsx` | App **Next.js / React** (FORMA v4) | componente client |
+| `EmberWidget.jsx` | App **Next.js / React** (FORMA v4) | componente client |
 | `demo.html` | Test locale | apri nel browser col servizio attivo |
 
 ## 1) Test in locale (30 secondi)
 
 ```bash
 # Terminale 1 — servizio
-cd chatbot-jarvis && source .venv/bin/activate
+cd chatbot-ember && source .venv/bin/activate
 uvicorn app.main:app --port 8000
 ```
 
@@ -24,8 +24,8 @@ Poi apri `widget/demo.html` nel browser: in basso a destra compare la bolla 💬
 Incolla **un** tag prima di `</body>`:
 
 ```html
-<script src="https://jarvis.tuodominio.it/embed.js"
-        data-api="https://jarvis.tuodominio.it"
+<script src="https://ember.tuodominio.it/embed.js"
+        data-api="https://ember.tuodominio.it"
         data-key="CHIAVE_ATS"
         data-title="Assistente ATS"
         data-accent="#F8693C"></script>
@@ -33,15 +33,15 @@ Incolla **un** tag prima di `</body>`:
 
 ## 3) FORMA (Next.js) — componente
 
-Copia `JarvisWidget.jsx` in `components/` e montalo nel layout:
+Copia `EmberWidget.jsx` in `components/` e montalo nel layout:
 
 ```jsx
-import JarvisWidget from "@/components/JarvisWidget";
+import EmberWidget from "@/components/EmberWidget";
 
 export default function Layout({ children }) {
   return (<>{children}
-    <JarvisWidget
-      api="https://jarvis.tuodominio.it"
+    <EmberWidget
+      api="https://ember.tuodominio.it"
       tenantKey="CHIAVE_FORMA_INTERNO"
       title="Assistente FORMA" />
   </>);

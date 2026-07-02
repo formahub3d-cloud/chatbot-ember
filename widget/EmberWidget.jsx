@@ -1,20 +1,20 @@
 "use client";
-/* Jarvis — widget di chat per Next.js / React (App Router).
+/* Ember — widget di chat per Next.js / React (App Router).
  *
  * DUE MODALITÀ:
  *   1) PROXY (consigliato): la chiave resta sul server, NON nel browser.
- *      <JarvisWidget proxy="/api/jarvis" title="Assistente HRH" />
- *      (vedi widget/proxy/nextjs-route.js → app/api/jarvis/route.js)
+ *      <EmberWidget proxy="/api/ember" title="Assistente HRH" />
+ *      (vedi widget/proxy/nextjs-route.js → app/api/ember/route.js)
  *   2) DIRETTA (solo pilota): chiave nell'HTML.
- *      <JarvisWidget api="https://jarvis...railway.app" tenantKey="CHIAVE_HRH" />
+ *      <EmberWidget api="https://ember...railway.app" tenantKey="CHIAVE_HRH" />
  */
 import { useState, useRef, useEffect } from "react";
 
-export default function JarvisWidget({
+export default function EmberWidget({
   proxy = "",
   api = "http://localhost:8000",
   tenantKey = "CHIAVE_FORMA_INTERNO",
-  title = "Jarvis · Assistente",
+  title = "Ember · Assistente",
   accent = "#0ED4E4",
 }) {
   const base = api.replace(/\/$/, "");

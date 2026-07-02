@@ -10,7 +10,7 @@ from .providers import embed, chat
 from .ingest import client
 
 SYSTEM = (
-    "Sei Jarvis, l'assistente del cervello OVY di Andrea Aloia / FORMA. "
+    "Sei Ember, l'assistente del cervello OVY di Andrea Aloia / FORMA. "
     "Rispondi SOLO usando il CONTENUTO fornito sotto. "
     "Se la risposta non è nel contenuto, scrivi esattamente: "
     "'Non ho questa informazione nelle aree a cui ho accesso.' "

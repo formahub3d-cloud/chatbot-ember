@@ -1,4 +1,4 @@
-# Jarvis — Chatbot sul Cervello OVY
+# Ember — Chatbot sul Cervello OVY
 
 Motore RAG **multi-tenant** che risponde attingendo al cervello OVY (vault Obsidian),
 con **accessi per settore**: ogni tenant (FORMA, ATS, HRH…) vede solo le aree consentite
@@ -24,7 +24,7 @@ solo i propri scope: fuori area risponde "Non ho questa informazione".
 ## Setup
 
 ```bash
-cd chatbot-jarvis
+cd chatbot-ember
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 

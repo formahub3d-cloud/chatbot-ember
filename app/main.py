@@ -1,4 +1,4 @@
-"""API del servizio Jarvis.
+"""API del servizio Ember.
 
 Endpoint:
   GET  /health            stato e provider attivi
@@ -15,7 +15,7 @@ from collections import deque
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("jarvis")
+log = logging.getLogger("ember")
 
 # Rate limiting in memoria: finestra scorrevole di 60s per chiave tenant.
 # Per produzione multi-istanza si passerà a Redis (vedi roadmap).
@@ -42,7 +42,7 @@ from pydantic import BaseModel
 from .config import settings
 from . import ingest, rag, ocr, extract, tenants
 
-app = FastAPI(title="Jarvis — Cervello OVY", version="0.2.0")
+app = FastAPI(title="Ember — Cervello OVY", version="0.2.0")
 
 # CORS: consente al widget di chat (browser) di chiamare l'API.
 # I domini autorizzati arrivano da settings.cors_origins (vedi config.py):
