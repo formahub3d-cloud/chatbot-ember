@@ -39,6 +39,7 @@ def rate_ok(key: str) -> bool:
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
@@ -56,6 +57,11 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+# Widget servito dal backend stesso: un solo file da mantenere, stesso dominio
+# dell'API, aggiornato a ogni deploy. → https://<dominio>/widget/embed.js
+app.mount("/widget", StaticFiles(directory="widget"), name="widget")
 
 
 @app.on_event("startup")
