@@ -14,10 +14,23 @@ import httpx
 from .config import settings
 
 
+def _clean(v: str) -> str:
+    # Tollera spazi, ritorni a capo o virgolette incollati per errore con la chiave.
+    return (v or "").strip().strip('"').strip("'").strip()
+
+
+def _dg_key() -> str:
+    return _clean(settings.deepgram_api_key)
+
+
+def _el_key() -> str:
+    return _clean(settings.elevenlabs_api_key)
+
+
 def stt_enabled() -> bool:
     p = settings.voice_provider
-    return (p == "deepgram" and bool(settings.deepgram_api_key)) or \
-           (p == "elevenlabs" and bool(settings.elevenlabs_api_key))
+    return (p == "deepgram" and bool(_dg_key())) or \
+           (p == "elevenlabs" and bool(_el_key()))
 
 
 def tts_enabled() -> bool:
@@ -31,7 +44,7 @@ def transcribe(audio: bytes, mime: str = "audio/webm") -> str:
         r = httpx.post(
             "https://api.deepgram.com/v1/listen",
             params={"model": "nova-3", "smart_format": "true", "language": settings.voice_lang},
-            headers={"Authorization": f"Token {settings.deepgram_api_key}", "Content-Type": mime},
+            headers={"Authorization": f"Token {_dg_key()}", "Content-Type": mime},
             content=audio, timeout=60,
         )
         r.raise_for_status()
@@ -43,7 +56,7 @@ def transcribe(audio: bytes, mime: str = "audio/webm") -> str:
             data["language_code"] = settings.voice_lang   # hint lingua (migliora l'accuratezza)
         r = httpx.post(
             "https://api.elevenlabs.io/v1/speech-to-text",
-            headers={"xi-api-key": settings.elevenlabs_api_key},
+            headers={"xi-api-key": _el_key()},
             data=data,
             files={"file": ("audio", audio, mime)}, timeout=60,
         )
@@ -60,7 +73,7 @@ def synthesize(text: str) -> tuple[bytes, str]:
         r = httpx.post(
             f"https://api.elevenlabs.io/v1/text-to-speech/{vid}",
             params={"output_format": "mp3_44100_128"},
-            headers={"xi-api-key": settings.elevenlabs_api_key, "accept": "audio/mpeg"},
+            headers={"xi-api-key": _el_key(), "accept": "audio/mpeg"},
             json={"text": text, "model_id": settings.elevenlabs_model}, timeout=60,
         )
         r.raise_for_status()
@@ -69,7 +82,7 @@ def synthesize(text: str) -> tuple[bytes, str]:
         r = httpx.post(
             "https://api.deepgram.com/v1/speak",
             params={"model": settings.deepgram_tts_model},
-            headers={"Authorization": f"Token {settings.deepgram_api_key}",
+            headers={"Authorization": f"Token {_dg_key()}",
                      "Content-Type": "application/json"},
             json={"text": text}, timeout=60,
         )
