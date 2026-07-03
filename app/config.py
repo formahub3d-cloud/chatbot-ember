@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     # sicurezza
     admin_token: str = "change-me"
     rate_limit_per_min: int = 30   # richieste/minuto per chiave tenant (0 = illimitato)
+    max_message_chars: int = 2000  # lunghezza massima della domanda (anti-abuso/costi)
+    security_headers: bool = True  # aggiunge header di sicurezza a ogni risposta
+
+    # voce (opzionale) — proxy STT/TTS con chiavi lato server, mai nel browser.
+    # VOICE_PROVIDER vuoto = disabilitato: il widget usa la voce gratuita del browser.
+    voice_provider: str = ""            # "" | "deepgram" | "elevenlabs"
+    voice_lang: str = "it"              # lingua STT (ISO 639-1)
+    deepgram_api_key: str = ""
+    deepgram_tts_model: str = "aura-2-thalia-en"
+    elevenlabs_api_key: str = ""
+    elevenlabs_voice_id: str = ""       # vuoto = voce di default
 
     # tenant: in cloud (Railway) il file tenants.json non c'è (gitignored).
     # Se valorizzata, questa variabile contiene la mappa tenant come stringa JSON

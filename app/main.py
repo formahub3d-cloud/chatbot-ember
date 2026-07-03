@@ -36,20 +36,22 @@ def rate_ok(key: str) -> bool:
     dq.append(now)
     return True
 
-from fastapi import FastAPI, HTTPException, Header, UploadFile, File
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants
+from . import ingest, rag, ocr, extract, tenants, security, voice
 
-app = FastAPI(title="Ember — Cervello OVY", version="0.2.0")
+app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
 
 # CORS: consente al widget di chat (browser) di chiamare l'API.
 # I domini autorizzati arrivano da settings.cors_origins (vedi config.py):
 # "*" per il pilota, oppure lista separata da virgola per la produzione.
+# Difesa aggiuntiva per-tenant: ogni tenant può avere "allowed_origins" e la
+# richiesta viene rifiutata (403) se l'Origin non è consentito (vedi /chat).
 _origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()] or ["*"]
 app.add_middleware(
     CORSMiddleware,
@@ -57,6 +59,19 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    """Header di sicurezza su ogni risposta + trasparenza AI (EU AI Act)."""
+    resp = await call_next(request)
+    if settings.security_headers:
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        resp.headers.setdefault("Permissions-Policy", "geolocation=(), camera=()")
+        resp.headers.setdefault("X-AI-Generated", "true")
+    return resp
 
 
 # Widget servito dal backend stesso: un solo file da mantenere, stesso dominio
@@ -87,7 +102,57 @@ class ChatIn(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "llm": settings.llm_provider, "embed": settings.embed_provider}
+    return {"status": "ok", "llm": settings.llm_provider, "embed": settings.embed_provider,
+            "voice": settings.voice_provider or "browser"}
+
+
+@app.get("/config")
+def config(x_tenant_key: str = Header(default="")):
+    """Branding + capacità per il widget (titolo, accent, voce disponibile).
+    Permette al widget di auto-configurarsi dal server senza ripetere i dati nell'HTML."""
+    tenant = tenant_or_401(x_tenant_key)
+    brand = tenant.get("branding", {}) or {}
+    return {
+        "title": brand.get("title", tenant.get("name", "Ember · Assistente")),
+        "subtitle": brand.get("subtitle", "Assistente AI"),
+        "accent": brand.get("accent", "#0ED4E4"),
+        "voice_pro": voice.stt_enabled(),   # true → il widget può usare la voce PRO via proxy
+    }
+
+
+class TTSIn(BaseModel):
+    text: str
+
+
+@app.post("/voice/stt")
+async def do_stt(file: UploadFile = File(...), x_tenant_key: str = Header(default="")):
+    """Audio → testo (voce PRO). 501 se VOICE_PROVIDER non è configurato."""
+    tenant_or_401(x_tenant_key)
+    if not voice.stt_enabled():
+        raise HTTPException(501, "Voce PRO non attiva: usa la voce del browser.")
+    audio = await file.read()
+    try:
+        return {"text": voice.transcribe(audio, mime=file.content_type or "audio/webm")}
+    except Exception:
+        log.exception("stt failed")
+        raise HTTPException(502, "Trascrizione non riuscita.")
+
+
+@app.post("/voice/tts")
+def do_tts(body: TTSIn, x_tenant_key: str = Header(default="")):
+    """Testo → audio (voce PRO). 501 se VOICE_PROVIDER non è configurato."""
+    tenant_or_401(x_tenant_key)
+    if not voice.tts_enabled():
+        raise HTTPException(501, "Voce PRO non attiva: usa la voce del browser.")
+    text = security.cap_input(body.text, settings.max_message_chars)
+    if not text:
+        raise HTTPException(422, "Testo vuoto.")
+    try:
+        audio, ctype = voice.synthesize(text)
+        return Response(content=audio, media_type=ctype)
+    except Exception:
+        log.exception("tts failed")
+        raise HTTPException(502, "Sintesi vocale non riuscita.")
 
 
 @app.post("/ingest")
@@ -104,13 +169,19 @@ def do_ingest(authorization: str = Header(default="")):
 
 
 @app.post("/chat")
-def do_chat(body: ChatIn, x_tenant_key: str = Header(default="")):
+def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
     """Risposta del chatbot. Con {"stream": true} nel body la risposta è SSE:
     `event: sources` (fonti+scope) → N × `data: {"delta": ...}` → `event: done`.
     Senza flag resta il JSON classico {answer, sources, scopes} (retro-compat)."""
     tenant = tenant_or_401(x_tenant_key)
+    if not security.origin_allowed(origin, tenant.get("allowed_origins")):
+        raise HTTPException(403, "Origine non autorizzata per questo tenant.")
     if not rate_ok(x_tenant_key):
         raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.")
+    body.message = security.cap_input(body.message, settings.max_message_chars)
+    if not body.message:
+        raise HTTPException(422, "Messaggio vuoto.")
+    log.info("chat tenant=%s q=%r", tenant.get("name", "?"), security.redact_pii(body.message)[:200])
     if body.stream:
         try:
             gen = rag.answer_stream(body.message, tenant["allowed_scopes"])

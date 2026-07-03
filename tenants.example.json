@@ -1,14 +1,19 @@
 {
   "CHIAVE_FORMA_INTERNO": {
     "name": "FORMA (interno / dogfood)",
-    "allowed_scopes": ["forma-core", "andrea"]
+    "allowed_scopes": ["forma-core", "andrea"],
+    "branding": { "title": "Assistente FORMA", "subtitle": "Assistente AI · con fonti", "accent": "#0ED4E4" }
   },
   "CHIAVE_ATS": {
     "name": "Al Tuo Servizio (ATS)",
-    "allowed_scopes": ["ats"]
+    "allowed_scopes": ["ats"],
+    "allowed_origins": ["https://www.altuoservizio.it"],
+    "branding": { "title": "Assistente ATS", "accent": "#F8693C" }
   },
   "CHIAVE_HRH": {
     "name": "Home Restaurant Hotel",
-    "allowed_scopes": ["hrh"]
+    "allowed_scopes": ["hrh"],
+    "allowed_origins": ["https://www.homerestauranthotel.it"],
+    "branding": { "title": "Assistente HRH", "accent": "#89D41D" }
   }
 }
