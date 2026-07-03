@@ -60,7 +60,9 @@
   // ElevenLabs). In PRO l'audio viene registrato e mandato a /voice/stt|tts del backend
   // (le chiavi restano sul server). Fallback automatico al browser se PRO non risponde.
   var VMODE = String(CFG.voiceMode || d.voiceMode || "browser").toLowerCase();
-  var VBASE = (CFG.voiceBase || d.voiceBase || API).replace(/\/$/, "");
+  // In modalità proxy le chiamate voce passano dallo stesso proxy (che aggiunge la
+  // chiave e inoltra a /voice/*); in diretta si usa l'API con l'header X-Tenant-Key.
+  var VBASE = (CFG.voiceBase || d.voiceBase || PROXY || API).replace(/\/$/, "");
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
   var synth = window.speechSynthesis || null;
   var hasMR = !!(window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);

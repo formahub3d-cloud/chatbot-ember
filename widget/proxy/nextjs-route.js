@@ -1,5 +1,6 @@
-// Proxy Ember per siti Next.js (App Router).
-// Posiziona questo file in:  app/api/ember/route.js
+// Proxy Ember per siti Next.js (App Router) — chat + voce PRO.
+// Posiziona questo file in:  app/api/ember/[[...path]]/route.js
+//   (catch-all: gestisce /api/ember  →  chat  e  /api/ember/voice/stt|tts  →  voce)
 //
 // Tiene la CHIAVE TENANT lato server (variabile d'ambiente), così NON finisce mai
 // nell'HTML/browser. Il widget chiama "/api/ember" (stesso dominio), questo route
@@ -17,7 +18,30 @@ export async function POST(req) {
   if (!api || !key) {
     return Response.json({ answer: "Proxy non configurato (EMBER_API/EMBER_TENANT_KEY)." }, { status: 500 });
   }
+  const base = api.replace(/\/$/, "");
+  const path = new URL(req.url).pathname;
 
+  // ── Voce PRO: inoltra audio↔testo a /voice/* (serve VOICE_PROVIDER su Ember) ──
+  if (path.endsWith("/voice/stt") || path.endsWith("/voice/tts")) {
+    const sub = path.endsWith("/voice/stt") ? "/voice/stt" : "/voice/tts";
+    try {
+      const up = await fetch(base + sub, {
+        method: "POST",
+        headers: { "X-Tenant-Key": key,
+                   "Content-Type": req.headers.get("content-type") || "application/octet-stream" },
+        body: req.body,
+        duplex: "half",
+      });
+      return new Response(up.body, {
+        status: up.status,
+        headers: { "Content-Type": up.headers.get("content-type") || "application/json" },
+      });
+    } catch {
+      return Response.json({ error: "Voce non raggiungibile." }, { status: 502 });
+    }
+  }
+
+  // ── Chat (JSON o SSE) ──
   let body;
   try {
     body = await req.json();
@@ -28,11 +52,10 @@ export async function POST(req) {
   if (!message.trim()) {
     return Response.json({ answer: "Messaggio vuoto." }, { status: 400 });
   }
-
   const stream = body && body.stream === true; // il widget chiede lo streaming SSE
 
   try {
-    const r = await fetch(api.replace(/\/$/, "") + "/chat", {
+    const r = await fetch(base + "/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Tenant-Key": key },
       body: JSON.stringify({ message, stream }),

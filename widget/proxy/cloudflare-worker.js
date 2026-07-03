@@ -25,6 +25,25 @@ export default {
     const TENANT_KEY = env.EMBER_TENANT_KEY || env.JARVIS_TENANT_KEY;
     if (!API_BASE || !TENANT_KEY) return json({ answer: "Proxy non configurato." }, 500, cors);
 
+    // Voce PRO: se il path finisce con /voice/stt o /voice/tts, inoltra così com'è
+    // (audio o JSON) aggiungendo la chiave lato server. Serve VOICE_PROVIDER su Ember.
+    const path = new URL(request.url).pathname;
+    if (path.endsWith("/voice/stt") || path.endsWith("/voice/tts")) {
+      const sub = path.endsWith("/voice/stt") ? "/voice/stt" : "/voice/tts";
+      try {
+        const up = await fetch(API_BASE.replace(/\/$/, "") + sub, {
+          method: "POST",
+          headers: { "X-Tenant-Key": TENANT_KEY,
+                     "Content-Type": request.headers.get("content-type") || "application/octet-stream" },
+          body: request.body,
+        });
+        return new Response(up.body, {
+          status: up.status,
+          headers: { ...cors, "Content-Type": up.headers.get("content-type") || "application/json" },
+        });
+      } catch { return json({ error: "Voce non raggiungibile." }, 502, cors); }
+    }
+
     let body;
     try { body = await request.json(); } catch { return json({ answer: "Richiesta non valida." }, 400, cors); }
     const message = (body && typeof body.message === "string") ? body.message.slice(0, 2000) : "";
