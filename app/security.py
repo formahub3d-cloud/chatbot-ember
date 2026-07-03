@@ -14,7 +14,7 @@ import secrets
 
 # ── PII italiane comuni ────────────────────────────────────────────────
 _CF = re.compile(r"\b[A-Za-z]{6}\d{2}[A-Za-z]\d{2}[A-Za-z]\d{3}[A-Za-z]\b")
-_IBAN = re.compile(r"\bIT\d{2}[A-Za-z0-9]{22}\b", re.I)
+_IBAN = re.compile(r"\bIT\d{2}[A-Za-z0-9]{15,30}\b", re.I)
 _EMAIL = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
 _PHONE = re.compile(r"(?<!\d)(?:\+39[\s.-]?)?(?:\d[\s.-]?){8,10}\d(?!\d)")
 
