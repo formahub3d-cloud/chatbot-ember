@@ -39,7 +39,9 @@ class Settings(BaseSettings):
     deepgram_api_key: str = ""
     deepgram_tts_model: str = "aura-2-thalia-en"
     elevenlabs_api_key: str = ""
-    elevenlabs_voice_id: str = ""       # vuoto = voce di default
+    elevenlabs_voice_id: str = ""       # vuoto = voce di default (multilingua)
+    elevenlabs_model: str = "eleven_flash_v2_5"   # multilingua, bassa latenza (~75ms)
+    elevenlabs_stt_model: str = "scribe_v1"
 
     # tenant: in cloud (Railway) il file tenants.json non c'è (gitignored).
     # Se valorizzata, questa variabile contiene la mappa tenant come stringa JSON

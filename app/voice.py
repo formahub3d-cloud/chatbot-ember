@@ -38,10 +38,13 @@ def transcribe(audio: bytes, mime: str = "audio/webm") -> str:
         alts = r.json()["results"]["channels"][0]["alternatives"]
         return alts[0]["transcript"] if alts else ""
     if p == "elevenlabs":
+        data = {"model_id": settings.elevenlabs_stt_model}
+        if settings.voice_lang:
+            data["language_code"] = settings.voice_lang   # hint lingua (migliora l'accuratezza)
         r = httpx.post(
             "https://api.elevenlabs.io/v1/speech-to-text",
             headers={"xi-api-key": settings.elevenlabs_api_key},
-            data={"model_id": "scribe_v1"},
+            data=data,
             files={"file": ("audio", audio, mime)}, timeout=60,
         )
         r.raise_for_status()
@@ -53,11 +56,12 @@ def synthesize(text: str) -> tuple[bytes, str]:
     """Testo → (audio, content_type). Solleva RuntimeError se non configurato."""
     p = settings.voice_provider
     if p == "elevenlabs":
-        vid = settings.elevenlabs_voice_id or "21m00Tcm4TlvDq8ikWAM"  # voce di default
+        vid = settings.elevenlabs_voice_id or "21m00Tcm4TlvDq8ikWAM"  # voce di default (multilingua)
         r = httpx.post(
             f"https://api.elevenlabs.io/v1/text-to-speech/{vid}",
+            params={"output_format": "mp3_44100_128"},
             headers={"xi-api-key": settings.elevenlabs_api_key, "accept": "audio/mpeg"},
-            json={"text": text, "model_id": "eleven_flash_v2_5"}, timeout=60,
+            json={"text": text, "model_id": settings.elevenlabs_model}, timeout=60,
         )
         r.raise_for_status()
         return r.content, "audio/mpeg"

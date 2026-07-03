@@ -59,19 +59,32 @@
   // Due modalità: "browser" (gratis, Web Speech API) e "pro" (proxy server → Deepgram/
   // ElevenLabs). In PRO l'audio viene registrato e mandato a /voice/stt|tts del backend
   // (le chiavi restano sul server). Fallback automatico al browser se PRO non risponde.
-  var VMODE = String(CFG.voiceMode || d.voiceMode || "browser").toLowerCase();
+  // "auto" (default) = usa la voce PRO se il server la espone (via /config), altrimenti browser.
+  var VMODE = String(CFG.voiceMode || d.voiceMode || "auto").toLowerCase();
   // In modalità proxy le chiamate voce passano dallo stesso proxy (che aggiunge la
-  // chiave e inoltra a /voice/*); in diretta si usa l'API con l'header X-Tenant-Key.
+  // chiave e inoltra a /voice/* e /config); in diretta si usa l'API con X-Tenant-Key.
   var VBASE = (CFG.voiceBase || d.voiceBase || PROXY || API).replace(/\/$/, "");
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
   var synth = window.speechSynthesis || null;
   var hasMR = !!(window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-  var PRO = VOICE && VMODE === "pro" && !!VBASE && hasMR;
-  var canListen = VOICE && (!!SR || PRO);
-  var canSpeak  = VOICE && (!!synth || PRO);
+  var PRO = VOICE && VMODE === "pro" && !!VBASE && hasMR;         // può diventare true dopo /config
+  var canListen = VOICE && (!!SR || (hasMR && VMODE !== "browser"));
+  var canSpeak  = VOICE && (!!synth || (hasMR && VMODE !== "browser"));
   var speakOn = VAUTO && canSpeak;   // lettura automatica attiva/disattiva
-  var rec = null, listening = false, mr = null, curAudio = null;
+  var rec = null, listening = false, mr = null, curAudio = null, cfgLoaded = false;
   function voiceHeaders(extra){ var h = extra || {}; if(!PROXY) h["X-Tenant-Key"] = KEY; return h; }
+
+  // Auto-configurazione: chiede al server se la voce PRO è attiva e, in caso, la usa.
+  async function maybeAutoConfig(){
+    if (cfgLoaded || VMODE === "browser" || VMODE === "pro") return;
+    cfgLoaded = true;
+    try{
+      var r = await fetch(VBASE + "/config", { headers: voiceHeaders({}) });
+      if (!r.ok) return;
+      var c = await r.json();
+      if (c && c.voice_pro && hasMR && VOICE) PRO = true;   // il server ha la voce PRO → usala
+    }catch(e){}
+  }
 
   // ── Styles (dentro lo Shadow DOM: non toccano il sito, il sito non tocca noi) ──
   var css = `
@@ -416,6 +429,7 @@
     panel.classList.toggle("em-open", open);
     btn.style.display = open ? "none" : "grid";
     if (open){
+      maybeAutoConfig();
       input.focus();
       if(!greeted){ greeted = true; finalizeMsg(addMsg("a",""), GREET, null); }
     } else { stopAudio(); }

@@ -16,14 +16,23 @@ export default {
     const origin = env.ALLOW_ORIGIN || "*";
     const cors = {
       "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
-    if (request.method !== "POST") return json({ answer: "Metodo non consentito." }, 405, cors);
     const API_BASE = env.EMBER_API || env.JARVIS_API;            // JARVIS_*: retro-compat
     const TENANT_KEY = env.EMBER_TENANT_KEY || env.JARVIS_TENANT_KEY;
     if (!API_BASE || !TENANT_KEY) return json({ answer: "Proxy non configurato." }, 500, cors);
+    const BASE = API_BASE.replace(/\/$/, "");
+
+    // GET /config → branding + capacità voce (per l'auto-config del widget).
+    if (request.method === "GET" && new URL(request.url).pathname.endsWith("/config")) {
+      try {
+        const up = await fetch(BASE + "/config", { headers: { "X-Tenant-Key": TENANT_KEY } });
+        return json(await up.json().catch(() => ({})), up.status, cors);
+      } catch { return json({}, 502, cors); }
+    }
+    if (request.method !== "POST") return json({ answer: "Metodo non consentito." }, 405, cors);
 
     // Voce PRO: se il path finisce con /voice/stt o /voice/tts, inoltra così com'è
     // (audio o JSON) aggiungendo la chiave lato server. Serve VOICE_PROVIDER su Ember.

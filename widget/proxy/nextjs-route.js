@@ -12,6 +12,20 @@
 
 export const runtime = "edge"; // veloce ed economico; rimuovi se preferisci Node
 
+// GET /api/ember/config → branding + capacità voce (per l'auto-config del widget).
+export async function GET(req) {
+  const api = process.env.EMBER_API || process.env.JARVIS_API;
+  const key = process.env.EMBER_TENANT_KEY || process.env.JARVIS_TENANT_KEY;
+  if (!api || !key) return Response.json({}, { status: 500 });
+  if (!new URL(req.url).pathname.endsWith("/config")) return Response.json({}, { status: 404 });
+  try {
+    const up = await fetch(api.replace(/\/$/, "") + "/config", { headers: { "X-Tenant-Key": key } });
+    return Response.json(await up.json().catch(() => ({})), { status: up.status });
+  } catch {
+    return Response.json({}, { status: 502 });
+  }
+}
+
 export async function POST(req) {
   const api = process.env.EMBER_API || process.env.JARVIS_API;            // JARVIS_*: retro-compat
   const key = process.env.EMBER_TENANT_KEY || process.env.JARVIS_TENANT_KEY;
