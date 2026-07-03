@@ -62,6 +62,14 @@ def ensure_seeded() -> None:
     """Allo startup: se c'è un DB, crea la tabella `tenants` e — solo se vuota —
     la popola dalla sorgente statica (TENANTS_JSON/file). Idempotente: non tocca
     dati già presenti, così puoi gestire i tenant direttamente nel DB."""
+    if _mongo_enabled():
+        try:
+            n = mongo_seed()
+            if n:
+                log.info("Mongo tenants popolato: %d tenant", n)
+        except Exception:
+            log.exception("mongo_seed fallito")
+        return
     if not settings.database_url.strip():
         return
     static = load_static()
@@ -113,3 +121,94 @@ def get_tenants() -> dict:
     _CACHE["data"] = data
     _CACHE["ts"] = now
     return data
+
+
+# ── MongoDB store (consigliato in produzione) ──────────────────────────
+# Chiavi HASHATE (mai in chiaro), quote giornaliere, revoca via `active`.
+# Attivo quando MONGO_URI è valorizzata; altrimenti si usa il percorso statico.
+
+def _mongo_enabled() -> bool:
+    return bool(settings.mongo_uri.strip())
+
+
+def _mdb():
+    from pymongo import MongoClient  # import locale: serve solo col Mongo
+    cli = MongoClient(settings.mongo_uri, serverSelectionTimeoutMS=5000)
+    return cli[settings.mongo_db]
+
+
+def mongo_seed() -> int:
+    """Crea l'indice unico su key_hash e — se la collection è vuota — semina i
+    tenant dalla sorgente statica (le chiavi in chiaro vengono hashate)."""
+    from .security import hash_key
+    db = _mdb()
+    col = db[settings.tenants_collection]
+    col.create_index("key_hash", unique=True)
+    if col.estimated_document_count() > 0:
+        return 0
+    static = load_static()
+    docs = []
+    for key, v in static.items():
+        docs.append({
+            "key_hash": hash_key(key),
+            "name": v.get("name", ""),
+            "allowed_scopes": v.get("allowed_scopes", []),
+            "allowed_origins": v.get("allowed_origins", []),
+            "branding": v.get("branding", {}),
+            "quota_day": int(v.get("quota_day", 0) or 0),
+            "active": True,
+        })
+    if docs:
+        col.insert_many(docs)
+    return len(docs)
+
+
+def get_tenant_by_key(key: str) -> dict | None:
+    """Risolve un tenant dalla sua chiave.
+    - Con MONGO_URI: lookup per HASH + controllo `active` (revoca). Le chiavi non
+      sono mai confrontate in chiaro.
+    - Altrimenti: percorso statico/Postgres (chiave in chiaro), retro-compatibile.
+    """
+    if not key:
+        return None
+    if _mongo_enabled():
+        from .security import hash_key
+        try:
+            doc = _mdb()[settings.tenants_collection].find_one({"key_hash": hash_key(key)})
+        except Exception:
+            log.exception("Mongo tenants non raggiungibile: fallback statico")
+            return get_tenants().get(key)
+        if not doc or not doc.get("active", True):
+            return None
+        return {
+            "name": doc.get("name", ""),
+            "allowed_scopes": doc.get("allowed_scopes", []),
+            "allowed_origins": doc.get("allowed_origins", []),
+            "branding": doc.get("branding", {}),
+            "quota_day": int(doc.get("quota_day", 0) or 0),
+            "key_hash": doc.get("key_hash"),
+        }
+    return get_tenants().get(key)
+
+
+def quota_ok(tenant: dict) -> bool:
+    """True se il tenant è sotto la quota giornaliera. Contatore atomico su Mongo
+    (per-giorno UTC). quota_day<=0 o Mongo assente = illimitato. Fail-open in errore."""
+    limit = int((tenant or {}).get("quota_day", 0) or 0)
+    kh = (tenant or {}).get("key_hash")
+    if limit <= 0 or not _mongo_enabled() or not kh:
+        return True
+    from datetime import datetime, timezone
+    from pymongo import ReturnDocument
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        col = _mdb()[settings.usage_collection]
+        doc = col.find_one_and_update(
+            {"key_hash": kh, "day": day},
+            {"$inc": {"count": 1}},
+            upsert=True, return_document=ReturnDocument.AFTER,
+        )
+        return int(doc.get("count", 1)) <= limit
+    except Exception:
+        log.exception("quota check fallita: consento (fail-open)")
+        return True

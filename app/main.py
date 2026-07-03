@@ -89,7 +89,7 @@ def _startup_seed_tenants():
 
 
 def tenant_or_401(key: str) -> dict:
-    tenant = tenants.get_tenants().get(key)
+    tenant = tenants.get_tenant_by_key(key)
     if not tenant:
         raise HTTPException(401, "Chiave tenant non valida")
     return tenant
@@ -178,6 +178,8 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
         raise HTTPException(403, "Origine non autorizzata per questo tenant.")
     if not rate_ok(x_tenant_key):
         raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.")
+    if not tenants.quota_ok(tenant):
+        raise HTTPException(429, "Quota giornaliera superata per questo tenant.")
     body.message = security.cap_input(body.message, settings.max_message_chars)
     if not body.message:
         raise HTTPException(422, "Messaggio vuoto.")

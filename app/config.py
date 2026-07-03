@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     # database al servizio. Vuoto = si usa TENANTS_JSON / tenants.json.
     database_url: str = ""
 
+    # MongoDB (opzionale, consigliato in produzione): store tenant robusto con
+    # chiavi HASHATE (mai in chiaro), quote giornaliere e revoca (campo active).
+    # Ha la precedenza su Postgres/statico quando MONGO_URI è valorizzata.
+    mongo_uri: str = ""
+    mongo_db: str = "ember"
+    tenants_collection: str = "tenants"
+    usage_collection: str = "tenant_usage"
+
     # notion (write-back contratti) — inerte finché non compili questi campi
     notion_token: str = ""
     notion_contracts_db: str = ""

@@ -44,10 +44,36 @@ Impostale nella **dashboard** Railway (progetto → service → **Variables**) o
 | `QDRANT_API_KEY` | *(chiave Qdrant)* | **segreto** — dal tuo .env |
 | `QDRANT_COLLECTION` | `cervello` | deve combaciare con l'ingest |
 | `ADMIN_TOKEN` | *(token forte)* | **segreto** — protegge /ingest |
-| `TENANTS_JSON` | *(mappa tenant in JSON una riga)* | vedi sotto |
+| `TENANTS_JSON` | *(mappa tenant in JSON una riga)* | vedi sotto (o usa MongoDB) |
 | `RATE_LIMIT_PER_MIN` | `30` | facoltativo |
+| `MONGO_URI` | *(URI Atlas)* | **segreto** — tenant hashati + quote + revoca (consigliato) |
+| `MONGO_DB` | `ember` | facoltativo |
+| `VOICE_PROVIDER` | vuoto \| `elevenlabs` \| `deepgram` | attiva la voce PRO |
+| `ELEVENLABS_API_KEY` / `DEEPGRAM_API_KEY` | *(chiave provider)* | **segreto** — solo se voce PRO |
+| `VOICE_LANG` | `it` | lingua STT |
 
 `VAULT_PATH` **non** serve in cloud.
+
+### Tenant su MongoDB (consigliato) — chiavi hashate, quote, revoca
+
+In alternativa a `TENANTS_JSON`, imposta `MONGO_URI` (Atlas, region UE). Le chiavi non si
+salvano in chiaro: solo l'hash. Gestione con la CLI:
+
+```bash
+railway run python -m app.manage_tenants seed          # importa i tenant statici (hashati)
+railway run python -m app.manage_tenants add "Cliente X" scopeX --origins https://www.clientex.it --quota 2000 --accent "#0ED4E4"
+railway run python -m app.manage_tenants list
+railway run python -m app.manage_tenants revoke "Cliente X"
+railway run python -m app.manage_tenants rotate "Cliente X"
+```
+
+`add` e `rotate` stampano la chiave **una sola volta**: salvala subito.
+
+### Voce PRO (opzionale)
+
+Imposta `VOICE_PROVIDER=elevenlabs` (o `deepgram`) + la chiave del provider. Senza queste
+variabili la voce PRO resta spenta e il widget usa la voce gratuita del browser (nessuna
+rottura). Verifica: `curl .../health` → `"voice":"elevenlabs"`. Nel widget: `data-voice-mode="pro"`.
 
 ### TENANTS_JSON (la mappa tenant come variabile)
 

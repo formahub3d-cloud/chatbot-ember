@@ -7,3 +7,4 @@ python-dotenv==1.2.1
 pydantic==2.13.4
 pydantic-settings==2.11.0
 psycopg2-binary==2.9.10
+pymongo[srv]==4.10.1

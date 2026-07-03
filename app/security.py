@@ -7,8 +7,10 @@ Funzioni pure, senza stato, riusabili da main.py e rag.py:
   - confronto chiavi a tempo costante (anti timing-attack);
   - allowlist degli Origin del browser per tenant.
 """
+import hashlib
 import hmac
 import re
+import secrets
 
 # ── PII italiane comuni ────────────────────────────────────────────────
 _CF = re.compile(r"\b[A-Za-z]{6}\d{2}[A-Za-z]\d{2}[A-Za-z]\d{3}[A-Za-z]\b")
@@ -58,6 +60,17 @@ def verify_key(candidate: str, expected: str) -> bool:
     """Confronto a tempo costante fra due chiavi (evita timing-attack)."""
     return hmac.compare_digest((candidate or "").encode("utf-8"),
                                (expected or "").encode("utf-8"))
+
+
+def hash_key(key: str) -> str:
+    """SHA-256 esadecimale della chiave tenant. Nel DB si salva SOLO questo,
+    mai la chiave in chiaro: se il DB trapela, le chiavi non sono ricavabili."""
+    return hashlib.sha256((key or "").encode("utf-8")).hexdigest()
+
+
+def new_key(prefix: str = "ember") -> str:
+    """Genera una chiave tenant robusta e URL-safe (mostrata una sola volta)."""
+    return f"{prefix}_{secrets.token_urlsafe(24)}"
 
 
 def origin_allowed(origin: str, allowed) -> bool:
