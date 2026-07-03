@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ember · Chat interna (Obsidian)</title>
+<style>
+  html,body{height:100%}
+  body{margin:0;background:
+    radial-gradient(700px 380px at 80% -10%,rgba(14,212,228,.12),transparent),
+    radial-gradient(600px 340px at -10% 110%,rgba(221,36,242,.10),transparent),#050506;
+    color:#9a9aa6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Arial,sans-serif;
+    display:grid;place-items:center;text-align:center}
+  .hint{max-width:300px;padding:0 18px;font-size:13px;line-height:1.6}
+  .hint b{color:#f4f4f6}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#89D41D;margin-right:6px;vertical-align:1px}
+</style>
+</head>
+<body>
+  <div class="hint"><span class="dot"></span><b>Ember</b> — assistente del cervello OVY.<br>
+  La chat si apre da sola. Chiedimi qualsiasi cosa su FORMA, clienti, progetti, processi.</div>
+
+  <!-- Pannello interno FORMA (dogfood). Voce attiva; risponde solo sullo scope FORMA+Andrea. -->
+  <script src="https://ember.formahub.it/widget/embed.js"
+          data-api="https://ember.formahub.it"
+          data-key="CHIAVE_FORMA_INTERNO"
+          data-title="Ember · Cervello OVY"
+          data-subtitle="Assistente interno · con fonti"
+          data-accent="#0ED4E4"
+          data-lang="it-IT"
+          data-voice="true"
+          data-greeting="Ciao Andrea! Sono Ember. Chiedimi del cervello OVY: identità FORMA, clienti, progetti, OKR, processi. Rispondo con le fonti."></script>
+  <script>
+    // Apre la chat automaticamente quando la pagina è pronta (pannello Obsidian).
+    function openEmber(){ if (window.Ember) { window.Ember.open(); } else { setTimeout(openEmber, 200); } }
+    window.addEventListener("load", function(){ setTimeout(openEmber, 300); });
+  </script>
+</body>
+</html>
