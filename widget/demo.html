@@ -24,14 +24,24 @@
       (<code>ember.formahub.it</code>). Apri questo file nel browser e prova la chat.
       Per testare lo scope, cambia <code>data-key</code> qui sotto in
       <code>CHIAVE_ATS</code> e verifica che non risponda sulle domande interne FORMA.
+      <br><br>
+      <b>Novità v2:</b> premi 🎤 per <b>parlare</b> (dettatura vocale) e l'icona 🔊 nell'header per
+      farti <b>leggere le risposte</b>. Il widget gira in <b>Shadow DOM</b>: non eredita né rompe i CSS del sito ospite.
+      La voce usa le API del browser (gratis) — funziona meglio su Chrome/Edge.
     </div>
   </div>
 
-  <!-- Tenant FORMA (dogfood). Cambia data-key in CHIAVE_ATS per il pilota ATS. -->
+  <!-- Tenant FORMA (dogfood). Cambia data-key in CHIAVE_ATS per il pilota ATS.
+       Nuovi attributi opzionali: data-voice, data-voice-auto, data-lang, data-position, data-avatar, data-logo. -->
   <script src="./embed.js"
           data-api="https://ember.formahub.it"
           data-key="CHIAVE_FORMA_INTERNO"
           data-title="Assistente FORMA"
-          data-accent="#0ED4E4"></script>
+          data-subtitle="Assistente AI · risponde con fonti"
+          data-accent="#0ED4E4"
+          data-lang="it-IT"
+          data-voice="true"
+          data-voice-auto="false"
+          data-position="right"></script>
 </body>
 </html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ember Widget v2 — Anteprima offline (mock)</title>
+<style>
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:#0b0b0d;color:#f4f4f6}
+  .hero{max-width:760px;margin:0 auto;padding:64px 24px}
+  .kick{letter-spacing:.24em;text-transform:uppercase;font-size:12px;color:#0ED4E4;font-weight:700}
+  h1{font-size:30px;margin:6px 0 10px}
+  p{color:#b8b8c2;line-height:1.65}
+  code{background:#1b1b22;padding:2px 6px;border-radius:5px;font-size:13px;color:#89D41D}
+  .note{margin-top:22px;padding:16px 18px;background:#111114;border:1px solid #26262e;border-radius:14px;font-size:14px;color:#cfcfd8}
+  b.acc{color:#0ED4E4}
+</style>
+</head>
+<body>
+  <div class="hero">
+    <div class="kick">FORMA · Ember v2</div>
+    <h1>Anteprima del nuovo widget (offline / mock)</h1>
+    <p>Questa pagina <b>non</b> chiama il backend: le risposte sono <b>finte</b> (mock SSE) solo per farti vedere
+       estetica e voce. In basso a destra c'è la bolla 💬.</p>
+    <div class="note">
+      Prova: <b class="acc">🎤 microfono</b> = parla e la domanda viene inviata da sola ·
+      <b class="acc">🔊 header</b> = leggi ad alta voce le risposte ·
+      le risposte arrivano in <b>streaming</b> con cursore, <b>markdown</b> e <b>chip delle fonti</b>.<br><br>
+      La voce usa le API del browser (gratis): apri in <b>Chrome o Edge</b> e consenti il microfono.
+      Il widget gira in <b>Shadow DOM</b>, quindi i CSS di questa pagina non lo toccano.
+    </div>
+  </div>
+
+  <!-- MOCK: intercetta fetch e simula lo streaming SSE del vero /chat -->
+  <script>
+  (function(){
+    const enc = new TextEncoder();
+    function fakeAnswer(q){
+      return [
+        'event: sources\ndata: {"sources":["forma/docs/doc-stack-tecnico","forma/clienti/ats/cliente-ats"]}\n\n',
+        'data: {"delta":"Certo. "}\n\n',
+        'data: {"delta":"**Ember** è l\'assistente AI di FORMA "}\n\n',
+        'data: {"delta":"che risponde attingendo al *cervello OVY*, "}\n\n',
+        'data: {"delta":"citando sempre le fonti.\\n\\n- Multi-tenant con scope isolato\\n- Streaming in tempo reale\\n- Voce in input e output"}\n\n',
+        'event: done\ndata: {}\n\n'
+      ];
+    }
+    window.fetch = function(url, opts){
+      let body={}; try{ body=JSON.parse(opts&&opts.body||"{}"); }catch(e){}
+      const parts = fakeAnswer(body.message||"");
+      let i=0;
+      const stream = new ReadableStream({
+        start(ctrl){
+          (function push(){
+            if(i<parts.length){ ctrl.enqueue(enc.encode(parts[i++])); setTimeout(push, 160); }
+            else ctrl.close();
+          })();
+        }
+      });
+      return Promise.resolve(new Response(stream, {status:200, headers:{"content-type":"text/event-stream"}}));
+    };
+  })();
+  </script>
+
+  <script src="./embed.js"
+          data-api="https://mock.local"
+          data-key="DEMO"
+          data-title="Assistente FORMA"
+          data-subtitle="Assistente AI · anteprima"
+          data-accent="#0ED4E4"
+          data-lang="it-IT"
+          data-voice="true"></script>
+</body>
+</html>
