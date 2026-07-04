@@ -21,6 +21,29 @@ Lo **scope** è la chiave-permesso: `forma/clienti/ats/...` → scope `ats`; `fo
 `forma-core`; `andrea-aloia/...` → `andrea`; `ovyon/...` → `ovyon`. Un tenant interroga
 solo i propri scope: fuori area risponde "Non ho questa informazione".
 
+## Integrazione OVYON (modello a tre livelli)
+
+Ember è **il chatbot integrato in OVYON**. Lo `scope` mappa sul livello **`tenant`** del
+modello OVYON (org > tenant > sotto-tenant): `ingest.segments_for` deriva dal path anche
+`org` e `sub_tenant` in modo additivo, e `rag.build_filter` accetta grant a tre livelli
+(retro-compatibile con `allowed_scopes`). Dettagli: `ovyon/docs/doc-ovyon-ember-scope` nel cervello.
+
+**Endpoint per il connettore MCP** (stessa auth e stesso filtro per grant del `/chat`):
+
+| Endpoint | Tool MCP | Cosa fa |
+|---|---|---|
+| `POST /search` | `ovy_search` | risultati (metadati + snippet) filtrati per grant |
+| `GET /document?slug=` | `ovy_get_document` | nota completa per slug, se nello scope |
+| `GET /context` | `ovy_list_context` | livelli org/tenant/sotto-tenant visibili |
+| `POST /writeback` | `ovy_create/update_document` | scrive una nota **solo dopo conferma** (`confirm=true`) |
+
+Il **connettore MCP** (server FastMCP) è in `mcp-connector/` (vedi il suo README).
+
+**Backend Supabase (opzionale, `GRANTS_BACKEND=supabase` + `DATABASE_URL`).** Layer
+identità/permessi/audit: risoluzione chiavi da `api_keys`, audit su `access_logs` in
+sessione RLS, e sync dei metadati nota in `documents` durante l'ingest. Schema e istruzioni
+in `db/` (`ovyon_schema.sql`, `README.md`). Setup completo di produzione: `OVYON-SETUP.md`.
+
 ## Setup
 
 ```bash

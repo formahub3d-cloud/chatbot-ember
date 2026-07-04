@@ -42,8 +42,12 @@ identico ai valori storici. Mappatura e razionale: `ovyon/docs/doc-ovyon-ember-s
 - `app/rag.py` — retrieval filtrato per scope + risposta vincolata al contenuto
 - `app/ocr.py` — OCR documenti (Mistral OCR)
 - `app/extract.py` — estrazione campi (regex UniLav + LLM generico)
-- `app/writeback.py` — scrive la nota nel vault (Notion = TODO)
-- `app/main.py` — API: `/health` `/ingest` `/chat` (con `{"stream": true}` risponde SSE: `event: sources` → `data: {"delta"}` → `event: done`) `/upload`
+- `app/writeback.py` — scrive la nota nel vault: contratti + `save_note` generico (conferma umana); Notion = TODO
+- `app/tenants.py` — chiavi→scope; store statico/Postgres/Mongo/**Supabase `api_keys`** + audit `log_access`
+- `app/rls.py` — GUC `ovyon.*` (`session_grants`) per la RLS Supabase lato Ember
+- `app/docstore.py` — sync metadati nota → tabella Supabase `documents` (durante l'ingest)
+- `app/main.py` — API: `/health` `/ingest` `/chat` (con `{"stream": true}` SSE) `/upload`, e per il connettore MCP `/search` `/document` `/context` `/writeback`
+- `mcp-connector/` — server MCP (5 tool) verso Ember · `db/` — schema Supabase OVYON · `scripts/verify_ingest.py` — collaudo post-ingest · `OVYON-SETUP.md` — runbook produzione
 
 ## Comandi
 
@@ -58,6 +62,9 @@ curl -X POST localhost:8000/ingest -H "Authorization: Bearer $ADMIN_TOKEN"
 # chatta come ATS (vede solo ATS):
 curl -X POST localhost:8000/chat -H "X-Tenant-Key: CHIAVE_ATS" \
      -H "Content-Type: application/json" -d '{"message":"..."}'
+# test (puri, senza rete) e collaudo post-ingest:
+pip install -r requirements-dev.txt && python -m pytest -q
+python scripts/verify_ingest.py     # verifica org/tenant/sub_tenant nei payload Qdrant
 ```
 
 ## Regole tassative
