@@ -109,6 +109,7 @@ def _grants(tenant: dict) -> dict:
 class ChatIn(BaseModel):
     message: str
     stream: bool = False  # true → risposta SSE (text/event-stream) token per token
+    history: list = []     # turni precedenti [{role, content}] dal client, per i follow-up
 
 
 class SearchIn(BaseModel):
@@ -222,7 +223,7 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     log.info("chat tenant=%s q=%r", tenant.get("name", "?"), security.redact_pii(body.message)[:200])
     if body.stream:
         try:
-            gen = rag.answer_stream(body.message, _grants(tenant))
+            gen = rag.answer_stream(body.message, _grants(tenant), history=body.history)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -244,7 +245,7 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
     try:
-        return rag.answer(body.message, _grants(tenant))
+        return rag.answer(body.message, _grants(tenant), history=body.history)
     except HTTPException:
         raise
     except Exception:

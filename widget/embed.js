@@ -224,6 +224,7 @@
   var mic   = panel.querySelector(".em-mic");
   var tog   = panel.querySelector(".em-tog");
   var greeted = false;
+  var hist = [];   // memoria conversazionale: [{role, content}] per i follow-up
 
   // ── Helpers ──
   function esc(t){ var e=document.createElement("div"); e.textContent = t==null?"":t; return e.innerHTML; }
@@ -345,25 +346,31 @@
     cursor.remove();
     if (!acc) acc = "(nessuna risposta)";
     finalizeMsg(msg, acc, sources);
+    hist.push({role:"assistant", content:acc});   // memoria per i follow-up
   }
 
   async function ask(text){
     var q = (text != null ? text : input.value).trim(); if(!q) return;
     input.value = ""; addMsg("u", q); send.disabled = true;
+    var sendHist = hist.slice(-6);          // turni precedenti (non include la domanda attuale)
+    hist.push({role:"user", content:q});
     var t = typing();
     try{
       var url = PROXY || (API + "/chat");
       var headers = {"Content-Type":"application/json"};
       if (!PROXY) headers["X-Tenant-Key"] = KEY;
-      var r = await fetch(url, { method:"POST", headers: headers, body: JSON.stringify({message:q, stream:true}) });
+      var r = await fetch(url, { method:"POST", headers: headers, body: JSON.stringify({message:q, stream:true, history:sendHist}) });
       if(!r.ok){ t.remove(); finalizeMsg(addMsg("a",""), "⚠️ Errore "+r.status+". Riprova tra poco.", null); }
       else if (((r.headers.get("content-type")||"").indexOf("text/event-stream") !== -1) && r.body && window.TextDecoder){
         t.remove(); await readSSE(r, addMsg("a",""));
       } else {
         var data = await r.json(); t.remove();
-        finalizeMsg(addMsg("a",""), data.answer || "(nessuna risposta)", data.sources);
+        var ans = data.answer || "(nessuna risposta)";
+        finalizeMsg(addMsg("a",""), ans, data.sources);
+        hist.push({role:"assistant", content:ans});
       }
     }catch(e){ t.remove(); finalizeMsg(addMsg("a",""), "⚠️ Connessione non riuscita. Verifica che il servizio sia attivo.", null); }
+    if (hist.length > 20) hist = hist.slice(-20);
     send.disabled = false; input.focus();
   }
 

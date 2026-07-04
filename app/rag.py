@@ -10,12 +10,18 @@ vede solo i chunk consentiti dai suoi grant. I grant possono essere:
 Il match a livello tenant avviene sul campo `scope` (== tenant), presente sia nei
 dati storici sia dopo la re-ingest additiva: i grant esistenti restano validi.
 """
+import logging
+
 from qdrant_client.models import Filter, FieldCondition, MatchAny, MatchValue
 
 from .config import settings
 from .providers import embed, chat, chat_stream
 from .ingest import client
-from .security import sanitize_context
+from .security import sanitize_context, redact_pii
+
+log = logging.getLogger("ember.rag")
+
+NO_ANSWER = "Non ho questa informazione nelle aree a cui ho accesso."
 
 SYSTEM = (
     "Sei Ember, l'assistente del cervello OVY di Andrea Aloia / FORMA. "
@@ -90,20 +96,44 @@ def build_filter(grants):
     return Filter(should=should)
 
 
-def answer(question: str, grants, k: int = 6) -> dict:
+def _hist_block(history) -> str:
+    """Ultimi turni della conversazione (max 6) come contesto per i follow-up.
+    Non è memoria persistente: la history arriva dal client a ogni richiesta."""
+    if not history:
+        return ""
+    turns = []
+    for h in list(history)[-6:]:
+        if not isinstance(h, dict):
+            continue
+        who = "Utente" if h.get("role") == "user" else "Ember"
+        txt = (h.get("content") or "").strip()[:500]
+        if txt:
+            turns.append(f"{who}: {txt}")
+    return ("CONVERSAZIONE PRECEDENTE (per capire i riferimenti tipo 'e quello?'):\n"
+            + "\n".join(turns) + "\n\n") if turns else ""
+
+
+def _log_gap(question: str, grants) -> None:
+    """Traccia (redatto) una domanda a cui il cervello non sa rispondere: serve a
+    capire quali contenuti aggiungere per ciascuno scope/cliente."""
+    log.info("gap · scope=%s · q=%r", scopes_of(grants), redact_pii(question)[:200])
+
+
+def answer(question: str, grants, k: int = 6, history=None) -> dict:
     """Risposta vincolata al contenuto visibile ai `grants` del tenant.
 
     `grants`: lista storica (`allowed_scopes`) o dict con org/tenant/sub_tenant.
     Chiave master (`*`) = nessun filtro: usare SOLO in contesto admin privato.
+    `history`: turni precedenti (dal client) per i follow-up; non è persistente.
     """
     hits = _retrieve(question, grants, k)
     scopes = scopes_of(grants)
     if not hits:
-        return {"answer": "Non ho questa informazione nelle aree a cui ho accesso.",
-                "sources": [], "scopes": scopes}
+        _log_gap(question, grants)
+        return {"answer": NO_ANSWER, "sources": [], "scopes": scopes}
 
     context = _build_context(hits)
-    user = f"CONTENUTO:\n{context}\n\nDOMANDA: {question}"
+    user = f"{_hist_block(history)}CONTENUTO:\n{context}\n\nDOMANDA: {question}"
     out = _clean_answer(chat(SYSTEM, user))
     sources = sorted({h.payload["slug"] for h in hits})
     return {"answer": out, "sources": sources, "scopes": scopes}
@@ -121,7 +151,7 @@ def _retrieve(question: str, grants, k: int = 6):
     ).points
 
 
-def answer_stream(question: str, grants, k: int = 6):
+def answer_stream(question: str, grants, k: int = 6, history=None):
     """Come answer(), ma genera eventi SSE (stringhe già formattate).
 
     Sequenza: `event: sources` (fonti+scope, subito dopo il retrieval),
@@ -137,8 +167,9 @@ def answer_stream(question: str, grants, k: int = 6):
     scopes = scopes_of(grants)
     hits = _retrieve(question, grants, k)
     if not hits:
+        _log_gap(question, grants)
         yield sse("sources", {"sources": [], "scopes": scopes})
-        yield sse(None, {"delta": "Non ho questa informazione nelle aree a cui ho accesso."})
+        yield sse(None, {"delta": NO_ANSWER})
         yield sse("done", {})
         return
 
@@ -146,7 +177,7 @@ def answer_stream(question: str, grants, k: int = 6):
     yield sse("sources", {"sources": sources, "scopes": scopes})
 
     context = _build_context(hits)
-    user = f"CONTENUTO:\n{context}\n\nDOMANDA: {question}"
+    user = f"{_hist_block(history)}CONTENUTO:\n{context}\n\nDOMANDA: {question}"
     try:
         for delta in chat_stream(SYSTEM, user):
             yield sse(None, {"delta": delta})

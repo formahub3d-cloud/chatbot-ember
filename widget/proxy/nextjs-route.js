@@ -67,12 +67,13 @@ export async function POST(req) {
     return Response.json({ answer: "Messaggio vuoto." }, { status: 400 });
   }
   const stream = body && body.stream === true; // il widget chiede lo streaming SSE
+  const history = Array.isArray(body && body.history) ? body.history.slice(-6) : [];
 
   try {
     const r = await fetch(base + "/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Tenant-Key": key },
-      body: JSON.stringify({ message, stream }),
+      body: JSON.stringify({ message, stream, history }),
     });
     // SSE pass-through: se Ember risponde in streaming, lo inoltriamo così com'è.
     const ct = r.headers.get("content-type") || "";
