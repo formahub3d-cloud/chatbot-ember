@@ -44,6 +44,9 @@ class _FakeConn:
     def commit(self):
         pass
 
+    def close(self):
+        pass
+
 
 def _row(name, active, quota, orgs, tenants_, subs, origins):
     # ordine colonne = SELECT in resolve_key_apikeys

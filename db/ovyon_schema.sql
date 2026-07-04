@@ -156,10 +156,25 @@ create policy documents_write on documents
     for all using (ovyon.can_read(org_code, tenant_code, sub_code))
              with check (ovyon.can_read(org_code, tenant_code, sub_code));
 
--- L'audit trail è append-only per i tenant: possono inserire, non rileggere altri.
+-- Audit trail: un tenant può inserire solo voci nel PROPRIO scope e rileggere solo
+-- le proprie (append-only + isolamento). Ember imposta i GUC ovyon.* via
+-- rls.session_grants prima di scrivere (vedi app/tenants.log_access).
 drop policy if exists access_logs_insert on access_logs;
 create policy access_logs_insert on access_logs
-    for insert with check (true);
+    for insert with check (
+        ovyon.is_master()
+        or tenant_code = any(ovyon.grants('allowed_tenants'))
+        or org_code    = any(ovyon.grants('allowed_orgs'))
+        or (tenant_code is null and org_code is null)   -- voci di sistema
+    );
+
+drop policy if exists access_logs_read on access_logs;
+create policy access_logs_read on access_logs
+    for select using (
+        ovyon.is_master()
+        or tenant_code = any(ovyon.grants('allowed_tenants'))
+        or org_code    = any(ovyon.grants('allowed_orgs'))
+    );
 
 -- Nota: il ruolo di servizio di Ember (service_role) bypassa la RLS; l'isolamento
 -- effettivo si ottiene impostando i GUC ovyon.* per ogni richiesta tenant, oppure

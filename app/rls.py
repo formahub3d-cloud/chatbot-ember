@@ -16,8 +16,8 @@ parametrico (SQL-injection-safe) di `SET LOCAL`, valido per la sola transazione.
 """
 from contextlib import contextmanager
 
+from . import tenants
 from .rag import _grant_lists
-from .tenants import _conn
 
 # Nomi dei GUC letti dalle funzioni RLS in db/ovyon_schema.sql (ovyon.grants()).
 GUC = {
@@ -48,7 +48,7 @@ def set_grants(cur, grants) -> None:
 def session_grants(grants):
     """Context manager: apre una connessione, applica i grant come GUC di sessione
     e la chiude. Da usare per ogni lettura/scrittura sulle tabelle sotto RLS."""
-    conn = _conn()
+    conn = tenants._conn()
     try:
         cur = conn.cursor()
         set_grants(cur, grants)

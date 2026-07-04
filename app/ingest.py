@@ -152,6 +152,7 @@ def run() -> dict:
     # 1) Raccogli TUTTI i chunk + metadati (nessuna chiamata di rete qui).
     metas: list[dict] = []
     texts: list[str] = []
+    notes_meta: list[dict] = []   # una voce per NOTA (per il sync metadati su Supabase)
     n_notes = 0
     for md, rel in iter_notes(vault):
         meta, body = _parse_note(md)
@@ -164,6 +165,10 @@ def run() -> dict:
         scope = seg["tenant"]
         title = meta.get("title", md.stem)
         tags = meta.get("tags", "")
+        notes_meta.append({
+            "org": seg["org"], "tenant": seg["tenant"], "sub_tenant": seg["sub_tenant"],
+            "slug": md.stem, "title": title, "path": str(rel), "tags": tags,
+        })
         for ci, ch in enumerate(chunk(body)):
             metas.append({
                 "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{rel}::{ci}")),
@@ -197,7 +202,18 @@ def run() -> dict:
     ensure_collection(c, fresh=True)
     if points:
         c.upsert(settings.qdrant_collection, points=points, wait=True)
-    return {"notes": n_notes, "chunks": len(points)}
+
+    # 4) Sync METADATI su Supabase (best-effort): popola `documents` per la RLS a
+    #    livello di documento. Non deve mai far fallire l'ingest su Qdrant.
+    synced = 0
+    try:
+        from . import docstore
+        synced = docstore.sync_notes(notes_meta)
+    except Exception:
+        import logging
+        logging.getLogger("ember.ingest").exception("sync documents Supabase fallito (ignorato)")
+
+    return {"notes": n_notes, "chunks": len(points), "documents_synced": synced}
 
 
 if __name__ == "__main__":

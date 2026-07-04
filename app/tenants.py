@@ -212,18 +212,23 @@ def resolve_key_apikeys(key: str) -> dict | None:
 def log_access(key_hash: str, action: str, tenant_code: str | None = None,
                org_code: str | None = None, detail: str | None = None) -> None:
     """Scrive una voce nell'audit trail access_logs. Best-effort: non solleva mai
-    (l'audit non deve mai bloccare una richiesta). No-op se il backend non è attivo."""
+    (l'audit non deve mai bloccare una richiesta). No-op se il backend non è attivo.
+
+    L'insert gira in una sessione con i GUC ovyon.* dell'attore (rls.session_grants):
+    così la policy RLS scope-checked su access_logs (db/ovyon_schema.sql) è rispettata
+    anche con un ruolo non privilegiato."""
     if not _apikeys_enabled() or not key_hash:
         return
     try:
-        with _conn() as c:
-            with c.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO access_logs (key_hash, action, tenant_code, org_code, detail) "
-                    "VALUES (%s, %s, %s, %s, %s)",
-                    (key_hash, action, tenant_code, org_code, detail),
-                )
-            c.commit()
+        from . import rls  # import ritardato: evita cicli a import-time
+        grants = {"allowed_orgs": [org_code] if org_code else [],
+                  "allowed_tenants": [tenant_code] if tenant_code else []}
+        with rls.session_grants(grants) as (_c, cur):
+            cur.execute(
+                "INSERT INTO access_logs (key_hash, action, tenant_code, org_code, detail) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (key_hash, action, tenant_code, org_code, detail),
+            )
     except Exception:
         log.exception("log_access fallito (ignorato)")
 

@@ -1,5 +1,6 @@
 """Test dell'helper RLS (GUC ovyon.* via set_config). Connessione Postgres finta."""
 from app import rls
+from app import tenants
 
 
 class _FakeCursor:
@@ -54,7 +55,7 @@ def test_set_grants_emette_set_config():
 def test_session_grants_commit_e_close(monkeypatch):
     sink = []
     conn = _FakeConn(sink)
-    monkeypatch.setattr(rls, "_conn", lambda: conn)
+    monkeypatch.setattr(tenants, "_conn", lambda: conn)
     with rls.session_grants(["ats"]) as (c, cur):
         assert c is conn
     assert conn.committed and conn.closed
@@ -63,6 +64,6 @@ def test_session_grants_commit_e_close(monkeypatch):
 
 def test_count_documents(monkeypatch):
     conn = _FakeConn([], count=7)
-    monkeypatch.setattr(rls, "_conn", lambda: conn)
+    monkeypatch.setattr(tenants, "_conn", lambda: conn)
     assert rls.count_documents(["ats"]) == 7
     assert conn.closed

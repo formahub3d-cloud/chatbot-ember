@@ -54,9 +54,18 @@ copre i suoi tenant); `'*'` in un qualunque array = master.
 > `ovyon.*` per ogni richiesta tenant. Difesa in profondità: la RLS protegge i
 > metadati/log, il filtro Qdrant (`rag.build_filter`) protegge il contenuto.
 
-## Integrazione con Ember (prossimo passo)
+## Integrazione con Ember
 
-Ember legge già i tenant da statico/Postgres/Mongo (`app/tenants.py`). L'adattatore
-Supabase risolverà una chiave in grant leggendo `api_keys` (per `key_hash`) e
-scriverà `access_logs` a ogni `/chat`·`/search`·`/writeback`, riusando i grant
-prodotti da `main._grants` → `rag.build_filter`. Nessun cambio allo schema Qdrant.
+Con `GRANTS_BACKEND=supabase` + `DATABASE_URL`:
+
+- **Chiavi → grant**: `app/tenants.resolve_key_apikeys` legge `api_keys` per `key_hash`
+  e restituisce i grant a tre livelli (usati da `main._grants` → `rag.build_filter`).
+- **Audit**: `app/tenants.log_access` scrive `access_logs` a ogni `/search`·`/document`·
+  `/writeback`, dentro una sessione con i GUC `ovyon.*` (`app/rls.session_grants`), così
+  la policy RLS scope-checked è rispettata.
+- **Documenti**: `app/docstore.sync_notes` (chiamato da `ingest.run`) fa **upsert dei
+  metadati** delle note in `documents` (org/tenant/sub + slug/title/path/tags), creando
+  al volo le righe `organizations/tenants/sub_tenants` mancanti. Il corpo resta su Qdrant;
+  `content_encrypted` è per la fase compliance. Così la RLS a livello di documento è reale.
+
+Nessun cambio allo schema Qdrant: Supabase è il layer identità/permessi/audit/metadati.
