@@ -66,6 +66,20 @@ def scope_for(rel: Path) -> str:
     return segments_for(rel)["tenant"]
 
 
+# Campi di permesso attesi nel payload Qdrant dopo la re-ingest a tre livelli.
+# `sub_tenant` può essere None (nota non annidata): la sua CHIAVE deve comunque esserci.
+REQUIRED_PAYLOAD_FIELDS = ("scope", "org", "tenant", "sub_tenant")
+
+
+def check_payload(payload: dict) -> list[str]:
+    """Ritorna i campi di permesso MANCANTI in un payload Qdrant (lista vuota = ok).
+    Verifica anche la coerenza scope == tenant (invariante della mappatura)."""
+    missing = [f for f in REQUIRED_PAYLOAD_FIELDS if f not in (payload or {})]
+    if not missing and payload.get("scope") != payload.get("tenant"):
+        missing.append("scope!=tenant")
+    return missing
+
+
 def chunk(text: str, size: int = 1200, overlap: int = 200) -> list[str]:
     out, i = [], 0
     while i < len(text):
