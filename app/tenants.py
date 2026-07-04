@@ -163,14 +163,86 @@ def mongo_seed() -> int:
     return len(docs)
 
 
+# ── Backend Supabase/Postgres `api_keys` (schema OVYON) ────────────────────────
+# Chiavi HASHATE + grant a tre livelli (allowed_orgs/tenants/sub_tenants) + audit
+# su access_logs. Attivo quando GRANTS_BACKEND=supabase e DATABASE_URL è valorizzata.
+
+def _apikeys_enabled() -> bool:
+    return settings.grants_backend.strip().lower() == "supabase" and bool(settings.database_url.strip())
+
+
+def _as_list(v) -> list:
+    """Normalizza un array Postgres (già lista da psycopg2) in list[str]."""
+    if v is None:
+        return []
+    return list(v) if isinstance(v, (list, tuple)) else [v]
+
+
+def resolve_key_apikeys(key: str) -> dict | None:
+    """Risolve una chiave dalla tabella api_keys (per HASH), con i grant a tre livelli.
+    Ritorna None se assente o revocata (active=false). `allowed_scopes` è tenuto in
+    sincrono con `allowed_tenants` per retro-compatibilità con rag.build_filter."""
+    from .security import hash_key
+    kh = hash_key(key)
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "SELECT name, active, quota_day, allowed_orgs, allowed_tenants, "
+                "allowed_sub_tenants, allowed_origins FROM api_keys WHERE key_hash = %s",
+                (kh,),
+            )
+            row = cur.fetchone()
+    if not row or not row[1]:  # assente o active=false
+        return None
+    name, _active, quota_day, orgs, tenants_, subs, origins = row
+    tenants_ = _as_list(tenants_)
+    return {
+        "name": name or "",
+        "allowed_scopes": tenants_,               # storico == tenant
+        "allowed_tenants": tenants_,
+        "allowed_orgs": _as_list(orgs),
+        "allowed_sub_tenants": _as_list(subs),
+        "allowed_origins": _as_list(origins),
+        "branding": {},
+        "quota_day": int(quota_day or 0),
+        "key_hash": kh,
+    }
+
+
+def log_access(key_hash: str, action: str, tenant_code: str | None = None,
+               org_code: str | None = None, detail: str | None = None) -> None:
+    """Scrive una voce nell'audit trail access_logs. Best-effort: non solleva mai
+    (l'audit non deve mai bloccare una richiesta). No-op se il backend non è attivo."""
+    if not _apikeys_enabled() or not key_hash:
+        return
+    try:
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO access_logs (key_hash, action, tenant_code, org_code, detail) "
+                    "VALUES (%s, %s, %s, %s, %s)",
+                    (key_hash, action, tenant_code, org_code, detail),
+                )
+            c.commit()
+    except Exception:
+        log.exception("log_access fallito (ignorato)")
+
+
 def get_tenant_by_key(key: str) -> dict | None:
     """Risolve un tenant dalla sua chiave.
+    - Con GRANTS_BACKEND=supabase: lookup per HASH nella tabella api_keys (grant a
+      tre livelli). Fallback ai percorsi seguenti se il DB non risponde.
     - Con MONGO_URI: lookup per HASH + controllo `active` (revoca). Le chiavi non
       sono mai confrontate in chiaro.
     - Altrimenti: percorso statico/Postgres (chiave in chiaro), retro-compatibile.
     """
     if not key:
         return None
+    if _apikeys_enabled():
+        try:
+            return resolve_key_apikeys(key)
+        except Exception:
+            log.exception("api_keys non raggiungibile: fallback")
     if _mongo_enabled():
         from .security import hash_key
         try:

@@ -265,6 +265,7 @@ def do_search(body: SearchIn, x_tenant_key: str = Header(default=""), origin: st
     if not q:
         raise HTTPException(422, "Query vuota.")
     k = max(1, min(int(body.k or 6), 20))
+    tenants.log_access(tenant.get("key_hash"), "read", detail="search")
     try:
         return rag.search(q, _grants(tenant), k)
     except Exception:
@@ -284,6 +285,7 @@ def do_document(slug: str, x_tenant_key: str = Header(default=""), origin: str =
         raise HTTPException(500, "Errore interno.")
     if not doc:
         raise HTTPException(404, "Nota non trovata o fuori dallo scope.")
+    tenants.log_access(tenant.get("key_hash"), "read", detail=f"document:{slug}")
     return doc
 
 
@@ -318,6 +320,9 @@ def do_writeback(body: WritebackIn, x_tenant_key: str = Header(default=""), orig
     except Exception:
         log.exception("writeback failed")
         raise HTTPException(500, "Errore durante la scrittura della nota.")
+    if res.get("created"):
+        tenants.log_access(tenant.get("key_hash"), "update" if body.overwrite else "create",
+                           tenant_code=body.scope, detail=res.get("path"))
     return {"consolidato": res.get("created", False), **res}
 
 

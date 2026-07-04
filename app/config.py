@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     tenants_collection: str = "tenants"
     usage_collection: str = "tenant_usage"
 
+    # backend dei grant (opzionale): "supabase" = risolvi le chiavi dalla tabella
+    # api_keys dello schema OVYON (db/ovyon_schema.sql), con grant a tre livelli
+    # (allowed_orgs/tenants/sub_tenants) e audit su access_logs. Richiede DATABASE_URL.
+    # Vuoto = comportamento storico (Mongo / Postgres-tenants / statico).
+    grants_backend: str = ""
+
     # notion (write-back contratti) — inerte finché non compili questi campi
     notion_token: str = ""
     notion_contracts_db: str = ""
