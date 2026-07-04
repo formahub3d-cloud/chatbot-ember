@@ -10,7 +10,7 @@ vede solo i chunk consentiti dai suoi grant. I grant possono essere:
 Il match a livello tenant avviene sul campo `scope` (== tenant), presente sia nei
 dati storici sia dopo la re-ingest additiva: i grant esistenti restano validi.
 """
-from qdrant_client.models import Filter, FieldCondition, MatchAny
+from qdrant_client.models import Filter, FieldCondition, MatchAny, MatchValue
 
 from .config import settings
 from .providers import embed, chat, chat_stream
@@ -154,3 +154,76 @@ def answer_stream(question: str, grants, k: int = 6):
         yield sse("error", {"message": "Errore del provider durante la risposta."})
         return
     yield sse("done", {})
+
+
+# ── Retrieval strutturato (per il connettore MCP: ovy_search / ovy_get_document /
+#    ovy_list_context). Nessuna generazione LLM: restituisce dati grezzi già
+#    filtrati per grant, così il connettore resta un adattatore sottile. ──────────
+
+def _hit_meta(h) -> dict:
+    """Metadati di un hit (senza il testo integrale), per gli elenchi di ricerca."""
+    p = h.payload
+    return {
+        "slug": p.get("slug"),
+        "title": p.get("title", p.get("slug")),
+        "org": p.get("org"),
+        "tenant": p.get("tenant", p.get("scope")),
+        "sub_tenant": p.get("sub_tenant"),
+        "path": p.get("path"),
+        "snippet": (p.get("text") or "")[:300],
+    }
+
+
+def search(question: str, grants, k: int = 6) -> dict:
+    """ovy_search: risultati rilevanti (metadati + snippet) filtrati per grant."""
+    hits = _retrieve(question, grants, k)
+    return {"results": [_hit_meta(h) for h in hits], "scopes": scopes_of(grants)}
+
+
+def _reassemble(chunks_sorted: list[str], overlap: int = 200) -> str:
+    """Ricompone il corpo di una nota dai chunk ordinati, togliendo la
+    sovrapposizione introdotta in ingest.chunk() (size=1200, overlap=200)."""
+    if not chunks_sorted:
+        return ""
+    out = chunks_sorted[0]
+    for ch in chunks_sorted[1:]:
+        out += ch[overlap:] if len(ch) > overlap else ""
+    return out
+
+
+def get_document(slug: str, grants, limit: int = 500) -> dict | None:
+    """ovy_get_document: contenuto completo di una nota per `slug`, SOLO se rientra
+    nei grant del chiamante (il filtro grant è combinato con lo slug in AND).
+    Ritorna None se la nota non esiste o è fuori scope."""
+    base = build_filter(grants)  # None = master (nessun vincolo di scope)
+    slug_cond = FieldCondition(key="slug", match=MatchValue(value=slug))
+    flt = Filter(must=[slug_cond]) if base is None else Filter(must=[slug_cond, base])
+    c = client()
+    points, _ = c.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=flt, limit=limit, with_payload=True,
+    )
+    if not points:
+        return None
+    points.sort(key=lambda p: p.payload.get("chunk", 0))
+    p0 = points[0].payload
+    return {
+        "slug": slug,
+        "title": p0.get("title", slug),
+        "org": p0.get("org"),
+        "tenant": p0.get("tenant", p0.get("scope")),
+        "sub_tenant": p0.get("sub_tenant"),
+        "path": p0.get("path"),
+        "text": _reassemble([p.payload.get("text", "") for p in points]),
+    }
+
+
+def list_context(grants) -> dict:
+    """ovy_list_context: livelli di permesso visibili al chiamante (org/tenant/sub)."""
+    orgs, tenants_, subs = _grant_lists(grants)
+    return {
+        "allowed_orgs": orgs,
+        "allowed_tenants": tenants_,
+        "allowed_sub_tenants": subs,
+        "master": (MASTER in orgs or MASTER in tenants_ or MASTER in subs),
+    }

@@ -43,7 +43,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback
 
 app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
 
@@ -109,6 +109,31 @@ def _grants(tenant: dict) -> dict:
 class ChatIn(BaseModel):
     message: str
     stream: bool = False  # true → risposta SSE (text/event-stream) token per token
+
+
+class SearchIn(BaseModel):
+    message: str
+    k: int = 6
+
+
+class WritebackIn(BaseModel):
+    scope: str                 # tenant/scope di destinazione (deve essere concesso)
+    title: str
+    body: str
+    summary: str = ""
+    tags: list[str] = []
+    confirm: bool = False      # false → solo ANTEPRIMA (regola 5: conferma umana)
+    overwrite: bool = False
+
+
+def _guard(tenant: dict, key: str, origin: str) -> None:
+    """Controlli comuni agli endpoint tenant: origine, rate limit, quota."""
+    if not security.origin_allowed(origin, tenant.get("allowed_origins")):
+        raise HTTPException(403, "Origine non autorizzata per questo tenant.")
+    if not rate_ok(key):
+        raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.")
+    if not tenants.quota_ok(tenant):
+        raise HTTPException(429, "Quota giornaliera superata per questo tenant.")
 
 
 @app.get("/health")
@@ -225,6 +250,75 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     except Exception:
         log.exception("chat failed")
         raise HTTPException(500, "Errore interno del chatbot.")
+
+
+# ── Endpoint per il connettore MCP (ovy_search / get_document / list_context /
+#    create|update_document). Stessa autenticazione e stessi filtri per grant del
+#    /chat: l'isolamento è server-side, non delegato al connettore. ──────────────
+
+@app.post("/search")
+def do_search(body: SearchIn, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
+    """ovy_search: risultati rilevanti (metadati + snippet) nello scope del tenant."""
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+    q = security.cap_input(body.message, settings.max_message_chars)
+    if not q:
+        raise HTTPException(422, "Query vuota.")
+    k = max(1, min(int(body.k or 6), 20))
+    try:
+        return rag.search(q, _grants(tenant), k)
+    except Exception:
+        log.exception("search failed")
+        raise HTTPException(500, "Errore interno durante la ricerca.")
+
+
+@app.get("/document")
+def do_document(slug: str, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
+    """ovy_get_document: contenuto completo di una nota per slug, se nello scope."""
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+    try:
+        doc = rag.get_document(slug, _grants(tenant))
+    except Exception:
+        log.exception("get_document failed")
+        raise HTTPException(500, "Errore interno.")
+    if not doc:
+        raise HTTPException(404, "Nota non trovata o fuori dallo scope.")
+    return doc
+
+
+@app.get("/context")
+def do_context(x_tenant_key: str = Header(default="")):
+    """ovy_list_context: livelli di permesso (org/tenant/sub) visibili al tenant."""
+    tenant = tenant_or_401(x_tenant_key)
+    return {"name": tenant.get("name", ""), **rag.list_context(_grants(tenant))}
+
+
+@app.post("/writeback")
+def do_writeback(body: WritebackIn, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
+    """ovy_create_document / ovy_update_document: scrive una nota nel vault, MA solo
+    dopo conferma umana (confirm=true). Senza conferma restituisce l'anteprima.
+    Lo scope di destinazione deve essere tra quelli concessi al tenant."""
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+    grants = _grants(tenant)
+    ctx = rag.list_context(grants)
+    if not ctx["master"] and body.scope not in (ctx["allowed_tenants"] or []):
+        raise HTTPException(403, "Scope di destinazione non consentito per questo tenant.")
+    title = security.cap_input(body.title, 200)
+    if not title:
+        raise HTTPException(422, "Titolo vuoto.")
+    if not body.confirm:
+        preview = writeback.render_note(body.scope, title, body.body, body.summary, body.tags)
+        return {"consolidato": False, "preview": preview,
+                "note": "Conferma con confirm=true per scrivere nel vault."}
+    try:
+        res = writeback.save_note(body.scope, title, body.body, body.summary,
+                                  body.tags, overwrite=body.overwrite)
+    except Exception:
+        log.exception("writeback failed")
+        raise HTTPException(500, "Errore durante la scrittura della nota.")
+    return {"consolidato": res.get("created", False), **res}
 
 
 @app.post("/upload")

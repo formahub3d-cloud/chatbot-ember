@@ -6,6 +6,8 @@
 
 Principio: si scrive SOLO dopo conferma umana dei campi (vedi extract.py).
 """
+import re
+import unicodedata
 from datetime import date, datetime
 from pathlib import Path
 
@@ -15,6 +17,77 @@ from .config import settings
 
 NOTION_API = "https://api.notion.com/v1/pages"
 NOTION_VERSION = "2022-06-28"
+
+# Sottocartella dove finiscono le note SCRITTE dalla macchina (connettore MCP /
+# write-back), tenute separate dalle note curate a mano nel vault.
+GENERATED_SUBDIR = "generati"
+
+
+def folder_for_scope(scope: str) -> str:
+    """Inverso di ingest.scope_for: dallo scope (== tenant) alla cartella del vault.
+    Gli scope-cliente finiscono sotto forma/clienti/<scope>."""
+    return {
+        "forma-core": "forma",
+        "andrea": "andrea-aloia",
+        "ovyon": "ovyon",
+    }.get(scope, f"forma/clienti/{scope}")
+
+
+def slugify(text: str) -> str:
+    """Slug ASCII sicuro per un filename: minuscole, trattini, niente traversal."""
+    norm = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
+    norm = re.sub(r"[^a-z0-9]+", "-", norm.lower()).strip("-")
+    return norm[:80] or "nota"
+
+
+GENERIC_NOTE_TEMPLATE = """---
+title: {title}
+summary: {summary}
+tags: [{tags}]
+status: draft
+created: {today}
+updated: {today}
+---
+
+# {title}
+
+> ✍️ Nota generata dal connettore OVYON (Ember). Da rivedere prima di consolidare.
+
+{body}
+"""
+
+
+def render_note(scope: str, title: str, body: str, summary: str = "",
+                tags: list[str] | None = None) -> dict:
+    """Costruisce l'ANTEPRIMA della nota (frontmatter + corpo) senza scriverla.
+    Ritorna {path, slug, content}. Usato per la conferma umana (regola 5)."""
+    folder = folder_for_scope(scope)
+    slug = slugify(title)
+    tag_list = list(tags or [])
+    # facet obbligatorio coerente con la taxonomy del vault
+    facet = {"andrea-aloia": "andrea", "ovyon": "ovyon"}.get(folder, "forma")
+    if facet not in tag_list:
+        tag_list = [facet, *tag_list]
+    content = GENERIC_NOTE_TEMPLATE.format(
+        title=title, summary=summary or "—", tags=", ".join(tag_list),
+        today=date.today().isoformat(), body=(body or "").strip(),
+    )
+    rel = f"{folder}/{GENERATED_SUBDIR}/{slug}.md"
+    return {"path": rel, "slug": slug, "content": content}
+
+
+def save_note(scope: str, title: str, body: str, summary: str = "",
+              tags: list[str] | None = None, overwrite: bool = False) -> dict:
+    """Scrive nel vault la nota generata (dopo conferma). Ritorna {path, created}.
+    Con overwrite=False non sovrascrive una nota esistente (created=False)."""
+    prev = render_note(scope, title, body, summary, tags)
+    dest = Path(settings.vault_path) / prev["path"]
+    if dest.exists() and not overwrite:
+        return {"path": prev["path"], "slug": prev["slug"], "created": False,
+                "reason": "esiste già (usa overwrite per aggiornare)"}
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(prev["content"], "utf-8")
+    return {"path": prev["path"], "slug": prev["slug"], "created": True}
 
 NOTE_TEMPLATE = """---
 title: {title}
