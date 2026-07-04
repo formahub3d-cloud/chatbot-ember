@@ -1,7 +1,14 @@
-"""RAG: recupero filtrato per scope + risposta vincolata al contenuto.
+"""RAG: recupero filtrato per permessi + risposta vincolata al contenuto.
 
-Il filtro per scope È la limitazione per settore: un tenant vede solo i chunk
-il cui `scope` è tra i suoi `allowed_scopes`.
+Il filtro È la limitazione per settore (server-side, non via prompt): un tenant
+vede solo i chunk consentiti dai suoi grant. I grant possono essere:
+
+  - una lista (storica) = `allowed_scopes`, interpretata a livello `tenant`;
+  - un dict con `allowed_scopes`/`allowed_tenants`, `allowed_orgs`,
+    `allowed_sub_tenants` per i tre livelli del modello OVYON.
+
+Il match a livello tenant avviene sul campo `scope` (== tenant), presente sia nei
+dati storici sia dopo la re-ingest additiva: i grant esistenti restano validi.
 """
 from qdrant_client.models import Filter, FieldCondition, MatchAny
 
@@ -40,39 +47,81 @@ def _build_context(hits) -> str:
     )
 
 
-def answer(question: str, allowed_scopes: list[str], k: int = 6) -> dict:
-    # Chiave master: se tra gli scope c'è "*" la ricerca NON è filtrata (vede tutto).
-    # Da usare SOLO con una chiave segreta forte, in un contesto admin privato (mai in un
-    # widget pubblico): vede i dati di tutti i clienti. (Filtro applicato in _retrieve.)
-    hits = _retrieve(question, allowed_scopes, k)
+# Grant "jolly" (chiave master): vede tutto. Solo lato admin, mai in widget pubblico.
+MASTER = "*"
+
+
+def _grant_lists(grants) -> tuple[list, list, list]:
+    """Normalizza i grant (lista storica o dict) in (orgs, tenants, sub_tenants)."""
+    if isinstance(grants, dict):
+        orgs = list(grants.get("allowed_orgs") or [])
+        tenants_ = list(grants.get("allowed_tenants") or grants.get("allowed_scopes") or [])
+        subs = list(grants.get("allowed_sub_tenants") or [])
+    else:  # lista = allowed_scopes storici, a livello tenant
+        orgs, tenants_, subs = [], list(grants or []), []
+    return orgs, tenants_, subs
+
+
+def scopes_of(grants) -> list:
+    """Tenant/scope concessi, per il campo `scopes` mostrato all'utente."""
+    return _grant_lists(grants)[1]
+
+
+def build_filter(grants):
+    """Costruisce il Filter Qdrant dai grant. None = nessun filtro (master, vede tutto).
+
+    Semantica: un chunk è visibile se soddisfa ALMENO UNO dei livelli concessi
+    (org OR tenant OR sub_tenant) — un grant su `org` copre tutti i suoi tenant.
+    Il match a livello tenant usa il campo `scope` (== tenant), presente anche nei
+    dati storici. Nessun grant valido = nega tutto (come il comportamento storico
+    con lista vuota)."""
+    orgs, tenants_, subs = _grant_lists(grants)
+    if MASTER in orgs or MASTER in tenants_ or MASTER in subs:
+        return None
+    should = []
+    if tenants_:
+        should.append(FieldCondition(key="scope", match=MatchAny(any=tenants_)))
+    if orgs:
+        should.append(FieldCondition(key="org", match=MatchAny(any=orgs)))
+    if subs:
+        should.append(FieldCondition(key="sub_tenant", match=MatchAny(any=subs)))
+    if not should:
+        return Filter(must=[FieldCondition(key="scope", match=MatchAny(any=["__none__"]))])
+    return Filter(should=should)
+
+
+def answer(question: str, grants, k: int = 6) -> dict:
+    """Risposta vincolata al contenuto visibile ai `grants` del tenant.
+
+    `grants`: lista storica (`allowed_scopes`) o dict con org/tenant/sub_tenant.
+    Chiave master (`*`) = nessun filtro: usare SOLO in contesto admin privato.
+    """
+    hits = _retrieve(question, grants, k)
+    scopes = scopes_of(grants)
     if not hits:
         return {"answer": "Non ho questa informazione nelle aree a cui ho accesso.",
-                "sources": [], "scopes": allowed_scopes}
+                "sources": [], "scopes": scopes}
 
     context = _build_context(hits)
     user = f"CONTENUTO:\n{context}\n\nDOMANDA: {question}"
     out = _clean_answer(chat(SYSTEM, user))
     sources = sorted({h.payload["slug"] for h in hits})
-    return {"answer": out, "sources": sources, "scopes": allowed_scopes}
+    return {"answer": out, "sources": sources, "scopes": scopes}
 
 
-def _retrieve(question: str, allowed_scopes: list[str], k: int = 6):
-    """Retrieval condiviso tra answer() e answer_stream(): vettore, filtro scope, hits."""
+def _retrieve(question: str, grants, k: int = 6):
+    """Retrieval condiviso tra answer() e answer_stream(): vettore, filtro grant, hits."""
     qvec = embed([question])[0]
     c = client()
-    if "*" in allowed_scopes:
-        flt = None
-    else:
-        flt = Filter(must=[FieldCondition(key="scope", match=MatchAny(any=allowed_scopes))])
     return c.query_points(
         collection_name=settings.qdrant_collection,
         query=qvec,
-        query_filter=flt,
+        query_filter=build_filter(grants),
         limit=k,
     ).points
 
 
-def answer_stream(question: str, allowed_scopes: list[str], k: int = 6):
+def answer_stream(question: str, grants, k: int = 6):
     """Come answer(), ma genera eventi SSE (stringhe già formattate).
 
     Sequenza: `event: sources` (fonti+scope, subito dopo il retrieval),
@@ -85,15 +134,16 @@ def answer_stream(question: str, allowed_scopes: list[str], k: int = 6):
         head = f"event: {event}\n" if event else ""
         return head + "data: " + _json.dumps(data, ensure_ascii=False) + "\n\n"
 
-    hits = _retrieve(question, allowed_scopes, k)
+    scopes = scopes_of(grants)
+    hits = _retrieve(question, grants, k)
     if not hits:
-        yield sse("sources", {"sources": [], "scopes": allowed_scopes})
+        yield sse("sources", {"sources": [], "scopes": scopes})
         yield sse(None, {"delta": "Non ho questa informazione nelle aree a cui ho accesso."})
         yield sse("done", {})
         return
 
     sources = sorted({h.payload["slug"] for h in hits})
-    yield sse("sources", {"sources": sources, "scopes": allowed_scopes})
+    yield sse("sources", {"sources": sources, "scopes": scopes})
 
     context = _build_context(hits)
     user = f"CONTENUTO:\n{context}\n\nDOMANDA: {question}"

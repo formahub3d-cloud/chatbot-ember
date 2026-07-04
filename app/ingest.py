@@ -1,11 +1,23 @@
-"""Ingestion del cervello: legge le note .md, calcola lo SCOPE (la chiave-permesso),
-le spezza in chunk, le trasforma in embeddings e le carica su Qdrant.
+"""Ingestion del cervello: legge le note .md, calcola i SEGMENTI di permesso
+(org/tenant/sotto-tenant), le spezza in chunk, le trasforma in embeddings e le
+carica su Qdrant.
 
-Lo SCOPE determina chi può vedere cosa:
-  - forma/clienti/<X>/...  -> scope "<X>"  (es. "ats", "hrh")  ← include i contratti del cliente
-  - forma/...              -> "forma-core"
-  - andrea-aloia/...       -> "andrea"
-  - ovyon/...              -> "ovyon"
+I segmenti determinano chi può vedere cosa. La mappatura verso il modello a tre
+livelli di OVYON (org > tenant > sotto-tenant) è derivata dal path della nota
+(vedi ovyon/docs/doc-ovyon-ember-scope nel cervello):
+
+  path nel vault                | org      | tenant       | sub_tenant
+  ------------------------------|----------|--------------|-------------
+  forma/clienti/<X>/<sub>/...   | forma    | <X>          | <sub> (se c'è)
+  forma/<area>/...              | forma    | forma-core   | <area>
+  andrea-aloia/<sub>/...        | personal | andrea       | <sub> (se c'è)
+  ovyon/<sub>/...               | ovyon    | ovyon        | <sub> (es. docs)
+  (altro)                       | altro    | altro        | —
+
+Il `tenant` coincide con lo storico `scope`: `scope_for()` resta quindi
+retro-compatibile (stessi valori di prima) ed è definito come alias del tenant.
+Questo permette una re-ingest ADDITIVA (aggiunge org/sub_tenant al payload) senza
+rompere i filtri esistenti basati su `allowed_scopes`.
 """
 import re
 import uuid
@@ -23,17 +35,35 @@ from .providers import embed, EMBED_DIM
 SKIP_DIRS = {".git", ".obsidian", "_showcase", "workspace", "sources", "contratti"}
 
 
-def scope_for(rel: Path) -> str:
+def segments_for(rel: Path) -> dict:
+    """Ricava i tre segmenti di permesso (org/tenant/sub_tenant) dal path della nota.
+
+    `rel` è il path relativo al vault, filename incluso (es. forma/clienti/ats/x.md):
+    le componenti-cartella sono `rel.parts[:-1]`. Il sotto-tenant è la cartella
+    intermedia — presente solo quando la nota è annidata sotto il tenant, altrimenti None.
+    """
     parts = rel.parts
     if parts and parts[0] == "forma":
         if len(parts) >= 3 and parts[1] == "clienti":
-            return parts[2]
-        return "forma-core"
+            # forma/clienti/<X>/[<sub>/]file.md → tenant=<X>, sub=<sub> se annidata
+            sub = parts[3] if len(parts) >= 5 else None
+            return {"org": "forma", "tenant": parts[2], "sub_tenant": sub}
+        # forma/<area>/[.../]file.md → tenant=forma-core, sub=<area> se annidata
+        sub = parts[1] if len(parts) >= 3 else None
+        return {"org": "forma", "tenant": "forma-core", "sub_tenant": sub}
     if parts and parts[0] == "andrea-aloia":
-        return "andrea"
+        sub = parts[1] if len(parts) >= 3 else None
+        return {"org": "personal", "tenant": "andrea", "sub_tenant": sub}
     if parts and parts[0] == "ovyon":
-        return "ovyon"
-    return "altro"
+        sub = parts[1] if len(parts) >= 3 else None
+        return {"org": "ovyon", "tenant": "ovyon", "sub_tenant": sub}
+    return {"org": "altro", "tenant": "altro", "sub_tenant": None}
+
+
+def scope_for(rel: Path) -> str:
+    """Storico `scope` = livello `tenant`. Mantenuto per retro-compatibilità
+    (allowed_scopes, filtri esistenti). Vedi segments_for() per i tre livelli."""
+    return segments_for(rel)["tenant"]
 
 
 def chunk(text: str, size: int = 1200, overlap: int = 200) -> list[str]:
@@ -76,15 +106,17 @@ def ensure_collection(c: QdrantClient, fresh: bool = False) -> None:
             settings.qdrant_collection,
             vectors_config=VectorParams(size=EMBED_DIM, distance=Distance.COSINE),
         )
-    # Indice sul campo 'scope': serve a Qdrant per filtrare per settore/tenant.
-    try:
-        c.create_payload_index(
-            settings.qdrant_collection,
-            field_name="scope",
-            field_schema=PayloadSchemaType.KEYWORD,
-        )
-    except Exception:
-        pass  # già esistente: ok
+    # Indici per i campi di permesso, così Qdrant può filtrare per livello:
+    #   scope/tenant (retro-compatibili), org e sub_tenant (nuovi, additivi).
+    for field in ("scope", "org", "tenant", "sub_tenant"):
+        try:
+            c.create_payload_index(
+                settings.qdrant_collection,
+                field_name=field,
+                field_schema=PayloadSchemaType.KEYWORD,
+            )
+        except Exception:
+            pass  # già esistente: ok
 
 
 def iter_notes(vault: Path):
@@ -113,13 +145,17 @@ def run() -> dict:
         if not body:
             continue
         n_notes += 1
-        scope = scope_for(rel)
+        seg = segments_for(rel)
+        # `scope` = alias di `tenant`: mantiene intatti i filtri e i dati esistenti.
+        scope = seg["tenant"]
         title = meta.get("title", md.stem)
         tags = meta.get("tags", "")
         for ci, ch in enumerate(chunk(body)):
             metas.append({
                 "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{rel}::{ci}")),
-                "scope": scope, "slug": md.stem, "title": title,
+                "scope": scope, "org": seg["org"], "tenant": seg["tenant"],
+                "sub_tenant": seg["sub_tenant"],
+                "slug": md.stem, "title": title,
                 "path": str(rel), "tags": tags, "chunk": ci, "text": ch,
             })
             texts.append(ch)
@@ -136,7 +172,8 @@ def run() -> dict:
         PointStruct(
             id=m["id"], vector=v,
             payload={k: m[k] for k in
-                     ("scope", "slug", "title", "path", "tags", "chunk", "text")},
+                     ("scope", "org", "tenant", "sub_tenant",
+                      "slug", "title", "path", "tags", "chunk", "text")},
         )
         for m, v in zip(metas, vectors)
     ]

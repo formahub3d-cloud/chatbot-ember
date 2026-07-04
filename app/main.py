@@ -95,6 +95,17 @@ def tenant_or_401(key: str) -> dict:
     return tenant
 
 
+def _grants(tenant: dict) -> dict:
+    """Grant del tenant per il retrieval. `allowed_scopes` (storico, livello tenant)
+    resta il campo principale; `allowed_orgs` e `allowed_sub_tenants` sono opzionali
+    e additivi (modello a tre livelli OVYON). Vedi rag.build_filter."""
+    return {
+        "allowed_scopes": tenant.get("allowed_scopes", []),
+        "allowed_orgs": tenant.get("allowed_orgs", []),
+        "allowed_sub_tenants": tenant.get("allowed_sub_tenants", []),
+    }
+
+
 class ChatIn(BaseModel):
     message: str
     stream: bool = False  # true → risposta SSE (text/event-stream) token per token
@@ -186,7 +197,7 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     log.info("chat tenant=%s q=%r", tenant.get("name", "?"), security.redact_pii(body.message)[:200])
     if body.stream:
         try:
-            gen = rag.answer_stream(body.message, tenant["allowed_scopes"])
+            gen = rag.answer_stream(body.message, _grants(tenant))
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -208,7 +219,7 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
     try:
-        return rag.answer(body.message, tenant["allowed_scopes"])
+        return rag.answer(body.message, _grants(tenant))
     except HTTPException:
         raise
     except Exception:
