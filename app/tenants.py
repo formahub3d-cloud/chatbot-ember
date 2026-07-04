@@ -36,7 +36,14 @@ def load_static() -> dict:
 
 def _conn():
     import psycopg2  # import locale: serve solo quando si usa il DB
-    return psycopg2.connect(settings.database_url)
+    # connect_timeout: evita blocchi lunghi se il pooler non risponde.
+    # keepalives: tiene viva la connessione sul pooler (transaction mode),
+    # riducendo i drop "a freddo" dopo un periodo di inattività.
+    return psycopg2.connect(
+        settings.database_url,
+        connect_timeout=5,
+        keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3,
+    )
 
 
 def init_and_seed(seed: dict) -> int:
@@ -183,15 +190,31 @@ def resolve_key_apikeys(key: str) -> dict | None:
     Ritorna None se assente o revocata (active=false). `allowed_scopes` è tenuto in
     sincrono con `allowed_tenants` per retro-compatibilità con rag.build_filter."""
     from .security import hash_key
+    import time
     kh = hash_key(key)
-    with _conn() as c:
-        with c.cursor() as cur:
-            cur.execute(
-                "SELECT name, active, quota_day, allowed_orgs, allowed_tenants, "
-                "allowed_sub_tenants, allowed_origins FROM api_keys WHERE key_hash = %s",
-                (kh,),
-            )
-            row = cur.fetchone()
+    row = None
+    last_err = None
+    # 1 retry: assorbe il drop "a freddo" del pooler (prima richiesta dopo inattività),
+    # che altrimenti farebbe fallback → 401 su una chiave valida. Un vero outage del DB
+    # fa fallire entrambi i tentativi e lo gestisce get_tenant_by_key (try/except).
+    for attempt in range(2):
+        try:
+            with _conn() as c:
+                with c.cursor() as cur:
+                    cur.execute(
+                        "SELECT name, active, quota_day, allowed_orgs, allowed_tenants, "
+                        "allowed_sub_tenants, allowed_origins FROM api_keys WHERE key_hash = %s",
+                        (kh,),
+                    )
+                    row = cur.fetchone()
+            break
+        except Exception as e:  # es. OperationalError/InterfaceError su connessione stantia
+            last_err = e
+            log.warning("api_keys lookup tentativo %d fallito: %s", attempt + 1, e)
+            if attempt == 0:
+                time.sleep(0.2)
+    else:
+        raise last_err
     if not row or not row[1]:  # assente o active=false
         return None
     name, _active, quota_day, orgs, tenants_, subs, origins = row
