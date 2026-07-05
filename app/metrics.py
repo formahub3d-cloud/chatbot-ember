@@ -6,7 +6,7 @@ via GET /admin/analytics; per uno storico duraturo va usata una tabella
 (es. access_logs dello schema OVYON). Tutte le operazioni sono best-effort e
 thread-safe, e non devono MAI far fallire una richiesta.
 """
-from collections import defaultdict
+from collections import defaultdict, deque
 from threading import Lock
 import time
 
@@ -16,6 +16,10 @@ _chats = defaultdict(int)
 _gaps = defaultdict(int)
 _fb_up = defaultdict(int)
 _fb_down = defaultdict(int)
+# Ring-buffer (redatti) delle ultime domande senza risposta e dei feedback negativi:
+# servono ad arricchire il cervello (capire cosa manca / dove è debole). In-memory.
+_recent_gaps = deque(maxlen=60)
+_recent_neg = deque(maxlen=60)
 
 
 def _skey(scopes) -> str:
@@ -36,18 +40,24 @@ def bump_chat(scopes) -> None:
         pass
 
 
-def bump_gap(scopes) -> None:
+def bump_gap(scopes, question: str = "") -> None:
     try:
         with _lock:
-            _gaps[_skey(scopes)] += 1
+            k = _skey(scopes)
+            _gaps[k] += 1
+            if question:
+                _recent_gaps.append({"scope": k, "q": question[:200], "at": int(time.time())})
     except Exception:
         pass
 
 
-def bump_feedback(scopes, up: bool) -> None:
+def bump_feedback(scopes, up: bool, question: str = "") -> None:
     try:
         with _lock:
-            (_fb_up if up else _fb_down)[_skey(scopes)] += 1
+            k = _skey(scopes)
+            (_fb_up if up else _fb_down)[k] += 1
+            if not up and question:
+                _recent_neg.append({"scope": k, "q": question[:200], "at": int(time.time())})
     except Exception:
         pass
 
@@ -77,7 +87,18 @@ def snapshot() -> dict:
         }
 
 
+def insights() -> dict:
+    """Segnali per arricchire il cervello: ultime domande senza risposta (gap) e
+    ultimi feedback negativi (👎), redatti, più recenti prima. Sola lettura."""
+    with _lock:
+        return {
+            "gaps": list(_recent_gaps)[::-1],
+            "negative_feedback": list(_recent_neg)[::-1],
+        }
+
+
 def reset() -> None:
     """Solo per i test."""
     with _lock:
         _chats.clear(); _gaps.clear(); _fb_up.clear(); _fb_down.clear()
+        _recent_gaps.clear(); _recent_neg.clear()

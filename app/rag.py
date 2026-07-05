@@ -131,7 +131,7 @@ def answer(question: str, grants, k: int = 6, history=None) -> dict:
     scopes = scopes_of(grants)
     if not hits:
         _log_gap(question, grants)
-        metrics.bump_gap(scopes)
+        metrics.bump_gap(scopes, redact_pii(question)[:200])
         return {"answer": NO_ANSWER, "sources": [], "scopes": scopes}
 
     context = _build_context(hits)
@@ -192,7 +192,7 @@ def answer_stream(question: str, grants, k: int = 6, history=None):
     hits = _retrieve(question, grants, k)
     if not hits:
         _log_gap(question, grants)
-        metrics.bump_gap(scopes)
+        metrics.bump_gap(scopes, redact_pii(question)[:200])
         yield sse("sources", {"sources": [], "scopes": scopes})
         yield sse(None, {"delta": NO_ANSWER})
         yield sse("done", {})

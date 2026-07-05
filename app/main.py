@@ -8,14 +8,30 @@ Endpoint:
   POST /upload            (tenant) carica un contratto → OCR + estrazione → ANTEPRIMA
                           dei campi (NON consolida: richiede conferma umana)
 """
+import contextvars
 import json
 import logging
 import tempfile
 import time
+import uuid
 from collections import deque
 from pathlib import Path
 
-logging.basicConfig(level=logging.INFO)
+# Osservabilità: un request_id per richiesta, propagato nei log (e nell'header
+# X-Request-ID della risposta), così si segue un problema end-to-end.
+_request_id: contextvars.ContextVar = contextvars.ContextVar("request_id", default="-")
+
+
+class _RequestIdFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = _request_id.get()
+        return True
+
+
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s")
+for _h in logging.getLogger().handlers:
+    _h.addFilter(_RequestIdFilter())
 log = logging.getLogger("ember")
 
 # Rate limiting in memoria: finestra scorrevole di 60s per chiave tenant.
@@ -63,8 +79,11 @@ app.add_middleware(
 
 @app.middleware("http")
 async def _security_headers(request: Request, call_next):
-    """Header di sicurezza su ogni risposta + trasparenza AI (EU AI Act)."""
+    """request_id per richiesta + header di sicurezza + trasparenza AI (EU AI Act)."""
+    rid = (request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12])[:64]
+    _request_id.set(rid)
     resp = await call_next(request)
+    resp.headers["X-Request-ID"] = rid
     if settings.security_headers:
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "DENY")
@@ -313,19 +332,52 @@ def do_feedback(body: FeedbackIn, x_tenant_key: str = Header(default=""), origin
     _guard(tenant, x_tenant_key, origin)
     up = str(body.vote).strip().lower() in ("up", "1", "true", "positivo", "si", "sì", "👍")
     scopes = rag.scopes_of(_grants(tenant))
-    metrics.bump_feedback(scopes, up)
-    log.info("feedback · scope=%s · voto=%s · q=%r", scopes, "up" if up else "down",
-             security.redact_pii(body.question or "")[:160])
+    qred = security.redact_pii(body.question or "")[:160]
+    metrics.bump_feedback(scopes, up, qred)
+    log.info("feedback · scope=%s · voto=%s · q=%r", scopes, "up" if up else "down", qred)
     return {"ok": True}
+
+
+def _require_admin(authorization: str) -> None:
+    if authorization != f"Bearer {settings.admin_token}":
+        raise HTTPException(401, "Token admin non valido.")
 
 
 @app.get("/admin/analytics")
 def admin_analytics(authorization: str = Header(default="")):
     """Colpo d'occhio operativo (dal boot del processo): chat/gap/feedback per scope.
     Protetto dal Bearer ADMIN_TOKEN, come /ingest. In-memory: si azzera al redeploy."""
-    if authorization != f"Bearer {settings.admin_token}":
-        raise HTTPException(401, "Token admin non valido.")
+    _require_admin(authorization)
     return metrics.snapshot()
+
+
+@app.get("/admin/insights")
+def admin_insights(authorization: str = Header(default="")):
+    """Segnali per arricchire il cervello: ultime domande senza risposta (gap) e
+    ultimi feedback negativi (redatti). Protetto dal Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    return metrics.insights()
+
+
+@app.get("/ready")
+def ready():
+    """Readiness per monitoraggio: verifica raggiungibilità di Qdrant e del backend
+    tenant. 200 se tutto ok, 503 se un componente critico non risponde."""
+    checks = {"qdrant": False, "tenants": False}
+    try:
+        ingest.client().get_collections()
+        checks["qdrant"] = True
+    except Exception:
+        log.warning("readiness: Qdrant non raggiungibile")
+    try:
+        tenants.get_tenant_by_key("__readiness_probe__")  # None atteso, ma senza eccezioni
+        checks["tenants"] = True
+    except Exception:
+        log.warning("readiness: backend tenant non raggiungibile")
+    ok = all(checks.values())
+    if not ok:
+        raise HTTPException(503, {"ready": False, "checks": checks})
+    return {"ready": True, "checks": checks}
 
 
 @app.post("/writeback")
