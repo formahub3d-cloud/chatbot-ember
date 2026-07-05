@@ -12,9 +12,7 @@ import contextvars
 import json
 import logging
 import tempfile
-import time
 import uuid
-from collections import deque
 from pathlib import Path
 
 # Osservabilità: un request_id per richiesta, propagato nei log (e nell'header
@@ -34,23 +32,14 @@ for _h in logging.getLogger().handlers:
     _h.addFilter(_RequestIdFilter())
 log = logging.getLogger("ember")
 
-# Rate limiting in memoria: finestra scorrevole di 60s per chiave tenant.
-# Per produzione multi-istanza si passerà a Redis (vedi roadmap).
-_hits: dict = {}
+# Rate limiting: finestra scorrevole di 60s per chiave tenant, delegato a un
+# limiter estraibile (app/ratelimit.py) così da poter passare a un backend Redis
+# per il multi-istanza senza toccare gli endpoint.
+from .ratelimit import limiter
 
 
 def rate_ok(key: str) -> bool:
-    limit = settings.rate_limit_per_min
-    if limit <= 0:
-        return True
-    now = time.time()
-    dq = _hits.setdefault(key, deque())
-    while dq and now - dq[0] > 60:
-        dq.popleft()
-    if len(dq) >= limit:
-        return False
-    dq.append(now)
-    return True
+    return limiter.allow(key, settings.rate_limit_per_min)
 
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
