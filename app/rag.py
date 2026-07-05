@@ -146,18 +146,49 @@ def _score(h) -> float:
     return float(getattr(h, "score", 0.0) or 0.0)
 
 
+def _slug_of(h) -> str | None:
+    return (getattr(h, "payload", None) or {}).get("slug")
+
+
+def _diversify(hits, k: int):
+    """Diversità stile MMR (senza vettori): scorre i candidati per score decrescente
+    e limita a `retrieval_per_note` i chunk provenienti dalla stessa nota, così il
+    contesto copre più note invece di ripetere la stessa. Se dopo il cap non si
+    raggiunge `k`, completa con i chunk avanzati (nessuno slot sprecato)."""
+    per = settings.retrieval_per_note
+    if per <= 0 or not hits:
+        return hits[:k]
+    seen: dict = {}
+    out = []
+    for h in hits:                       # già ordinati per score decrescente
+        s = _slug_of(h)
+        if s is not None and seen.get(s, 0) >= per:
+            continue
+        seen[s] = seen.get(s, 0) + 1
+        out.append(h)
+        if len(out) >= k:
+            return out
+    for h in hits:                       # riempi eventuali slot rimasti liberi
+        if len(out) >= k:
+            break
+        if h not in out:
+            out.append(h)
+    return out[:k]
+
+
 def _filter_hits(hits, k: int):
     """Riduce il rumore nel contesto: da un pool di candidati (ordinati per score
     decrescente da Qdrant) tiene solo i chunk abbastanza rilevanti — sopra la soglia
-    assoluta E sopra una frazione dello score del migliore — poi i primi `k`.
-    Meno contesto debole = risposte più precise e 'non lo so' più onesti. Con le
-    soglie a 0 (default assoluto) il comportamento resta invariato: filtro relativo."""
+    assoluta E sopra una frazione dello score del migliore — poi diversifica e limita
+    a `k`. Meno contesto debole e meno ripetizioni = risposte più precise e complete,
+    con 'non lo so' più onesti. Con le soglie a 0 e per_note=0 il comportamento resta
+    quello storico (top-k)."""
     if not hits:
         return []
     top = _score(hits[0])
     thr = max(settings.retrieval_min_score, settings.retrieval_rel_score * top)
     kept = [h for h in hits if _score(h) >= thr]
-    return kept[:k]
+    return _diversify(kept, k)
 
 
 def _retrieve(question: str, grants, k: int = 6):

@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     retrieval_pool: int = 12          # candidati recuperati prima del filtro (>= k)
     retrieval_rel_score: float = 0.5  # tieni i chunk con score >= questa frazione del top (0 = off)
     retrieval_min_score: float = 0.0  # soglia assoluta minima di score (0 = off)
+    retrieval_per_note: int = 3       # max chunk dalla stessa nota nel contesto (0 = off):
+    #   evita che più pezzi quasi identici della stessa nota saturino il contesto,
+    #   lasciando spazio ad altre note → risposte più complete (diversità stile MMR).
 
     # cervello
     vault_path: str = ""

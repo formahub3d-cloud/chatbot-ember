@@ -10,6 +10,10 @@ def _hits(scores):
     return [SimpleNamespace(score=s, payload={}) for s in scores]
 
 
+def _h(score, slug):
+    return SimpleNamespace(score=score, payload={"slug": slug})
+
+
 def test_soglia_relativa_scarta_la_coda(monkeypatch):
     monkeypatch.setattr(settings, "retrieval_rel_score", 0.5)
     monkeypatch.setattr(settings, "retrieval_min_score", 0.0)
@@ -39,3 +43,29 @@ def test_default_tiene_almeno_il_migliore(monkeypatch):
     monkeypatch.setattr(settings, "retrieval_min_score", 0.0)
     kept = rag._filter_hits(_hits([0.3, 0.1]), k=6)
     assert kept and kept[0].score == 0.3                    # il top passa sempre
+
+
+def test_diversita_una_per_nota(monkeypatch):
+    monkeypatch.setattr(settings, "retrieval_rel_score", 0.0)
+    monkeypatch.setattr(settings, "retrieval_min_score", 0.0)
+    monkeypatch.setattr(settings, "retrieval_per_note", 1)
+    hits = [_h(0.9, "a"), _h(0.85, "a"), _h(0.8, "b"), _h(0.7, "c")]
+    kept = rag._filter_hits(hits, k=3)
+    assert [h.payload["slug"] for h in kept] == ["a", "b", "c"]   # codas di "a" scartate
+
+
+def test_diversita_riempie_se_poche_note(monkeypatch):
+    monkeypatch.setattr(settings, "retrieval_rel_score", 0.0)
+    monkeypatch.setattr(settings, "retrieval_min_score", 0.0)
+    monkeypatch.setattr(settings, "retrieval_per_note", 1)
+    hits = [_h(0.9, "a"), _h(0.85, "a"), _h(0.8, "a")]
+    kept = rag._filter_hits(hits, k=2)
+    assert len(kept) == 2                                        # nessuno slot sprecato
+
+
+def test_diversita_off_torna_topk(monkeypatch):
+    monkeypatch.setattr(settings, "retrieval_rel_score", 0.0)
+    monkeypatch.setattr(settings, "retrieval_min_score", 0.0)
+    monkeypatch.setattr(settings, "retrieval_per_note", 0)
+    hits = [_h(0.9, "a"), _h(0.85, "a"), _h(0.8, "b")]
+    assert [h.payload["slug"] for h in rag._filter_hits(hits, k=2)] == ["a", "a"]
