@@ -39,6 +39,13 @@ modello OVYON (org > tenant > sotto-tenant): `ingest.segments_for` deriva dal pa
 
 Il **connettore MCP** (server FastMCP) è in `mcp-connector/` (vedi il suo README).
 
+**Flusso contratti (upload → conferma → write-back).** `POST /upload` fa OCR +
+estrazione e restituisce l'**anteprima** dei campi (non consolida). Dopo la conferma
+umana dei campi, `POST /contract/confirm` scrive la nota nel vault (cartella privata
+del cliente, gitignorata) e — se `NOTION_TOKEN`/`NOTION_CONTRACTS_DB` sono configurati —
+inserisce la riga nel **database Notion** dei contratti. Lo scope di destinazione
+(`cliente`) deve essere tra quelli concessi al tenant.
+
 **Backend Supabase (opzionale, `GRANTS_BACKEND=supabase` + `DATABASE_URL`).** Layer
 identità/permessi/audit: risoluzione chiavi da `api_keys`, audit su `access_logs` in
 sessione RLS, e sync dei metadati nota in `documents` durante l'ingest. Schema e istruzioni
@@ -86,7 +93,7 @@ Se chiedi al tenant ATS qualcosa di FORMA → risponde che non ha accesso. ✅
 
 ## Limiti di questa Fase 0 (prossimi passi)
 
-- Ingestion da **upload/OCR** e **write-back** su vault+Notion → Fase 2.
+- ✅ Ingestion da **upload/OCR** + **write-back** su vault e **Notion** (`/contract/confirm`) → Fase 2 fatta.
 - **Auto-compilazione** contratti da template → Fase 3.
 - **Billing Stripe** + widget embeddabile + hardening GDPR → Fasi 1/4.
 - Per GDPR: usa una **region Qdrant UE** e un host UE; i contratti contengono dati personali.

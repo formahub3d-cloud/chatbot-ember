@@ -7,6 +7,8 @@ Endpoint:
                           con {"stream": true} risposta SSE token per token
   POST /upload            (tenant) carica un contratto → OCR + estrazione → ANTEPRIMA
                           dei campi (NON consolida: richiede conferma umana)
+  POST /contract/confirm  (tenant) consolida i campi CONFERMATI → nota nel vault
+                          + riga nel database Notion (write-back Fase 2b)
 """
 import json
 import logging
@@ -135,6 +137,12 @@ class WritebackIn(BaseModel):
     tags: list[str] = []
     confirm: bool = False      # false → solo ANTEPRIMA (regola 5: conferma umana)
     overwrite: bool = False
+
+
+class ContractConfirmIn(BaseModel):
+    cliente: str = "ats"           # tenant/scope di destinazione (deve essere concesso)
+    fields: dict = {}              # campi confermati dall'utente (CF, codice, date, tipologia)
+    to_notion: bool = True         # spinge anche su Notion (no-op se non configurato)
 
 
 def _guard(tenant: dict, key: str, origin: str) -> None:
@@ -370,3 +378,31 @@ async def do_upload(file: UploadFile = File(...), x_tenant_key: str = Header(def
             pass
     return {"preview": fields, "note": "Conferma i campi prima del consolidamento.",
             "consolidato": False}
+
+
+@app.post("/contract/confirm")
+def do_contract_confirm(body: ContractConfirmIn, x_tenant_key: str = Header(default=""),
+                        origin: str = Header(default="")):
+    """Consolida un contratto DOPO la conferma umana dei campi (regola 5): scrive la
+    nota nel vault (cartella privata gitignorata) e — se to_notion e la config Notion
+    sono attive — inserisce la riga nel database contratti. Lo scope di destinazione
+    (cliente) deve essere tra quelli concessi al tenant. È il passo di consolidamento
+    del flusso /upload → anteprima → conferma."""
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+    ctx = rag.list_context(_grants(tenant))
+    if not ctx["master"] and body.cliente not in (ctx["allowed_tenants"] or []):
+        raise HTTPException(403, "Scope di destinazione non consentito per questo tenant.")
+    if not body.fields:
+        raise HTTPException(422, "Nessun campo da consolidare.")
+    try:
+        path = writeback.save_contract_note(body.fields, cliente=body.cliente)
+    except Exception:
+        log.exception("save_contract_note failed")
+        raise HTTPException(500, "Errore durante la scrittura della nota contratto.")
+    out = {"consolidato": True, "vault_path": path}
+    if body.to_notion:
+        # backlink alla nota Obsidian nella riga Notion (campo "Nota Obsidian")
+        out["notion"] = writeback.notion_upsert(dict(body.fields, slug=Path(path).stem))
+    tenants.log_access(tenant.get("key_hash"), "create", tenant_code=body.cliente, detail=path)
+    return out

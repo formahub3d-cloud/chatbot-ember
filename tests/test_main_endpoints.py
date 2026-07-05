@@ -127,3 +127,67 @@ def test_upload_errore_ocr_502_e_cleanup(client, monkeypatch):
                     files={"file": ("doc.pdf", b"%PDF-1.4 dati", "application/pdf")})
     assert r.status_code == 502
     assert not os.path.exists(seen["path"])
+
+
+# ── /contract/confirm: consolidamento vault + Notion (write-back Fase 2b) ──
+
+def _ctx(monkeypatch):
+    """Contesto permessi: tenant ATS vede solo lo scope 'ats', non master."""
+    monkeypatch.setattr(main.rag, "list_context",
+                        lambda grants: {"master": False, "allowed_tenants": ["ats"],
+                                        "allowed_orgs": [], "allowed_sub_tenants": []})
+
+
+def test_contract_confirm_scope_non_consentito_403(client, monkeypatch):
+    _ctx(monkeypatch)
+    r = client.post("/contract/confirm", headers={"X-Tenant-Key": "CHIAVE_ATS"},
+                    json={"cliente": "hrh", "fields": {"cognome": "Rossi"}})
+    assert r.status_code == 403
+
+
+def test_contract_confirm_campi_vuoti_422(client, monkeypatch):
+    _ctx(monkeypatch)
+    r = client.post("/contract/confirm", headers={"X-Tenant-Key": "CHIAVE_ATS"},
+                    json={"cliente": "ats", "fields": {}})
+    assert r.status_code == 422
+
+
+def test_contract_confirm_ok_vault_e_notion(client, monkeypatch):
+    _ctx(monkeypatch)
+    calls = {}
+    monkeypatch.setattr(main.writeback, "save_contract_note",
+                        lambda fields, cliente="ats": f"forma/clienti/{cliente}/contratti/unilav-rossi.md")
+    monkeypatch.setattr(main.writeback, "notion_upsert",
+                        lambda fields: {"status": "ok", "page_id": "p1", "slug": fields.get("slug")})
+    audit = {}
+    monkeypatch.setattr(main.tenants, "log_access",
+                        lambda kh, action, **kw: audit.update({"action": action, **kw}))
+
+    r = client.post("/contract/confirm", headers={"X-Tenant-Key": "CHIAVE_ATS"},
+                    json={"cliente": "ats", "fields": {"cognome": "Rossi", "nome": "Mario"}})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["consolidato"] is True
+    assert body["vault_path"].endswith("unilav-rossi.md")
+    assert body["notion"]["status"] == "ok"
+    # il backlink alla nota Obsidian è passato a Notion
+    assert body["notion"]["slug"] == "unilav-rossi"
+    # audit registrato con lo scope di destinazione
+    assert audit["action"] == "create"
+    assert audit["tenant_code"] == "ats"
+
+
+def test_contract_confirm_senza_notion(client, monkeypatch):
+    _ctx(monkeypatch)
+    monkeypatch.setattr(main.writeback, "save_contract_note",
+                        lambda fields, cliente="ats": "forma/clienti/ats/contratti/x.md")
+    called = {"notion": False}
+    monkeypatch.setattr(main.writeback, "notion_upsert",
+                        lambda fields: called.update(notion=True))
+    monkeypatch.setattr(main.tenants, "log_access", lambda *a, **k: None)
+
+    r = client.post("/contract/confirm", headers={"X-Tenant-Key": "CHIAVE_ATS"},
+                    json={"cliente": "ats", "fields": {"cognome": "R"}, "to_notion": False})
+    assert r.status_code == 200
+    assert "notion" not in r.json()
+    assert called["notion"] is False

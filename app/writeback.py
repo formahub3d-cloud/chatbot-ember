@@ -1,8 +1,14 @@
 """Write-back dei dati estratti nel cervello.
 
+- `save_note` / `render_note`: note generiche del connettore OVYON (conferma umana).
 - `save_contract_note`: crea la nota markdown del contratto nel vault (cartella
   privata del cliente, già gitignorata).
-- `notion_upsert`: STUB — inserire nel database Notion via API (richiede token).
+- `notion_upsert`: inserisce la riga del contratto nel database Notion via API.
+  Inerte (status='skipped') finché NOTION_TOKEN e NOTION_CONTRACTS_DB non sono
+  configurati; mappa date e tipologia sullo schema del database reale.
+
+Flusso contratti: /upload → OCR + estrazione → ANTEPRIMA → (conferma umana dei
+campi) → /contract/confirm → save_contract_note (vault) + notion_upsert (Notion).
 
 Principio: si scrive SOLO dopo conferma umana dei campi (vedi extract.py).
 """
@@ -97,8 +103,8 @@ status: historical
 created: {today}
 updated: {today}
 related:
-  - "[[registro-contratti-ats]]"
-  - "[[cliente-ats]]"
+  - "[[registro-contratti-{cliente}]]"
+  - "[[cliente-{cliente}]]"
 ---
 
 # {title}
@@ -114,7 +120,7 @@ related:
 | Data scadenza | {data_fine} |
 | Tipologia | {tipologia} |
 
-→ [[registro-contratti-ats]] · [[cliente-ats]]
+→ [[registro-contratti-{cliente}]] · [[cliente-{cliente}]]
 """
 
 
@@ -128,6 +134,7 @@ def save_contract_note(fields: dict, cliente: str = "ats") -> str:
     note = NOTE_TEMPLATE.format(
         title=f"UNILAV — {fields.get('cognome','')} {fields.get('nome','')}",
         summary="Contratto importato via OCR — da rivedere.",
+        cliente=cliente,
         cliente_tag=f"cliente/{cliente}",
         today=date.today().isoformat(),
         nome=fields.get("nome", ""), cognome=fields.get("cognome", ""),
@@ -161,9 +168,11 @@ def _to_iso(value: str) -> str:
 
 
 def _map_tipo(value: str) -> str:
-    """Mappa la tipologia estratta su un'opzione valida del select Notion."""
+    """Mappa la tipologia estratta su un'opzione valida del select Notion.
+    Le opzioni più lunghe hanno la precedenza per evitare match parziali
+    (es. 'indeterminato' non deve cadere su 'determinato', che ne è sottostringa)."""
     v = (value or "").strip().lower()
-    for opt in NOTION_TIPI:
+    for opt in sorted(NOTION_TIPI, key=len, reverse=True):
         if opt.lower() in v:
             return opt
     return "Altro"

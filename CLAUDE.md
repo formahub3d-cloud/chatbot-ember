@@ -42,11 +42,11 @@ identico ai valori storici. Mappatura e razionale: `ovyon/docs/doc-ovyon-ember-s
 - `app/rag.py` — retrieval filtrato per scope + risposta vincolata al contenuto
 - `app/ocr.py` — OCR documenti (Mistral OCR)
 - `app/extract.py` — estrazione campi (regex UniLav + LLM generico)
-- `app/writeback.py` — scrive la nota nel vault: contratti + `save_note` generico (conferma umana); Notion = TODO
+- `app/writeback.py` — scrive la nota nel vault: contratti + `save_note` generico (conferma umana) + `notion_upsert` (riga contratto nel DB Notion, inerte finché non configurato)
 - `app/tenants.py` — chiavi→scope; store statico/Postgres/Mongo/**Supabase `api_keys`** + audit `log_access`
 - `app/rls.py` — GUC `ovyon.*` (`session_grants`) per la RLS Supabase lato Ember
 - `app/docstore.py` — sync metadati nota → tabella Supabase `documents` (durante l'ingest)
-- `app/main.py` — API: `/health` `/ingest` `/chat` (con `{"stream": true}` SSE) `/upload`, e per il connettore MCP `/search` `/document` `/context` `/writeback`
+- `app/main.py` — API: `/health` `/ingest` `/chat` (con `{"stream": true}` SSE) `/upload` `/contract/confirm` (consolida contratto → vault + Notion), e per il connettore MCP `/search` `/document` `/context` `/writeback`
 - `mcp-connector/` — server MCP (5 tool) verso Ember · `db/` — schema Supabase OVYON · `scripts/verify_ingest.py` — collaudo post-ingest · `OVYON-SETUP.md` — runbook produzione
 
 ## Comandi
@@ -79,9 +79,10 @@ python scripts/verify_ingest.py     # verifica org/tenant/sub_tenant nei payload
 
 ## Stato attuale
 
-- ✅ Fase 0 (RAG single/multi-tenant) e ✅ Fase 2 codice (OCR/estrazione/upload) presenti.
-- ⏳ Da fare: collaudo con chiavi reali, widget (Fase 1), write-back Notion (Fase 2b),
-  auto-compilazione (Fase 3), billing + GDPR (Fase 4).
+- ✅ Fase 0 (RAG single/multi-tenant) e ✅ Fase 2 codice (OCR/estrazione/upload +
+  consolidamento contratto su vault e ✅ write-back Notion `/contract/confirm`).
+- ⏳ Da fare: collaudo con chiavi reali, widget (Fase 1), auto-compilazione (Fase 3),
+  billing + GDPR + rate-limit distribuito (Fase 4).
 
 ## Riferimenti nel cervello
 
