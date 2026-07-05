@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     max_message_chars: int = 2000  # lunghezza massima della domanda (anti-abuso/costi)
     security_headers: bool = True  # aggiunge header di sicurezza a ogni risposta
 
+    # cifratura contenuti a riposo (GDPR) — per la colonna documents.content_encrypted.
+    # Vuoto = disattivata. Una o più chiavi Fernet separate da virgola (la prima cifra,
+    # tutte decifrano → rotazione). Genera una chiave con:  python -m app.crypto
+    content_enc_key: str = ""
+
     # voce (opzionale) — proxy STT/TTS con chiavi lato server, mai nel browser.
     # VOICE_PROVIDER vuoto = disabilitato: il widget usa la voce gratuita del browser.
     voice_provider: str = ""            # "" | "deepgram" | "elevenlabs"
