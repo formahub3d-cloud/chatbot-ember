@@ -24,7 +24,10 @@ import uuid
 from pathlib import Path
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct, PayloadSchemaType
+from qdrant_client.models import (
+    Distance, VectorParams, PointStruct, PayloadSchemaType,
+    Filter, FieldCondition, MatchValue, FilterSelector,
+)
 
 from .config import settings
 from .providers import embed, EMBED_DIM
@@ -111,8 +114,9 @@ def client() -> QdrantClient:
 def ensure_collection(c: QdrantClient, fresh: bool = False) -> None:
     existing = [col.name for col in c.get_collections().collections]
     if fresh and settings.qdrant_collection in existing:
-        # Reindicizzazione pulita: azzera la collection (rimuove duplicati e
-        # note cancellate/rinominate) e la ricrea da zero.
+        # Reset esplicito (uso manuale/di test): azzera e ricrea da zero.
+        # NB: run() NON usa questo percorso — reindicizza con lo swap per marker
+        # (upsert-then-prune) per non lasciare mai la collection vuota.
         c.delete_collection(settings.qdrant_collection)
         existing = [col.name for col in c.get_collections().collections]
     if settings.qdrant_collection not in existing:
@@ -122,7 +126,8 @@ def ensure_collection(c: QdrantClient, fresh: bool = False) -> None:
         )
     # Indici per i campi di permesso, così Qdrant può filtrare per livello:
     #   scope/tenant (retro-compatibili), org e sub_tenant (nuovi, additivi).
-    for field in ("scope", "org", "tenant", "sub_tenant"):
+    #   ingest_run: marker della reindicizzazione, per la pulizia dei punti orfani.
+    for field in ("scope", "org", "tenant", "sub_tenant", "ingest_run"):
         try:
             c.create_payload_index(
                 settings.qdrant_collection,
@@ -148,6 +153,10 @@ def run() -> dict:
         raise RuntimeError("VAULT_PATH non impostato nel .env")
     vault = Path(settings.vault_path)
     c = client()
+    # Marker di QUESTA reindicizzazione: ogni punto scritto ora lo porta nel payload.
+    # A fine ingest cancelliamo i punti con un marker diverso (= note cancellate,
+    # rinominate o accorciate nelle run precedenti). Vedi fase 3.
+    run_id = uuid.uuid4().hex
 
     # 1) Raccogli TUTTI i chunk + metadati (nessuna chiamata di rete qui).
     metas: list[dict] = []
@@ -176,6 +185,7 @@ def run() -> dict:
                 "sub_tenant": seg["sub_tenant"],
                 "slug": md.stem, "title": title,
                 "path": str(rel), "tags": tags, "chunk": ci, "text": ch,
+                "ingest_run": run_id,
             })
             texts.append(ch)
 
@@ -192,16 +202,28 @@ def run() -> dict:
             id=m["id"], vector=v,
             payload={k: m[k] for k in
                      ("scope", "org", "tenant", "sub_tenant",
-                      "slug", "title", "path", "tags", "chunk", "text")},
+                      "slug", "title", "path", "tags", "chunk", "text", "ingest_run")},
         )
         for m, v in zip(metas, vectors)
     ]
 
-    # 3) Solo ORA che tutti gli embedding sono pronti azzeriamo, ricreiamo e
-    #    carichiamo: la riconversione è di fatto atomica (nessun cervello vuoto).
-    ensure_collection(c, fresh=True)
+    # 3) Swap sicuro (upsert-then-prune): la collection NON viene mai azzerata.
+    #    - creiamo la collection se manca (senza cancellarla se esiste);
+    #    - facciamo l'upsert dei punti nuovi (gli id sono deterministici: le note
+    #      ancora presenti vengono sovrascritte in-place col nuovo marker);
+    #    - SOLO dopo un upsert riuscito rimuoviamo i punti orfani (marker diverso:
+    #      note cancellate/rinominate/accorciate). Se il processo muore prima della
+    #      pulizia, restano dei doppioni ma il cervello NON è mai vuoto.
+    ensure_collection(c, fresh=False)
     if points:
         c.upsert(settings.qdrant_collection, points=points, wait=True)
+        c.delete(
+            settings.qdrant_collection,
+            points_selector=FilterSelector(filter=Filter(
+                must_not=[FieldCondition(key="ingest_run", match=MatchValue(value=run_id))]
+            )),
+            wait=True,
+        )
 
     # 4) Sync METADATI su Supabase (best-effort): popola `documents` per la RLS a
     #    livello di documento. Non deve mai far fallire l'ingest su Qdrant.
