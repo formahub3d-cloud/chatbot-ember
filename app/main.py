@@ -13,6 +13,7 @@ Endpoint:
 import json
 import logging
 import os
+import re
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -378,6 +379,10 @@ def do_contract_confirm(body: ContractConfirmIn, x_tenant_key: str = Header(defa
     del flusso /upload → anteprima → conferma."""
     tenant = tenant_or_401(x_tenant_key)
     _guard(tenant, x_tenant_key, origin)
+    # `cliente` finisce nel path del vault: vincolo a slug semplice (anti path-traversal,
+    # difesa anche per la chiave master che salta lo scope-check qui sotto).
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", body.cliente or ""):
+        raise HTTPException(422, "Cliente non valido (usa lettere minuscole, cifre e trattini).")
     ctx = rag.list_context(_grants(tenant))
     if not ctx["master"] and body.cliente not in (ctx["allowed_tenants"] or []):
         raise HTTPException(403, "Scope di destinazione non consentito per questo tenant.")

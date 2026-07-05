@@ -152,6 +152,21 @@ def test_contract_confirm_campi_vuoti_422(client, monkeypatch):
     assert r.status_code == 422
 
 
+def test_contract_confirm_cliente_traversal_422(client, monkeypatch):
+    """Un `cliente` con path-traversal è rifiutato prima di toccare il filesystem."""
+    # master: salta lo scope-check, così testiamo davvero la validazione del path.
+    monkeypatch.setattr(main.rag, "list_context",
+                        lambda grants: {"master": True, "allowed_tenants": [],
+                                        "allowed_orgs": [], "allowed_sub_tenants": []})
+    called = {"write": False}
+    monkeypatch.setattr(main.writeback, "save_contract_note",
+                        lambda *a, **k: called.update(write=True) or "x")
+    r = client.post("/contract/confirm", headers={"X-Tenant-Key": "CHIAVE_ATS"},
+                    json={"cliente": "../../etc", "fields": {"cognome": "X"}})
+    assert r.status_code == 422
+    assert called["write"] is False   # non deve mai arrivare alla scrittura
+
+
 def test_contract_confirm_ok_vault_e_notion(client, monkeypatch):
     _ctx(monkeypatch)
     calls = {}
