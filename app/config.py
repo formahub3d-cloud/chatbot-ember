@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     qdrant_api_key: str = ""
     qdrant_collection: str = "cervello"
 
+    # retrieval: meno rumore = risposte più precise + "non lo so" più onesti.
+    # Recupera un pool di candidati, poi tiene solo i chunk vicini al migliore.
+    retrieval_pool: int = 12          # candidati recuperati prima del filtro (>= k)
+    retrieval_rel_score: float = 0.5  # tieni i chunk con score >= questa frazione del top (0 = off)
+    retrieval_min_score: float = 0.0  # soglia assoluta minima di score (0 = off)
+
     # cervello
     vault_path: str = ""
 

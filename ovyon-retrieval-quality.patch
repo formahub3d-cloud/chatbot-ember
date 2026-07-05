@@ -1,0 +1,109 @@
+diff --git a/app/config.py b/app/config.py
+index 0c73b37..a9c5860 100644
+--- a/app/config.py
++++ b/app/config.py
+@@ -23,6 +23,12 @@ class Settings(BaseSettings):
+     qdrant_api_key: str = ""
+     qdrant_collection: str = "cervello"
+ 
++    # retrieval: meno rumore = risposte più precise + "non lo so" più onesti.
++    # Recupera un pool di candidati, poi tiene solo i chunk vicini al migliore.
++    retrieval_pool: int = 12          # candidati recuperati prima del filtro (>= k)
++    retrieval_rel_score: float = 0.5  # tieni i chunk con score >= questa frazione del top (0 = off)
++    retrieval_min_score: float = 0.0  # soglia assoluta minima di score (0 = off)
++
+     # cervello
+     vault_path: str = ""
+ 
+diff --git a/app/rag.py b/app/rag.py
+index 085b0aa..5e192e1 100644
+--- a/app/rag.py
++++ b/app/rag.py
+@@ -142,16 +142,37 @@ def answer(question: str, grants, k: int = 6, history=None) -> dict:
+     return {"answer": out, "sources": sources, "scopes": scopes}
+ 
+ 
++def _score(h) -> float:
++    return float(getattr(h, "score", 0.0) or 0.0)
++
++
++def _filter_hits(hits, k: int):
++    """Riduce il rumore nel contesto: da un pool di candidati (ordinati per score
++    decrescente da Qdrant) tiene solo i chunk abbastanza rilevanti — sopra la soglia
++    assoluta E sopra una frazione dello score del migliore — poi i primi `k`.
++    Meno contesto debole = risposte più precise e 'non lo so' più onesti. Con le
++    soglie a 0 (default assoluto) il comportamento resta invariato: filtro relativo."""
++    if not hits:
++        return []
++    top = _score(hits[0])
++    thr = max(settings.retrieval_min_score, settings.retrieval_rel_score * top)
++    kept = [h for h in hits if _score(h) >= thr]
++    return kept[:k]
++
++
+ def _retrieve(question: str, grants, k: int = 6):
+-    """Retrieval condiviso tra answer() e answer_stream(): vettore, filtro grant, hits."""
++    """Retrieval condiviso tra answer() e answer_stream(): vettore, filtro grant,
++    pool di candidati e poi filtro per rilevanza (vedi _filter_hits)."""
+     qvec = embed([question])[0]
+     c = client()
+-    return c.query_points(
++    pool = max(k, settings.retrieval_pool)
++    hits = c.query_points(
+         collection_name=settings.qdrant_collection,
+         query=qvec,
+         query_filter=build_filter(grants),
+-        limit=k,
++        limit=pool,
+     ).points
++    return _filter_hits(hits, k)
+ 
+ 
+ def answer_stream(question: str, grants, k: int = 6, history=None):
+diff --git a/tests/test_rag_retrieval.py b/tests/test_rag_retrieval.py
+new file mode 100644
+index 0000000..f1a3057
+--- /dev/null
++++ b/tests/test_rag_retrieval.py
+@@ -0,0 +1,41 @@
++"""Filtro di rilevanza del retrieval: da un pool ordinato, tiene i chunk sopra la
++soglia (relativa al migliore + assoluta) e limita a k. Nessuna rete: usa hit finti."""
++from types import SimpleNamespace
++
++from app import rag
++from app.config import settings
++
++
++def _hits(scores):
++    return [SimpleNamespace(score=s, payload={}) for s in scores]
++
++
++def test_soglia_relativa_scarta_la_coda(monkeypatch):
++    monkeypatch.setattr(settings, "retrieval_rel_score", 0.5)
++    monkeypatch.setattr(settings, "retrieval_min_score", 0.0)
++    kept = rag._filter_hits(_hits([0.9, 0.7, 0.4, 0.2]), k=6)
++    assert [h.score for h in kept] == [0.9, 0.7]      # soglia = 0.45
++
++
++def test_k_limita_i_risultati(monkeypatch):
++    monkeypatch.setattr(settings, "retrieval_rel_score", 0.0)
++    monkeypatch.setattr(settings, "retrieval_min_score", 0.0)
++    kept = rag._filter_hits(_hits([0.9, 0.8, 0.7, 0.6, 0.5]), k=3)
++    assert [h.score for h in kept] == [0.9, 0.8, 0.7]
++
++
++def test_soglia_assoluta_puo_dire_non_lo_so(monkeypatch):
++    monkeypatch.setattr(settings, "retrieval_min_score", 0.95)
++    monkeypatch.setattr(settings, "retrieval_rel_score", 0.0)
++    assert rag._filter_hits(_hits([0.9, 0.8]), k=6) == []   # niente sopra 0.95
++
++
++def test_nessun_hit():
++    assert rag._filter_hits([], k=6) == []
++
++
++def test_default_tiene_almeno_il_migliore(monkeypatch):
++    monkeypatch.setattr(settings, "retrieval_rel_score", 0.5)
++    monkeypatch.setattr(settings, "retrieval_min_score", 0.0)
++    kept = rag._filter_hits(_hits([0.3, 0.1]), k=6)
++    assert kept and kept[0].score == 0.3                    # il top passa sempre

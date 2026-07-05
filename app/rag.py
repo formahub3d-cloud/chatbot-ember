@@ -142,16 +142,37 @@ def answer(question: str, grants, k: int = 6, history=None) -> dict:
     return {"answer": out, "sources": sources, "scopes": scopes}
 
 
+def _score(h) -> float:
+    return float(getattr(h, "score", 0.0) or 0.0)
+
+
+def _filter_hits(hits, k: int):
+    """Riduce il rumore nel contesto: da un pool di candidati (ordinati per score
+    decrescente da Qdrant) tiene solo i chunk abbastanza rilevanti — sopra la soglia
+    assoluta E sopra una frazione dello score del migliore — poi i primi `k`.
+    Meno contesto debole = risposte più precise e 'non lo so' più onesti. Con le
+    soglie a 0 (default assoluto) il comportamento resta invariato: filtro relativo."""
+    if not hits:
+        return []
+    top = _score(hits[0])
+    thr = max(settings.retrieval_min_score, settings.retrieval_rel_score * top)
+    kept = [h for h in hits if _score(h) >= thr]
+    return kept[:k]
+
+
 def _retrieve(question: str, grants, k: int = 6):
-    """Retrieval condiviso tra answer() e answer_stream(): vettore, filtro grant, hits."""
+    """Retrieval condiviso tra answer() e answer_stream(): vettore, filtro grant,
+    pool di candidati e poi filtro per rilevanza (vedi _filter_hits)."""
     qvec = embed([question])[0]
     c = client()
-    return c.query_points(
+    pool = max(k, settings.retrieval_pool)
+    hits = c.query_points(
         collection_name=settings.qdrant_collection,
         query=qvec,
         query_filter=build_filter(grants),
-        limit=k,
+        limit=pool,
     ).points
+    return _filter_hits(hits, k)
 
 
 def answer_stream(question: str, grants, k: int = 6, history=None):
