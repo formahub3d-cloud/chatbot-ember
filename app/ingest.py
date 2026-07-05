@@ -121,8 +121,9 @@ def ensure_collection(c: QdrantClient, fresh: bool = False) -> None:
             vectors_config=VectorParams(size=EMBED_DIM, distance=Distance.COSINE),
         )
     # Indici per i campi di permesso, così Qdrant può filtrare per livello:
-    #   scope/tenant (retro-compatibili), org e sub_tenant (nuovi, additivi).
-    for field in ("scope", "org", "tenant", "sub_tenant"):
+    #   scope/tenant (retro-compatibili), org e sub_tenant (nuovi, additivi),
+    #   slug (serve a /document, che filtra la nota per slug con scroll).
+    for field in ("scope", "org", "tenant", "sub_tenant", "slug"):
         try:
             c.create_payload_index(
                 settings.qdrant_collection,
