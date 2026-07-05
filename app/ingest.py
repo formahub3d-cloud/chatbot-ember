@@ -169,6 +169,7 @@ def run() -> dict:
         notes_meta.append({
             "org": seg["org"], "tenant": seg["tenant"], "sub_tenant": seg["sub_tenant"],
             "slug": md.stem, "title": title, "path": str(rel), "tags": tags,
+            "content": body,   # per la cifratura a riposo su Supabase (content_encrypted)
         })
         for ci, ch in enumerate(chunk(body)):
             metas.append({

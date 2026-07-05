@@ -3,13 +3,15 @@ schema OVYON), in parallelo ai vettori su Qdrant. Abilita la RLS a livello di
 documento (Sezione 9): con `documents` popolata, un ruolo non privilegiato +
 i GUC ovyon.* vede solo le righe consentite.
 
-Si salvano SOLO metadati (slug/title/path/tags/code a tre livelli): il corpo della
-nota resta su Qdrant; `content_encrypted` è riservato alla cifratura a colonna
-(fase compliance). Attivo quando GRANTS_BACKEND=supabase e DATABASE_URL sono impostati.
+Si salvano i metadati (slug/title/path/tags/code a tre livelli) e — se la cifratura
+è attiva (CONTENT_ENC_KEY, vedi app/crypto.py) — il corpo cifrato nella colonna
+`content_encrypted` (bytea). Nota: il corpo in chiaro resta anche su Qdrant perché
+serve al RAG; la cifratura della colonna è difesa in profondità sul dato a riposo
+in Postgres. Attivo quando GRANTS_BACKEND=supabase e DATABASE_URL sono impostati.
 """
 import uuid
 
-from . import tenants
+from . import crypto, tenants
 from .config import settings
 
 
@@ -68,14 +70,28 @@ def _sub_id(cur, code, tenant_id, cache):
 
 _DOC_UPSERT = (
     "INSERT INTO documents (content_id, sub_tenant_id, tenant_id, org_id, "
-    "org_code, tenant_code, sub_code, slug, title, path, type, tags) "
-    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+    "org_code, tenant_code, sub_code, slug, title, path, type, tags, content_encrypted) "
+    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
     "ON CONFLICT (content_id) DO UPDATE SET "
     "sub_tenant_id=EXCLUDED.sub_tenant_id, tenant_id=EXCLUDED.tenant_id, "
     "org_id=EXCLUDED.org_id, org_code=EXCLUDED.org_code, tenant_code=EXCLUDED.tenant_code, "
     "sub_code=EXCLUDED.sub_code, slug=EXCLUDED.slug, title=EXCLUDED.title, "
-    "path=EXCLUDED.path, tags=EXCLUDED.tags, updated_at=now()"
+    "path=EXCLUDED.path, tags=EXCLUDED.tags, content_encrypted=EXCLUDED.content_encrypted, "
+    "updated_at=now()"
 )
+
+
+def _content_encrypted(nt: dict):
+    """Corpo cifrato (bytes → colonna bytea) se la cifratura è attiva e c'è del
+    testo; altrimenti None (NULL). Best-effort: la cifratura non deve far fallire il
+    sync — se qualcosa va storto si salva NULL e si prosegue. Vedi app/crypto.py."""
+    body = nt.get("content")
+    if not body or not crypto.enabled():
+        return None
+    try:
+        return crypto.encrypt(body)
+    except Exception:  # pragma: no cover - non bloccare mai il sync per la cifratura
+        return None
 
 
 def sync_notes(notes: list[dict]) -> int:
@@ -96,7 +112,7 @@ def sync_notes(notes: list[dict]) -> int:
                     content_id_for(nt["path"]), sub_id, tenant_id, org_id,
                     nt["org"], nt["tenant"], nt.get("sub_tenant"),
                     nt["slug"], nt.get("title", nt["slug"]), nt["path"], "markdown",
-                    parse_tags(nt.get("tags")),
+                    parse_tags(nt.get("tags")), _content_encrypted(nt),
                 ))
                 n += 1
         c.commit()

@@ -95,3 +95,24 @@ def test_sync_notes_noop_senza_backend(monkeypatch):
     monkeypatch.setattr(settings, "grants_backend", "")
     assert docstore.sync_notes([{"org": "x", "tenant": "y", "slug": "s", "path": "p"}]) == 0
     assert docstore.enabled() is False
+
+
+def test_content_encrypted_senza_chiave(monkeypatch):
+    state = _enable(monkeypatch)
+    monkeypatch.setattr(settings, "content_enc_key", "")           # cifratura off
+    docstore.sync_notes([{"org": "forma", "tenant": "ats", "sub_tenant": None,
+                          "slug": "s", "title": "S", "path": "p.md", "tags": [],
+                          "content": "corpo riservato"}])
+    assert state["docs"][0][12] is None                            # colonna content_encrypted NULL
+
+
+def test_content_encrypted_con_chiave(monkeypatch):
+    from app import crypto
+    state = _enable(monkeypatch)
+    monkeypatch.setattr(settings, "content_enc_key", crypto.generate_key())
+    docstore.sync_notes([{"org": "forma", "tenant": "ats", "sub_tenant": None,
+                          "slug": "s", "title": "S", "path": "p.md", "tags": [],
+                          "content": "corpo riservato"}])
+    tok = state["docs"][0][12]
+    assert isinstance(tok, (bytes, bytearray)) and crypto.is_encrypted(tok)
+    assert crypto.decrypt(tok) == "corpo riservato"                # round-trip verificato
