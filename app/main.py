@@ -48,7 +48,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events
 
 app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
 
@@ -323,6 +323,7 @@ def do_feedback(body: FeedbackIn, x_tenant_key: str = Header(default=""), origin
     scopes = rag.scopes_of(_grants(tenant))
     qred = security.redact_pii(body.question or "")[:160]
     metrics.bump_feedback(scopes, up, qred)
+    events.record("feedback_up" if up else "feedback_down", scopes, qred)
     log.info("feedback · scope=%s · voto=%s · q=%r", scopes, "up" if up else "down", qred)
     return {"ok": True}
 
@@ -346,6 +347,14 @@ def admin_insights(authorization: str = Header(default="")):
     ultimi feedback negativi (redatti). Protetto dal Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
     return metrics.insights()
+
+
+@app.get("/admin/events")
+def admin_events(limit: int = 50, authorization: str = Header(default="")):
+    """Storico eventi conversazione (chat/gap/feedback) da Supabase, più recenti
+    prima. Protetto dal Bearer ADMIN_TOKEN. Vuoto se ANALYTICS_PERSIST è off."""
+    _require_admin(authorization)
+    return {"events": events.recent(limit), "persist": events.enabled()}
 
 
 @app.get("/metrics")

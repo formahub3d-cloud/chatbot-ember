@@ -18,7 +18,7 @@ from .config import settings
 from .providers import embed, chat, chat_stream
 from .ingest import client
 from .security import sanitize_context, redact_pii
-from . import metrics
+from . import events, metrics
 
 log = logging.getLogger("ember.rag")
 
@@ -131,7 +131,9 @@ def answer(question: str, grants, k: int = 6, history=None) -> dict:
     scopes = scopes_of(grants)
     if not hits:
         _log_gap(question, grants)
-        metrics.bump_gap(scopes, redact_pii(question)[:200])
+        q_red = redact_pii(question)[:200]
+        metrics.bump_gap(scopes, q_red)
+        events.record("gap", scopes, q_red)
         return {"answer": NO_ANSWER, "sources": [], "scopes": scopes}
 
     context = _build_context(hits)
@@ -139,6 +141,7 @@ def answer(question: str, grants, k: int = 6, history=None) -> dict:
     out = _clean_answer(chat(SYSTEM, user))
     sources = sorted({h.payload["slug"] for h in hits})
     metrics.bump_chat(scopes)
+    events.record("chat", scopes)
     return {"answer": out, "sources": sources, "scopes": scopes}
 
 
@@ -223,7 +226,9 @@ def answer_stream(question: str, grants, k: int = 6, history=None):
     hits = _retrieve(question, grants, k)
     if not hits:
         _log_gap(question, grants)
-        metrics.bump_gap(scopes, redact_pii(question)[:200])
+        q_red = redact_pii(question)[:200]
+        metrics.bump_gap(scopes, q_red)
+        events.record("gap", scopes, q_red)
         yield sse("sources", {"sources": [], "scopes": scopes})
         yield sse(None, {"delta": NO_ANSWER})
         yield sse("done", {})
@@ -231,6 +236,7 @@ def answer_stream(question: str, grants, k: int = 6, history=None):
 
     sources = sorted({h.payload["slug"] for h in hits})
     metrics.bump_chat(scopes)
+    events.record("chat", scopes)
     yield sse("sources", {"sources": sources, "scopes": scopes})
 
     context = _build_context(hits)

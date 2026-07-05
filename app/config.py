@@ -41,6 +41,15 @@ class Settings(BaseSettings):
     max_message_chars: int = 2000  # lunghezza massima della domanda (anti-abuso/costi)
     security_headers: bool = True  # aggiunge header di sicurezza a ogni risposta
 
+    # rate-limit condiviso tra repliche: se valorizzato, il limiter usa Redis
+    # (finestra scorrevole su sorted-set) invece della memoria di processo.
+    redis_url: str = ""            # es. redis://default:pwd@host:6379/0 (vuoto = in-memory)
+
+    # analytics storiche: se True (e backend Supabase attivo), gli eventi
+    # chat/gap/feedback vengono anche PERSISTITI su analytics_events (oltre ai
+    # contatori in memoria). Off di default per non aggiungere latenza al pilota.
+    analytics_persist: bool = False
+
     # cifratura contenuti a riposo (GDPR) — per la colonna documents.content_encrypted.
     # Vuoto = disattivata. Una o più chiavi Fernet separate da virgola (la prima cifra,
     # tutte decifrano → rotazione). Genera una chiave con:  python -m app.crypto

@@ -75,6 +75,20 @@ create table if not exists access_logs (
     created_at   timestamptz not null default now()
 );
 
+-- ── Analytics storiche (opzionale) ──────────────────────────────────────────
+-- Eventi conversazione persistiti per lo storico (oltre ai contatori in memoria
+-- di Ember). Popolata solo se ANALYTICS_PERSIST=true. La `question` è REDATTA
+-- (PII rimosse) a monte da Ember; niente contenuto sensibile in chiaro qui.
+create table if not exists analytics_events (
+    event_id     bigserial primary key,
+    kind         text not null,                  -- chat | gap | feedback_up | feedback_down
+    scope        text not null,                  -- chiave scope (ordinata) o '∅'
+    question     text,                            -- domanda redatta (può essere NULL)
+    created_at   timestamptz not null default now()
+);
+create index if not exists analytics_events_created_idx on analytics_events (created_at desc);
+create index if not exists analytics_events_kind_idx on analytics_events (kind);
+
 -- ── Ponte con Ember: chiavi-tenant (hashate) e grant a tre livelli ──────────
 -- Le liste di grant sono per CODE testuale = allowed_scopes/orgs/sub_tenants di
 -- Ember. '*' in un qualunque array = chiave master (vede tutto).
