@@ -10,9 +10,11 @@ Endpoint:
 """
 import json
 import logging
+import os
 import tempfile
 import time
 from collections import deque
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
@@ -45,7 +47,24 @@ from pydantic import BaseModel
 from .config import settings
 from . import ingest, rag, ocr, extract, tenants, security, voice, writeback
 
-app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
+_DEFAULT_ADMIN_TOKENS = {"", "change-me", "cambia-questo-token-admin"}
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Allo startup: avvisa se i secret sono ai default e — se è collegato un
+    database — crea/popola la tabella tenants."""
+    if settings.admin_token in _DEFAULT_ADMIN_TOKENS:
+        log.warning("ADMIN_TOKEN è al valore di default: cambialo in produzione "
+                    "(l'endpoint /ingest è protetto da un token noto).")
+    try:
+        tenants.ensure_seeded()
+    except Exception:
+        log.exception("ensure_seeded fallito: si userà il fallback statico")
+    yield
+
+
+app = FastAPI(title="Ember — Cervello OVY", version="0.3.0", lifespan=_lifespan)
 
 # CORS: consente al widget di chat (browser) di chiamare l'API.
 # I domini autorizzati arrivano da settings.cors_origins (vedi config.py):
@@ -77,15 +96,6 @@ async def _security_headers(request: Request, call_next):
 # Widget servito dal backend stesso: un solo file da mantenere, stesso dominio
 # dell'API, aggiornato a ogni deploy. → https://<dominio>/widget/embed.js
 app.mount("/widget", StaticFiles(directory="widget"), name="widget")
-
-
-@app.on_event("startup")
-def _startup_seed_tenants():
-    """Se è collegato un database, crea/popola la tabella tenants alla partenza."""
-    try:
-        tenants.ensure_seeded()
-    except Exception:
-        log.exception("ensure_seeded fallito: si userà il fallback statico")
 
 
 def tenant_or_401(key: str) -> dict:
@@ -291,9 +301,10 @@ def do_document(slug: str, x_tenant_key: str = Header(default=""), origin: str =
 
 
 @app.get("/context")
-def do_context(x_tenant_key: str = Header(default="")):
+def do_context(x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
     """ovy_list_context: livelli di permesso (org/tenant/sub) visibili al tenant."""
     tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
     return {"name": tenant.get("name", ""), **rag.list_context(_grants(tenant))}
 
 
@@ -328,17 +339,34 @@ def do_writeback(body: WritebackIn, x_tenant_key: str = Header(default=""), orig
 
 
 @app.post("/upload")
-async def do_upload(file: UploadFile = File(...), x_tenant_key: str = Header(default="")):
+async def do_upload(file: UploadFile = File(...), x_tenant_key: str = Header(default=""),
+                    origin: str = Header(default="")):
     """Carica un documento → OCR → estrazione campi → ANTEPRIMA da confermare.
     Il consolidamento (write-back su vault/Notion) avviene solo dopo conferma umana.
     """
-    tenant_or_401(x_tenant_key)
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+    data = await file.read()
+    if not data:
+        raise HTTPException(422, "File vuoto.")
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File troppo grande (max {settings.max_upload_bytes // 1_000_000} MB).")
     suffix = Path(file.filename or "doc.pdf").suffix or ".pdf"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(await file.read())
-        tmp_path = tmp.name
-    mime = file.content_type or "application/pdf"
-    text = ocr.ocr_document(tmp_path, mime=mime)
-    fields = extract.extract_unilav(text)
+    fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+    try:
+        with os.fdopen(fd, "wb") as tmp:
+            tmp.write(data)
+        mime = file.content_type or "application/pdf"
+        try:
+            text = ocr.ocr_document(tmp_path, mime=mime)
+        except Exception:
+            log.exception("upload/ocr failed")
+            raise HTTPException(502, "OCR non riuscito sul documento.")
+        fields = extract.extract_unilav(text)
+    finally:
+        try:
+            os.remove(tmp_path)   # il file temporaneo non deve mai restare su disco
+        except OSError:
+            pass
     return {"preview": fields, "note": "Conferma i campi prima del consolidamento.",
             "consolidato": False}
