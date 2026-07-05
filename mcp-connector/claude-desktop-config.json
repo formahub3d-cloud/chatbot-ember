@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ovy-brain": {
+      "command": "/Users/imac/Documents/Claude/Projects/Cervello OVY/chatbot-ember/mcp-connector/.venv/bin/python",
+      "args": ["/Users/imac/Documents/Claude/Projects/Cervello OVY/chatbot-ember/mcp-connector/server.py"],
+      "env": {
+        "EMBER_API_URL": "https://ember.formahub.it",
+        "EMBER_TENANT_KEY": "INCOLLA_LA_CHIAVE_FORMA"
+      }
+    }
+  }
+}
