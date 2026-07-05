@@ -43,7 +43,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics
 
 app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
 
@@ -125,6 +125,13 @@ class WritebackIn(BaseModel):
     tags: list[str] = []
     confirm: bool = False      # false → solo ANTEPRIMA (regola 5: conferma umana)
     overwrite: bool = False
+
+
+class FeedbackIn(BaseModel):
+    vote: str                  # "up" | "down" (👍/👎 dal widget)
+    question: str = ""
+    answer: str = ""
+    sources: list = []
 
 
 def _guard(tenant: dict, key: str, origin: str) -> None:
@@ -295,6 +302,30 @@ def do_context(x_tenant_key: str = Header(default="")):
     """ovy_list_context: livelli di permesso (org/tenant/sub) visibili al tenant."""
     tenant = tenant_or_401(x_tenant_key)
     return {"name": tenant.get("name", ""), **rag.list_context(_grants(tenant))}
+
+
+@app.post("/feedback")
+def do_feedback(body: FeedbackIn, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
+    """Feedback 👍/👎 del widget su una risposta. Autenticato come il /chat (stesse
+    guardie di origine/rate/quota). Aggiorna le metriche per scope e logga (redatto)
+    la domanda: serve a capire dove il cervello è debole. Best-effort, mai bloccante."""
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+    up = str(body.vote).strip().lower() in ("up", "1", "true", "positivo", "si", "sì", "👍")
+    scopes = rag.scopes_of(_grants(tenant))
+    metrics.bump_feedback(scopes, up)
+    log.info("feedback · scope=%s · voto=%s · q=%r", scopes, "up" if up else "down",
+             security.redact_pii(body.question or "")[:160])
+    return {"ok": True}
+
+
+@app.get("/admin/analytics")
+def admin_analytics(authorization: str = Header(default="")):
+    """Colpo d'occhio operativo (dal boot del processo): chat/gap/feedback per scope.
+    Protetto dal Bearer ADMIN_TOKEN, come /ingest. In-memory: si azzera al redeploy."""
+    if authorization != f"Bearer {settings.admin_token}":
+        raise HTTPException(401, "Token admin non valido.")
+    return metrics.snapshot()
 
 
 @app.post("/writeback")

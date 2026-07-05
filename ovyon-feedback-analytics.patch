@@ -1,0 +1,410 @@
+diff --git a/app/rag.py b/app/rag.py
+index f99b184..085b0aa 100644
+--- a/app/rag.py
++++ b/app/rag.py
+@@ -18,6 +18,7 @@ from .config import settings
+ from .providers import embed, chat, chat_stream
+ from .ingest import client
+ from .security import sanitize_context, redact_pii
++from . import metrics
+ 
+ log = logging.getLogger("ember.rag")
+ 
+@@ -130,12 +131,14 @@ def answer(question: str, grants, k: int = 6, history=None) -> dict:
+     scopes = scopes_of(grants)
+     if not hits:
+         _log_gap(question, grants)
++        metrics.bump_gap(scopes)
+         return {"answer": NO_ANSWER, "sources": [], "scopes": scopes}
+ 
+     context = _build_context(hits)
+     user = f"{_hist_block(history)}CONTENUTO:\n{context}\n\nDOMANDA: {question}"
+     out = _clean_answer(chat(SYSTEM, user))
+     sources = sorted({h.payload["slug"] for h in hits})
++    metrics.bump_chat(scopes)
+     return {"answer": out, "sources": sources, "scopes": scopes}
+ 
+ 
+@@ -168,12 +171,14 @@ def answer_stream(question: str, grants, k: int = 6, history=None):
+     hits = _retrieve(question, grants, k)
+     if not hits:
+         _log_gap(question, grants)
++        metrics.bump_gap(scopes)
+         yield sse("sources", {"sources": [], "scopes": scopes})
+         yield sse(None, {"delta": NO_ANSWER})
+         yield sse("done", {})
+         return
+ 
+     sources = sorted({h.payload["slug"] for h in hits})
++    metrics.bump_chat(scopes)
+     yield sse("sources", {"sources": sources, "scopes": scopes})
+ 
+     context = _build_context(hits)
+diff --git a/app/main.py b/app/main.py
+index 5c5d46e..d01716f 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -43,7 +43,7 @@ from fastapi.staticfiles import StaticFiles
+ from pydantic import BaseModel
+ 
+ from .config import settings
+-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback
++from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics
+ 
+ app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
+ 
+@@ -127,6 +127,13 @@ class WritebackIn(BaseModel):
+     overwrite: bool = False
+ 
+ 
++class FeedbackIn(BaseModel):
++    vote: str                  # "up" | "down" (👍/👎 dal widget)
++    question: str = ""
++    answer: str = ""
++    sources: list = []
++
++
+ def _guard(tenant: dict, key: str, origin: str) -> None:
+     """Controlli comuni agli endpoint tenant: origine, rate limit, quota."""
+     if not security.origin_allowed(origin, tenant.get("allowed_origins")):
+@@ -297,6 +304,30 @@ def do_context(x_tenant_key: str = Header(default="")):
+     return {"name": tenant.get("name", ""), **rag.list_context(_grants(tenant))}
+ 
+ 
++@app.post("/feedback")
++def do_feedback(body: FeedbackIn, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
++    """Feedback 👍/👎 del widget su una risposta. Autenticato come il /chat (stesse
++    guardie di origine/rate/quota). Aggiorna le metriche per scope e logga (redatto)
++    la domanda: serve a capire dove il cervello è debole. Best-effort, mai bloccante."""
++    tenant = tenant_or_401(x_tenant_key)
++    _guard(tenant, x_tenant_key, origin)
++    up = str(body.vote).strip().lower() in ("up", "1", "true", "positivo", "si", "sì", "👍")
++    scopes = rag.scopes_of(_grants(tenant))
++    metrics.bump_feedback(scopes, up)
++    log.info("feedback · scope=%s · voto=%s · q=%r", scopes, "up" if up else "down",
++             security.redact_pii(body.question or "")[:160])
++    return {"ok": True}
++
++
++@app.get("/admin/analytics")
++def admin_analytics(authorization: str = Header(default="")):
++    """Colpo d'occhio operativo (dal boot del processo): chat/gap/feedback per scope.
++    Protetto dal Bearer ADMIN_TOKEN, come /ingest. In-memory: si azzera al redeploy."""
++    if authorization != f"Bearer {settings.admin_token}":
++        raise HTTPException(401, "Token admin non valido.")
++    return metrics.snapshot()
++
++
+ @app.post("/writeback")
+ def do_writeback(body: WritebackIn, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
+     """ovy_create_document / ovy_update_document: scrive una nota nel vault, MA solo
+diff --git a/widget/embed.js b/widget/embed.js
+index f812a42..509c480 100644
+--- a/widget/embed.js
++++ b/widget/embed.js
+@@ -261,7 +261,18 @@
+     body.appendChild(row); body.scrollTop = body.scrollHeight;
+     return msg;
+   }
+-  function finalizeMsg(msg, textAcc, sources){
++  function sendFeedback(up, q, answer, sources){
++    // Best-effort: un fallimento non deve mai disturbare la chat.
++    try{
++      var fbUrl = PROXY ? (String(PROXY).replace(/\/$/, "") + "/feedback") : (API + "/feedback");
++      var headers = {"Content-Type":"application/json"};
++      if (!PROXY) headers["X-Tenant-Key"] = KEY;
++      fetch(fbUrl, { method:"POST", headers:headers, keepalive:true,
++        body: JSON.stringify({ vote: up ? "up" : "down", question: q || "",
++          answer: String(answer||"").slice(0,500), sources: sources || [] }) }).catch(function(){});
++    }catch(e){}
++  }
++  function finalizeMsg(msg, textAcc, sources, q){
+     msg.innerHTML = mdLite(textAcc);
+     if (sources && sources.length){
+       var wrap = document.createElement("div"); wrap.className = "em-srcs";
+@@ -277,6 +288,24 @@
+       sb.addEventListener("click", function(){ speak(textAcc); });
+       msg.appendChild(sb);
+     }
++    if (q){   // solo su risposte reali (non su errori/saluto): 👍/👎
++      var fb = document.createElement("div");
++      fb.style.cssText = "display:flex;gap:6px;margin-top:8px;align-items:center;font-size:12px";
++      function mkFb(sym, up){
++        var b = document.createElement("button");
++        b.type = "button"; b.textContent = sym;
++        b.setAttribute("aria-label", up ? "Risposta utile" : "Risposta da migliorare");
++        b.style.cssText = "cursor:pointer;border:1px solid rgba(127,127,127,.35);background:transparent;border-radius:8px;padding:1px 7px;font-size:13px;line-height:1.3;opacity:.65";
++        b.addEventListener("click", function(){
++          sendFeedback(up, q, textAcc, sources);
++          fb.textContent = up ? "Grazie! 👍" : "Grazie, ne terremo conto.";
++          fb.style.opacity = ".6";
++        });
++        return b;
++      }
++      fb.appendChild(mkFb("👍", true)); fb.appendChild(mkFb("👎", false));
++      msg.appendChild(fb);
++    }
+     if (speakOn) speak(textAcc);
+     body.scrollTop = body.scrollHeight;
+   }
+@@ -318,7 +347,7 @@
+   }
+ 
+   // ── SSE reader (token per token) ──
+-  async function readSSE(r, msg){
++  async function readSSE(r, msg, q){
+     var reader = r.body.getReader(), dec = new TextDecoder();
+     var buf="", acc="", sources=null, idx;
+     var cursor = document.createElement("span"); cursor.className = "em-cur"; msg.appendChild(cursor);
+@@ -345,7 +374,7 @@
+     }
+     cursor.remove();
+     if (!acc) acc = "(nessuna risposta)";
+-    finalizeMsg(msg, acc, sources);
++    finalizeMsg(msg, acc, sources, q);
+     hist.push({role:"assistant", content:acc});   // memoria per i follow-up
+   }
+ 
+@@ -362,11 +391,11 @@
+       var r = await fetch(url, { method:"POST", headers: headers, body: JSON.stringify({message:q, stream:true, history:sendHist}) });
+       if(!r.ok){ t.remove(); finalizeMsg(addMsg("a",""), "⚠️ Errore "+r.status+". Riprova tra poco.", null); }
+       else if (((r.headers.get("content-type")||"").indexOf("text/event-stream") !== -1) && r.body && window.TextDecoder){
+-        t.remove(); await readSSE(r, addMsg("a",""));
++        t.remove(); await readSSE(r, addMsg("a",""), q);
+       } else {
+         var data = await r.json(); t.remove();
+         var ans = data.answer || "(nessuna risposta)";
+-        finalizeMsg(addMsg("a",""), ans, data.sources);
++        finalizeMsg(addMsg("a",""), ans, data.sources, q);
+         hist.push({role:"assistant", content:ans});
+       }
+     }catch(e){ t.remove(); finalizeMsg(addMsg("a",""), "⚠️ Connessione non riuscita. Verifica che il servizio sia attivo.", null); }
+diff --git a/widget/proxy/nextjs-route.js b/widget/proxy/nextjs-route.js
+index 9ebd05f..683c2ec 100644
+--- a/widget/proxy/nextjs-route.js
++++ b/widget/proxy/nextjs-route.js
+@@ -55,6 +55,21 @@ export async function POST(req) {
+     }
+   }
+ 
++  // ── Feedback 👍/👎: inoltra a /feedback ──
++  if (path.endsWith("/feedback")) {
++    try {
++      const fb = await req.json().catch(() => ({}));
++      const up = await fetch(base + "/feedback", {
++        method: "POST",
++        headers: { "X-Tenant-Key": key, "Content-Type": "application/json" },
++        body: JSON.stringify(fb),
++      });
++      return Response.json(await up.json().catch(() => ({ ok: true })), { status: up.status });
++    } catch {
++      return Response.json({ ok: false }, { status: 502 });
++    }
++  }
++
+   // ── Chat (JSON o SSE) ──
+   let body;
+   try {
+diff --git a/widget/proxy/cloudflare-worker.js b/widget/proxy/cloudflare-worker.js
+index cfceaf7..b3c9722 100644
+--- a/widget/proxy/cloudflare-worker.js
++++ b/widget/proxy/cloudflare-worker.js
+@@ -53,6 +53,19 @@ export default {
+       } catch { return json({ error: "Voce non raggiungibile." }, 502, cors); }
+     }
+ 
++    // Feedback 👍/👎: inoltra a /feedback con la chiave lato server.
++    if (path.endsWith("/feedback")) {
++      try {
++        const fb = await request.json().catch(() => ({}));
++        const up = await fetch(API_BASE.replace(/\/$/, "") + "/feedback", {
++          method: "POST",
++          headers: { "X-Tenant-Key": TENANT_KEY, "Content-Type": "application/json" },
++          body: JSON.stringify(fb),
++        });
++        return json(await up.json().catch(() => ({ ok: true })), up.status, cors);
++      } catch { return json({ ok: false }, 502, cors); }
++    }
++
+     let body;
+     try { body = await request.json(); } catch { return json({ answer: "Richiesta non valida." }, 400, cors); }
+     const message = (body && typeof body.message === "string") ? body.message.slice(0, 2000) : "";
+diff --git a/app/metrics.py b/app/metrics.py
+new file mode 100644
+index 0000000..eddf75c
+--- /dev/null
++++ b/app/metrics.py
+@@ -0,0 +1,83 @@
++"""Metriche in-memory leggere, per scope, dal boot del processo.
++
++Conta: chat con risposta, gap (domande senza risposta), feedback 👍/👎.
++Nessuna persistenza: si azzerano a ogni redeploy. Servono a un colpo d'occhio
++via GET /admin/analytics; per uno storico duraturo va usata una tabella
++(es. access_logs dello schema OVYON). Tutte le operazioni sono best-effort e
++thread-safe, e non devono MAI far fallire una richiesta.
++"""
++from collections import defaultdict
++from threading import Lock
++import time
++
++_lock = Lock()
++_started = time.time()
++_chats = defaultdict(int)
++_gaps = defaultdict(int)
++_fb_up = defaultdict(int)
++_fb_down = defaultdict(int)
++
++
++def _skey(scopes) -> str:
++    """Chiave stabile per un insieme di scope (ordinata). Vuoto = '∅'."""
++    if not scopes:
++        return "∅"
++    try:
++        return ",".join(sorted(str(s) for s in scopes))
++    except Exception:
++        return str(scopes)
++
++
++def bump_chat(scopes) -> None:
++    try:
++        with _lock:
++            _chats[_skey(scopes)] += 1
++    except Exception:
++        pass
++
++
++def bump_gap(scopes) -> None:
++    try:
++        with _lock:
++            _gaps[_skey(scopes)] += 1
++    except Exception:
++        pass
++
++
++def bump_feedback(scopes, up: bool) -> None:
++    try:
++        with _lock:
++            (_fb_up if up else _fb_down)[_skey(scopes)] += 1
++    except Exception:
++        pass
++
++
++def snapshot() -> dict:
++    """Fotografia aggregata: totali + dettaglio per scope. Sola lettura."""
++    with _lock:
++        keys = set(_chats) | set(_gaps) | set(_fb_up) | set(_fb_down)
++        per_scope = {
++            k: {
++                "chat": _chats[k],
++                "gap": _gaps[k],
++                "feedback_up": _fb_up[k],
++                "feedback_down": _fb_down[k],
++            }
++            for k in sorted(keys)
++        }
++        return {
++            "uptime_s": int(time.time() - _started),
++            "totals": {
++                "chat": sum(_chats.values()),
++                "gap": sum(_gaps.values()),
++                "feedback_up": sum(_fb_up.values()),
++                "feedback_down": sum(_fb_down.values()),
++            },
++            "per_scope": per_scope,
++        }
++
++
++def reset() -> None:
++    """Solo per i test."""
++    with _lock:
++        _chats.clear(); _gaps.clear(); _fb_up.clear(); _fb_down.clear()
+diff --git a/tests/test_metrics.py b/tests/test_metrics.py
+new file mode 100644
+index 0000000..60d0e61
+--- /dev/null
++++ b/tests/test_metrics.py
+@@ -0,0 +1,32 @@
++"""Metriche in-memory per scope: aggregazione totali + dettaglio."""
++from app import metrics
++
++
++def test_snapshot_aggrega_per_scope():
++    metrics.reset()
++    metrics.bump_chat(["ats"])
++    metrics.bump_chat(["ats"])
++    metrics.bump_gap(["ats"])
++    metrics.bump_feedback(["ats"], True)
++    metrics.bump_feedback(["ats"], False)
++    metrics.bump_chat(["forma-core", "andrea"])
++
++    s = metrics.snapshot()
++    assert s["totals"]["chat"] == 3
++    assert s["totals"]["gap"] == 1
++    assert s["totals"]["feedback_up"] == 1
++    assert s["totals"]["feedback_down"] == 1
++    assert s["per_scope"]["ats"]["chat"] == 2
++    assert s["per_scope"]["ats"]["gap"] == 1
++    # chiave-scope ordinata e stabile
++    assert "andrea,forma-core" in s["per_scope"]
++    assert isinstance(s["uptime_s"], int)
++    metrics.reset()
++
++
++def test_scope_vuoto_e_reset():
++    metrics.reset()
++    metrics.bump_chat([])          # nessuno scope → '∅'
++    assert metrics.snapshot()["per_scope"]["∅"]["chat"] == 1
++    metrics.reset()
++    assert metrics.snapshot()["totals"]["chat"] == 0
+diff --git a/tests/test_feedback_analytics.py b/tests/test_feedback_analytics.py
+new file mode 100644
+index 0000000..e623357
+--- /dev/null
++++ b/tests/test_feedback_analytics.py
+@@ -0,0 +1,46 @@
++"""Endpoint /feedback (autenticato come /chat) e /admin/analytics (Bearer ADMIN_TOKEN).
++Store tenant mockato, nessuna rete."""
++import pytest
++from fastapi.testclient import TestClient
++
++from app import main, tenants, metrics
++from app.config import settings
++
++client = TestClient(main.app)
++
++FAKE_TENANT = {"name": "ATS", "allowed_scopes": ["ats"], "allowed_origins": [],
++               "branding": {}, "quota_day": 0}
++
++
++@pytest.fixture(autouse=True)
++def _setup(monkeypatch):
++    monkeypatch.setattr(tenants, "get_tenant_by_key",
++                        lambda k: FAKE_TENANT if k == "K_ATS" else None)
++    metrics.reset()
++    yield
++    metrics.reset()
++
++
++def test_feedback_richiede_chiave():
++    assert client.post("/feedback", json={"vote": "up"}).status_code == 401
++
++
++def test_feedback_ok_e_conta_per_scope():
++    r = client.post("/feedback", json={"vote": "up", "question": "come funziona?"},
++                    headers={"X-Tenant-Key": "K_ATS"})
++    assert r.status_code == 200 and r.json()["ok"] is True
++    r2 = client.post("/feedback", json={"vote": "down"}, headers={"X-Tenant-Key": "K_ATS"})
++    assert r2.status_code == 200
++    per = metrics.snapshot()["per_scope"]["ats"]
++    assert per["feedback_up"] == 1 and per["feedback_down"] == 1
++
++
++def test_analytics_protetto_da_admin_token(monkeypatch):
++    monkeypatch.setattr(settings, "admin_token", "SEGRETO")
++    assert client.get("/admin/analytics").status_code == 401
++    assert client.get("/admin/analytics",
++                      headers={"Authorization": "Bearer sbagliato"}).status_code == 401
++    r = client.get("/admin/analytics", headers={"Authorization": "Bearer SEGRETO"})
++    assert r.status_code == 200
++    body = r.json()
++    assert "totals" in body and "per_scope" in body

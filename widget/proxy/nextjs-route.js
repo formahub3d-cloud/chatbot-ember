@@ -55,6 +55,21 @@ export async function POST(req) {
     }
   }
 
+  // ── Feedback 👍/👎: inoltra a /feedback ──
+  if (path.endsWith("/feedback")) {
+    try {
+      const fb = await req.json().catch(() => ({}));
+      const up = await fetch(base + "/feedback", {
+        method: "POST",
+        headers: { "X-Tenant-Key": key, "Content-Type": "application/json" },
+        body: JSON.stringify(fb),
+      });
+      return Response.json(await up.json().catch(() => ({ ok: true })), { status: up.status });
+    } catch {
+      return Response.json({ ok: false }, { status: 502 });
+    }
+  }
+
   // ── Chat (JSON o SSE) ──
   let body;
   try {

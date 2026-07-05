@@ -53,6 +53,19 @@ export default {
       } catch { return json({ error: "Voce non raggiungibile." }, 502, cors); }
     }
 
+    // Feedback 👍/👎: inoltra a /feedback con la chiave lato server.
+    if (path.endsWith("/feedback")) {
+      try {
+        const fb = await request.json().catch(() => ({}));
+        const up = await fetch(API_BASE.replace(/\/$/, "") + "/feedback", {
+          method: "POST",
+          headers: { "X-Tenant-Key": TENANT_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify(fb),
+        });
+        return json(await up.json().catch(() => ({ ok: true })), up.status, cors);
+      } catch { return json({ ok: false }, 502, cors); }
+    }
+
     let body;
     try { body = await request.json(); } catch { return json({ answer: "Richiesta non valida." }, 400, cors); }
     const message = (body && typeof body.message === "string") ? body.message.slice(0, 2000) : "";

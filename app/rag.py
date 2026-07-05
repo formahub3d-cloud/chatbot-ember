@@ -18,6 +18,7 @@ from .config import settings
 from .providers import embed, chat, chat_stream
 from .ingest import client
 from .security import sanitize_context, redact_pii
+from . import metrics
 
 log = logging.getLogger("ember.rag")
 
@@ -130,12 +131,14 @@ def answer(question: str, grants, k: int = 6, history=None) -> dict:
     scopes = scopes_of(grants)
     if not hits:
         _log_gap(question, grants)
+        metrics.bump_gap(scopes)
         return {"answer": NO_ANSWER, "sources": [], "scopes": scopes}
 
     context = _build_context(hits)
     user = f"{_hist_block(history)}CONTENUTO:\n{context}\n\nDOMANDA: {question}"
     out = _clean_answer(chat(SYSTEM, user))
     sources = sorted({h.payload["slug"] for h in hits})
+    metrics.bump_chat(scopes)
     return {"answer": out, "sources": sources, "scopes": scopes}
 
 
@@ -168,12 +171,14 @@ def answer_stream(question: str, grants, k: int = 6, history=None):
     hits = _retrieve(question, grants, k)
     if not hits:
         _log_gap(question, grants)
+        metrics.bump_gap(scopes)
         yield sse("sources", {"sources": [], "scopes": scopes})
         yield sse(None, {"delta": NO_ANSWER})
         yield sse("done", {})
         return
 
     sources = sorted({h.payload["slug"] for h in hits})
+    metrics.bump_chat(scopes)
     yield sse("sources", {"sources": sources, "scopes": scopes})
 
     context = _build_context(hits)

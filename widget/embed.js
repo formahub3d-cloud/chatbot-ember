@@ -261,7 +261,18 @@
     body.appendChild(row); body.scrollTop = body.scrollHeight;
     return msg;
   }
-  function finalizeMsg(msg, textAcc, sources){
+  function sendFeedback(up, q, answer, sources){
+    // Best-effort: un fallimento non deve mai disturbare la chat.
+    try{
+      var fbUrl = PROXY ? (String(PROXY).replace(/\/$/, "") + "/feedback") : (API + "/feedback");
+      var headers = {"Content-Type":"application/json"};
+      if (!PROXY) headers["X-Tenant-Key"] = KEY;
+      fetch(fbUrl, { method:"POST", headers:headers, keepalive:true,
+        body: JSON.stringify({ vote: up ? "up" : "down", question: q || "",
+          answer: String(answer||"").slice(0,500), sources: sources || [] }) }).catch(function(){});
+    }catch(e){}
+  }
+  function finalizeMsg(msg, textAcc, sources, q){
     msg.innerHTML = mdLite(textAcc);
     if (sources && sources.length){
       var wrap = document.createElement("div"); wrap.className = "em-srcs";
@@ -276,6 +287,24 @@
       sb.className = "em-spk"; sb.innerHTML = IC.spkOn + "<span>Ascolta</span>";
       sb.addEventListener("click", function(){ speak(textAcc); });
       msg.appendChild(sb);
+    }
+    if (q){   // solo su risposte reali (non su errori/saluto): 👍/👎
+      var fb = document.createElement("div");
+      fb.style.cssText = "display:flex;gap:6px;margin-top:8px;align-items:center;font-size:12px";
+      function mkFb(sym, up){
+        var b = document.createElement("button");
+        b.type = "button"; b.textContent = sym;
+        b.setAttribute("aria-label", up ? "Risposta utile" : "Risposta da migliorare");
+        b.style.cssText = "cursor:pointer;border:1px solid rgba(127,127,127,.35);background:transparent;border-radius:8px;padding:1px 7px;font-size:13px;line-height:1.3;opacity:.65";
+        b.addEventListener("click", function(){
+          sendFeedback(up, q, textAcc, sources);
+          fb.textContent = up ? "Grazie! 👍" : "Grazie, ne terremo conto.";
+          fb.style.opacity = ".6";
+        });
+        return b;
+      }
+      fb.appendChild(mkFb("👍", true)); fb.appendChild(mkFb("👎", false));
+      msg.appendChild(fb);
     }
     if (speakOn) speak(textAcc);
     body.scrollTop = body.scrollHeight;
@@ -318,7 +347,7 @@
   }
 
   // ── SSE reader (token per token) ──
-  async function readSSE(r, msg){
+  async function readSSE(r, msg, q){
     var reader = r.body.getReader(), dec = new TextDecoder();
     var buf="", acc="", sources=null, idx;
     var cursor = document.createElement("span"); cursor.className = "em-cur"; msg.appendChild(cursor);
@@ -345,7 +374,7 @@
     }
     cursor.remove();
     if (!acc) acc = "(nessuna risposta)";
-    finalizeMsg(msg, acc, sources);
+    finalizeMsg(msg, acc, sources, q);
     hist.push({role:"assistant", content:acc});   // memoria per i follow-up
   }
 
@@ -362,11 +391,11 @@
       var r = await fetch(url, { method:"POST", headers: headers, body: JSON.stringify({message:q, stream:true, history:sendHist}) });
       if(!r.ok){ t.remove(); finalizeMsg(addMsg("a",""), "⚠️ Errore "+r.status+". Riprova tra poco.", null); }
       else if (((r.headers.get("content-type")||"").indexOf("text/event-stream") !== -1) && r.body && window.TextDecoder){
-        t.remove(); await readSSE(r, addMsg("a",""));
+        t.remove(); await readSSE(r, addMsg("a",""), q);
       } else {
         var data = await r.json(); t.remove();
         var ans = data.answer || "(nessuna risposta)";
-        finalizeMsg(addMsg("a",""), ans, data.sources);
+        finalizeMsg(addMsg("a",""), ans, data.sources, q);
         hist.push({role:"assistant", content:ans});
       }
     }catch(e){ t.remove(); finalizeMsg(addMsg("a",""), "⚠️ Connessione non riuscita. Verifica che il servizio sia attivo.", null); }
