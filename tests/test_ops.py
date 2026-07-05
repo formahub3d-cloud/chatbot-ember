@@ -51,3 +51,18 @@ def test_ready_503_se_qdrant_giu(monkeypatch):
     monkeypatch.setattr(ingest, "client", _raise)
     monkeypatch.setattr(tenants, "get_tenant_by_key", lambda k: None)
     assert client.get("/ready").status_code == 503
+
+
+def test_metrics_prometheus(monkeypatch):
+    monkeypatch.setattr(settings, "admin_token", "SEG")
+    metrics.reset()
+    metrics.bump_chat(["ats"])
+    metrics.bump_gap(["ats"], "domanda")
+    assert client.get("/metrics").status_code == 401           # serve il token
+    r = client.get("/metrics", headers={"Authorization": "Bearer SEG"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/plain")
+    body = r.text
+    assert "ember_chat_total 1" in body
+    assert 'ember_gap_by_scope_total{scope="ats"} 1' in body
+    metrics.reset()

@@ -359,6 +359,14 @@ def admin_insights(authorization: str = Header(default="")):
     return metrics.insights()
 
 
+@app.get("/metrics")
+def prometheus_metrics(authorization: str = Header(default="")):
+    """Metriche in formato testo Prometheus (scraping/Grafana). Protetto dal Bearer
+    ADMIN_TOKEN perché le serie per-scope rivelano i nomi tenant. In-memory."""
+    _require_admin(authorization)
+    return Response(metrics.prometheus(), media_type="text/plain; version=0.0.4; charset=utf-8")
+
+
 @app.get("/ready")
 def ready():
     """Readiness per monitoraggio: verifica raggiungibilità di Qdrant e del backend

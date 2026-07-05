@@ -97,6 +97,40 @@ def insights() -> dict:
         }
 
 
+def _esc(s: str) -> str:
+    """Escape del valore di una label Prometheus."""
+    return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+
+
+def prometheus() -> str:
+    """Esposizione in formato testo Prometheus (per scraping/Grafana). Totali +
+    serie per-scope. Sola lettura. Da servire su GET /metrics (protetto)."""
+    s = snapshot()
+    t = s["totals"]
+    out = [
+        "# HELP ember_uptime_seconds Secondi dal boot del processo.",
+        "# TYPE ember_uptime_seconds gauge",
+        f"ember_uptime_seconds {s['uptime_s']}",
+        "# HELP ember_chat_total Chat con risposta.",
+        "# TYPE ember_chat_total counter",
+        f"ember_chat_total {t['chat']}",
+        "# HELP ember_gap_total Domande senza risposta (gap del cervello).",
+        "# TYPE ember_gap_total counter",
+        f"ember_gap_total {t['gap']}",
+        "# HELP ember_feedback_total Feedback ricevuti, per esito.",
+        "# TYPE ember_feedback_total counter",
+        f'ember_feedback_total{{kind="up"}} {t["feedback_up"]}',
+        f'ember_feedback_total{{kind="down"}} {t["feedback_down"]}',
+    ]
+    for scope, d in s["per_scope"].items():
+        lbl = _esc(scope)
+        out.append(f'ember_chat_by_scope_total{{scope="{lbl}"}} {d["chat"]}')
+        out.append(f'ember_gap_by_scope_total{{scope="{lbl}"}} {d["gap"]}')
+        out.append(f'ember_feedback_by_scope_total{{scope="{lbl}",kind="up"}} {d["feedback_up"]}')
+        out.append(f'ember_feedback_by_scope_total{{scope="{lbl}",kind="down"}} {d["feedback_down"]}')
+    return "\n".join(out) + "\n"
+
+
 def reset() -> None:
     """Solo per i test."""
     with _lock:
