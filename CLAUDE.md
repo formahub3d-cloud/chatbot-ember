@@ -45,6 +45,7 @@ identico ai valori storici. Mappatura e razionale: `ovyon/docs/doc-ovyon-ember-s
 - `app/writeback.py` — scrive la nota nel vault: contratti + `save_note` generico (conferma umana) + `notion_upsert` (riga contratto nel DB Notion, inerte finché non configurato)
 - `app/tenants.py` — chiavi→scope; store statico/Postgres/Mongo/**Supabase `api_keys`** + audit `log_access`
 - `app/rls.py` — GUC `ovyon.*` (`session_grants`) per la RLS Supabase lato Ember
+- `app/ratelimit.py` — rate-limit per chiave: in memoria (default) o Redis condiviso (`REDIS_URL`)
 - `app/docstore.py` — sync metadati nota → tabella Supabase `documents` (durante l'ingest)
 - `app/main.py` — API: `/health` `/ingest` `/chat` (con `{"stream": true}` SSE) `/upload` `/contract/confirm` (consolida contratto → vault + Notion), e per il connettore MCP `/search` `/document` `/context` `/writeback`
 - `mcp-connector/` — server MCP (5 tool) verso Ember · `db/` — schema Supabase OVYON · `scripts/verify_ingest.py` — collaudo post-ingest · `OVYON-SETUP.md` — runbook produzione
@@ -81,8 +82,9 @@ python scripts/verify_ingest.py     # verifica org/tenant/sub_tenant nei payload
 
 - ✅ Fase 0 (RAG single/multi-tenant) e ✅ Fase 2 codice (OCR/estrazione/upload +
   consolidamento contratto su vault e ✅ write-back Notion `/contract/confirm`).
+- ✅ Rate-limit distribuito opzionale (Redis via `REDIS_URL`, fallback in memoria).
 - ⏳ Da fare: collaudo con chiavi reali, widget (Fase 1), auto-compilazione (Fase 3),
-  billing + GDPR + rate-limit distribuito (Fase 4).
+  billing + GDPR + DPA (Fase 4).
 
 ## Riferimenti nel cervello
 

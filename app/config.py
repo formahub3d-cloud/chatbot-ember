@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     rate_limit_per_min: int = 30   # richieste/minuto per chiave tenant (0 = illimitato)
     max_message_chars: int = 2000  # lunghezza massima della domanda (anti-abuso/costi)
     max_upload_bytes: int = 10_000_000  # dimensione massima file /upload (anti-DoS/costi OCR)
+
+    # Rate limit distribuito (opzionale): con REDIS_URL il limite è CONDIVISO tra
+    # le istanze (produzione multi-replica). Vuoto = limite in memoria per-istanza.
+    redis_url: str = ""
     security_headers: bool = True  # aggiunge header di sicurezza a ogni risposta
 
     # voce (opzionale) — proxy STT/TTS con chiavi lato server, mai nel browser.

@@ -14,31 +14,19 @@ import json
 import logging
 import os
 import tempfile
-import time
-from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("ember")
 
-# Rate limiting in memoria: finestra scorrevole di 60s per chiave tenant.
-# Per produzione multi-istanza si passerà a Redis (vedi roadmap).
-_hits: dict = {}
+from . import ratelimit
 
 
 def rate_ok(key: str) -> bool:
-    limit = settings.rate_limit_per_min
-    if limit <= 0:
-        return True
-    now = time.time()
-    dq = _hits.setdefault(key, deque())
-    while dq and now - dq[0] > 60:
-        dq.popleft()
-    if len(dq) >= limit:
-        return False
-    dq.append(now)
-    return True
+    """Rate limit per chiave tenant. Backend in memoria (default) o Redis condiviso
+    se REDIS_URL è impostata (vedi app/ratelimit.py)."""
+    return ratelimit.allow(key, settings.rate_limit_per_min)
 
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware

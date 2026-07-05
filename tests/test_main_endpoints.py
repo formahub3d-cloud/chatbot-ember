@@ -31,7 +31,7 @@ def client(monkeypatch):
     monkeypatch.setattr(main.tenants, "quota_ok", lambda t: True)
     # rate-limit generoso e stato pulito tra i test.
     monkeypatch.setattr(settings, "rate_limit_per_min", 100)
-    main._hits.clear()
+    main.ratelimit.reset()
     with TestClient(main.app) as c:
         yield c
 
@@ -67,7 +67,7 @@ def test_chat_messaggio_vuoto_422(client):
 
 def test_chat_rate_limit_429(client, monkeypatch):
     monkeypatch.setattr(settings, "rate_limit_per_min", 1)
-    main._hits.clear()
+    main.ratelimit.reset()
     monkeypatch.setattr(main.rag, "answer",
                         lambda msg, grants, history=None: {"answer": "ok", "sources": [], "scopes": []})
     h = {"X-Tenant-Key": "CHIAVE_ATS"}

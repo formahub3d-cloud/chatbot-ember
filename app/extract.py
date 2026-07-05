@@ -14,7 +14,13 @@ from .providers import chat
 
 
 def _find(text: str, label: str) -> str:
-    m = re.search(rf"{label}\s+(.+)", text)
+    """Valore di un'etichetta UniLav. Robusto verso l'output OCR reale:
+    - la label è a inizio riga (ancoraggio: evita falsi match come Nome↔Cognome);
+    - il separatore può essere ':', '-' o solo spazi (l'OCR spesso mette i due punti);
+    - case-insensitive (l'OCR varia il maiuscolo);
+    - il valore è il resto della riga, ripulito.
+    La label è escapata: eventuali caratteri speciali non rompono la regex."""
+    m = re.search(rf"(?im)^\s*{re.escape(label)}\s*[:\-]?\s*(\S.*?)\s*$", text)
     return m.group(1).strip() if m else ""
 
 
