@@ -190,12 +190,17 @@
   var style = document.createElement("style"); style.textContent = css; root.appendChild(style);
 
   var btn = document.createElement("button");
-  btn.className = "em-btn"; btn.setAttribute("aria-label", "Apri la chat");
+  btn.className = "em-btn"; btn.setAttribute("type", "button");
+  btn.setAttribute("aria-label", "Apri la chat");
+  btn.setAttribute("aria-haspopup", "dialog");
+  btn.setAttribute("aria-controls", "em-panel"); btn.setAttribute("aria-expanded", "false");
   btn.innerHTML = IC.chat + '<span class="em-badge"></span>';
 
   var avInner = AVATAR ? '<img src="' + esc(AVATAR) + '" alt="">' : esc((TITLE.trim()[0] || "E").toUpperCase());
   var panel = document.createElement("div");
-  panel.className = "em-panel"; panel.setAttribute("role", "dialog"); panel.setAttribute("aria-label", TITLE);
+  panel.className = "em-panel"; panel.id = "em-panel";
+  panel.setAttribute("role", "dialog"); panel.setAttribute("aria-modal", "true");
+  panel.setAttribute("aria-label", TITLE); panel.setAttribute("tabindex", "-1");
   panel.innerHTML =
     '<div class="em-hd">' +
       '<div class="em-av">' + avInner + '</div>' +
@@ -464,12 +469,26 @@
   function toggle(open){
     panel.classList.toggle("em-open", open);
     btn.style.display = open ? "none" : "grid";
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
     if (open){
       maybeAutoConfig();
       input.focus();
       if(!greeted){ greeted = true; finalizeMsg(addMsg("a",""), GREET, null); }
-    } else { stopAudio(); }
+    } else { stopAudio(); try{ btn.focus(); }catch(e){} }   // torna il focus al lanciatore
   }
+
+  // Accessibilità da tastiera dentro il pannello: Esc chiude, Tab resta nel dialog.
+  panel.addEventListener("keydown", function(e){
+    if (e.key === "Escape"){ e.preventDefault(); toggle(false); return; }
+    if (e.key !== "Tab") return;
+    var f = panel.querySelectorAll('button, [href], input, [tabindex]:not([tabindex="-1"])');
+    var vis = []; for (var i=0;i<f.length;i++){ if (f[i].offsetParent !== null) vis.push(f[i]); }
+    if (!vis.length) return;
+    var first = vis[0], last = vis[vis.length-1];
+    var ae = root.activeElement || document.activeElement;   // Shadow DOM: usa lo shadow root
+    if (e.shiftKey && ae === first){ e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && ae === last){ e.preventDefault(); first.focus(); }
+  });
 
   // ── Events ──
   btn.addEventListener("click", function(){ toggle(true); });
