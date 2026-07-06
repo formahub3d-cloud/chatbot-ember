@@ -48,7 +48,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs
+
+obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
 app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
 

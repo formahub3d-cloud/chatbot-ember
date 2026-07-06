@@ -291,24 +291,50 @@ def get_tenant_by_key(key: str) -> dict | None:
     return get_tenants().get(key)
 
 
+def _quota_ok_pg(kh: str, limit: int, period: str) -> bool:
+    """Contatore quota atomico su Supabase (tabella key_usage), per-periodo.
+    Incrementa e confronta col limite. Fail-open in caso di errore."""
+    try:
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO key_usage (key_hash, period, count) VALUES (%s,%s,1) "
+                    "ON CONFLICT (key_hash, period) DO UPDATE SET count = key_usage.count + 1 "
+                    "RETURNING count",
+                    (kh, period),
+                )
+                n = cur.fetchone()[0]
+            c.commit()
+        return int(n) <= limit
+    except Exception:
+        log.exception("quota (supabase) fallita: consento (fail-open)")
+        return True
+
+
 def quota_ok(tenant: dict) -> bool:
-    """True se il tenant è sotto la quota giornaliera. Contatore atomico su Mongo
-    (per-giorno UTC). quota_day<=0 o Mongo assente = illimitato. Fail-open in errore."""
+    """True se il tenant è sotto la quota giornaliera. Contatore atomico per-giorno
+    (UTC) su Supabase (key_usage) o, in alternativa, Mongo. quota_day<=0 o nessun
+    backend = illimitato. Fail-open in errore."""
     limit = int((tenant or {}).get("quota_day", 0) or 0)
     kh = (tenant or {}).get("key_hash")
-    if limit <= 0 or not _mongo_enabled() or not kh:
+    if limit <= 0 or not kh:
         return True
     from datetime import datetime, timezone
-    from pymongo import ReturnDocument
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    try:
-        col = _mdb()[settings.usage_collection]
-        doc = col.find_one_and_update(
-            {"key_hash": kh, "day": day},
-            {"$inc": {"count": 1}},
-            upsert=True, return_document=ReturnDocument.AFTER,
-        )
-        return int(doc.get("count", 1)) <= limit
-    except Exception:
-        log.exception("quota check fallita: consento (fail-open)")
-        return True
+    # Mongo se configurato (setup storico); altrimenti Supabase (backend OVYON live).
+    if _mongo_enabled():
+        from pymongo import ReturnDocument
+        try:
+            col = _mdb()[settings.usage_collection]
+            doc = col.find_one_and_update(
+                {"key_hash": kh, "day": day},
+                {"$inc": {"count": 1}},
+                upsert=True, return_document=ReturnDocument.AFTER,
+            )
+            return int(doc.get("count", 1)) <= limit
+        except Exception:
+            log.exception("quota check (mongo) fallita: consento (fail-open)")
+            return True
+    if _apikeys_enabled():
+        return _quota_ok_pg(kh, limit, day)
+    return True

@@ -89,6 +89,14 @@ create table if not exists analytics_events (
 create index if not exists analytics_events_created_idx on analytics_events (created_at desc);
 create index if not exists analytics_events_kind_idx on analytics_events (kind);
 
+-- ── Quota per chiave-tenant (contatore atomico per periodo, es. giorno UTC) ──
+create table if not exists key_usage (
+    key_hash  text not null,
+    period    text not null,                       -- 'YYYY-MM-DD' (giorno UTC)
+    count     integer not null default 0,
+    primary key (key_hash, period)
+);
+
 -- ── Ponte con Ember: chiavi-tenant (hashate) e grant a tre livelli ──────────
 -- Le liste di grant sono per CODE testuale = allowed_scopes/orgs/sub_tenants di
 -- Ember. '*' in un qualunque array = chiave master (vede tutto).

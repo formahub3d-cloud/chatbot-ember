@@ -49,8 +49,31 @@
   var LANG    = CFG.lang   || d.lang   || "it-IT";
   var VOICE   = String(CFG.voice != null ? CFG.voice : (d.voice != null ? d.voice : "true")) !== "false";
   var VAUTO   = String(CFG.voiceAuto != null ? CFG.voiceAuto : (d.voiceAuto != null ? d.voiceAuto : "false")) === "true";
-  var GREET   = CFG.greeting || d.greeting ||
-    ("Ciao! Sono " + TITLE + ". Sei in conversazione con un assistente AI: rispondo solo sulle aree a cui ho accesso e cito le fonti. Come posso aiutarti?");
+  // i18n: stringhe fisse dell'interfaccia in IT/EN (le risposte del bot sono gestite
+  // dal server). La lingua UI arriva da CFG.lang / data-lang o si deriva da LANG;
+  // può essere aggiornata da /config (maybeAutoConfig).
+  function _uilang(x){ return (String(x||"").toLowerCase().slice(0,2) === "en") ? "en" : "it"; }
+  var UILANG = _uilang(CFG.lang || d.lang || LANG || "it");
+  var I18N = {
+    it: { open:"Apri la chat", close:"Chiudi", speakTgl:"Attiva/disattiva lettura vocale", talk:"Parla", msg:"Messaggio", send:"Invia",
+      ph:"Scrivi una domanda...", note:"Assistente AI — può commettere errori. Verifica le informazioni importanti.",
+      listen:"Ascolta", copy:"Copia", copied:"Copiato", retry:"Riprova",
+      fbUp:"Risposta utile", fbDown:"Risposta da migliorare", thanksUp:"Grazie! 👍", thanksDown:"Grazie, ne terremo conto.",
+      listening:"In ascolto...", dictFail:"Dettatura non riuscita, scrivi pure...",
+      errNet:"⚠️ Connessione non riuscita. Verifica che il servizio sia attivo.",
+      errCode:function(s){ return "⚠️ Errore "+s+". Riprova tra poco."; },
+      greet:function(t){ return "Ciao! Sono "+t+". Sei in conversazione con un assistente AI: rispondo solo sulle aree a cui ho accesso e cito le fonti. Come posso aiutarti?"; } },
+    en: { open:"Open chat", close:"Close", speakTgl:"Toggle read-aloud", talk:"Speak", msg:"Message", send:"Send",
+      ph:"Ask a question...", note:"AI assistant — may make mistakes. Verify important information.",
+      listen:"Listen", copy:"Copy", copied:"Copied", retry:"Retry",
+      fbUp:"Helpful answer", fbDown:"Answer to improve", thanksUp:"Thanks! 👍", thanksDown:"Thanks, we'll take note.",
+      listening:"Listening...", dictFail:"Dictation failed, just type...",
+      errNet:"⚠️ Connection failed. Check that the service is up.",
+      errCode:function(s){ return "⚠️ Error "+s+". Try again shortly."; },
+      greet:function(t){ return "Hi! I'm "+t+". You're chatting with an AI assistant: I only answer from the areas I can access and I cite sources. How can I help?"; } }
+  };
+  function TT(k){ return (I18N[UILANG] || I18N.it)[k]; }
+  var GREET   = CFG.greeting || d.greeting || TT("greet")(TITLE);
 
   // palette (dark, brand FORMA)
   var DARK="#0e0e10", DARK2="#15151a", BUB="#1b1b22", LINE="#26262e", TXT="#f4f4f6", MUT="#9a9aa6", INK="#06262b";
@@ -91,6 +114,14 @@
       var img = c.avatar || c.logo;
       if (img){ var av = panel.querySelector(".em-av"); if(av) av.innerHTML = '<img src="' + esc(img) + '" alt="">'; }
       if (c.greeting){ GREET = c.greeting; }
+      if (c.lang){   // lingua UI dal tenant: aggiorna le stringhe fisse più visibili
+        UILANG = _uilang(c.lang);
+        try{ input.placeholder = TT("ph"); }catch(e){}
+        var nt = panel.querySelector(".em-note"); if(nt) nt.textContent = TT("note");
+        var mic2 = panel.querySelector(".em-mic"); if(mic2) mic2.setAttribute("aria-label", TT("talk"));
+        var xb = panel.querySelector(".em-x"); if(xb) xb.setAttribute("aria-label", TT("close"));
+        if(!c.greeting && !CFG.greeting && !d.greeting && !greeted) GREET = TT("greet")(TITLE);
+      }
       if (c.voice_pro && hasMR && VOICE && VMODE !== "browser") PRO = true;
     }catch(e){}
   }
@@ -200,7 +231,7 @@
 
   var btn = document.createElement("button");
   btn.className = "em-btn"; btn.setAttribute("type", "button");
-  btn.setAttribute("aria-label", "Apri la chat");
+  btn.setAttribute("aria-label", TT("open"));
   btn.setAttribute("aria-haspopup", "dialog");
   btn.setAttribute("aria-controls", "em-panel"); btn.setAttribute("aria-expanded", "false");
   btn.innerHTML = IC.chat + '<span class="em-badge"></span>';
@@ -215,18 +246,18 @@
       '<div class="em-av">' + avInner + '</div>' +
       '<div class="em-tt"><b>' + esc(TITLE) + '</b><span><i class="em-live"></i>' + esc(SUBT) + '</span></div>' +
       '<div class="em-hicons">' +
-        (canSpeak ? '<button class="em-ic em-tog" aria-label="Attiva/disattiva lettura vocale">' + (speakOn ? IC.spkOn : IC.spkOff) + '</button>' : '') +
-        '<button class="em-ic em-x" aria-label="Chiudi">' + IC.close + '</button>' +
+        (canSpeak ? '<button class="em-ic em-tog" aria-label="' + esc(TT("speakTgl")) + '">' + (speakOn ? IC.spkOn : IC.spkOff) + '</button>' : '') +
+        '<button class="em-ic em-x" aria-label="' + esc(TT("close")) + '">' + IC.close + '</button>' +
       '</div>' +
     '</div>' +
     '<div class="em-body" aria-live="polite"></div>' +
     '<div class="em-ft">' +
       '<div class="em-inrow">' +
-        (canListen ? '<button class="em-mic" aria-label="Parla">' + IC.mic + '</button>' : '') +
-        '<input class="em-in" placeholder="Scrivi una domanda..." aria-label="Messaggio">' +
-        '<button class="em-send" aria-label="Invia">' + IC.send + '</button>' +
+        (canListen ? '<button class="em-mic" aria-label="' + esc(TT("talk")) + '">' + IC.mic + '</button>' : '') +
+        '<input class="em-in" placeholder="' + esc(TT("ph")) + '" aria-label="' + esc(TT("msg")) + '">' +
+        '<button class="em-send" aria-label="' + esc(TT("send")) + '">' + IC.send + '</button>' +
       '</div>' +
-      '<div class="em-note">Assistente AI — può commettere errori. Verifica le informazioni importanti.</div>' +
+      '<div class="em-note">' + esc(TT("note")) + '</div>' +
     '</div>';
 
   root.appendChild(btn); root.appendChild(panel);
@@ -298,17 +329,17 @@
     }
     if (canSpeak){
       var sb = document.createElement("button");
-      sb.className = "em-spk"; sb.innerHTML = IC.spkOn + "<span>Ascolta</span>";
+      sb.className = "em-spk"; sb.innerHTML = IC.spkOn + "<span>" + esc(TT("listen")) + "</span>";
       sb.addEventListener("click", function(){ speak(textAcc); });
       msg.appendChild(sb);
     }
     if (textAcc && textAcc.charAt(0) !== "⚠"){   // Copia (non su errori ⚠️)
       var cb = document.createElement("button");
       cb.className = "em-spk"; cb.type = "button"; cb.style.marginLeft = canSpeak ? "10px" : "0";
-      cb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copia</span>';
+      cb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>' + esc(TT("copy")) + '</span>';
       cb.addEventListener("click", function(){
         try{ if(navigator.clipboard){ navigator.clipboard.writeText(textAcc).then(function(){
-          var s = cb.querySelector("span"); s.textContent = "Copiato"; setTimeout(function(){ s.textContent = "Copia"; }, 1500);
+          var s = cb.querySelector("span"); s.textContent = TT("copied"); setTimeout(function(){ s.textContent = TT("copy"); }, 1500);
         }).catch(function(){}); } }catch(e){}
       });
       msg.appendChild(cb);
@@ -319,11 +350,11 @@
       function mkFb(sym, up){
         var b = document.createElement("button");
         b.type = "button"; b.textContent = sym;
-        b.setAttribute("aria-label", up ? "Risposta utile" : "Risposta da migliorare");
+        b.setAttribute("aria-label", up ? TT("fbUp") : TT("fbDown"));
         b.style.cssText = "cursor:pointer;border:1px solid rgba(127,127,127,.35);background:transparent;border-radius:8px;padding:1px 7px;font-size:13px;line-height:1.3;opacity:.65";
         b.addEventListener("click", function(){
           sendFeedback(up, q, textAcc, sources);
-          fb.textContent = up ? "Grazie! 👍" : "Grazie, ne terremo conto.";
+          fb.textContent = up ? TT("thanksUp") : TT("thanksDown");
           fb.style.opacity = ".6";
         });
         return b;
@@ -406,7 +437,7 @@
   function _addRetry(msg, text){   // pulsante "Riprova" sui messaggi di errore
     var rb = document.createElement("button");
     rb.className = "em-spk"; rb.type = "button"; rb.style.marginTop = "6px";
-    rb.innerHTML = "↻ <span>Riprova</span>";
+    rb.innerHTML = "↻ <span>" + esc(TT("retry")) + "</span>";
     rb.addEventListener("click", function(){
       var row = msg.parentNode; if (row && row.parentNode) row.parentNode.removeChild(row);
       ask(text);
@@ -424,7 +455,7 @@
       var headers = {"Content-Type":"application/json"};
       if (!PROXY) headers["X-Tenant-Key"] = KEY;
       var r = await fetch(url, { method:"POST", headers: headers, body: JSON.stringify({message:q, stream:true, history:sendHist}) });
-      if(!r.ok){ t.remove(); var em=addMsg("a",""); finalizeMsg(em, "⚠️ Errore "+r.status+". Riprova tra poco.", null); _addRetry(em, q); }
+      if(!r.ok){ t.remove(); var em=addMsg("a",""); finalizeMsg(em, TT("errCode")(r.status), null); _addRetry(em, q); }
       else if (((r.headers.get("content-type")||"").indexOf("text/event-stream") !== -1) && r.body && window.TextDecoder){
         t.remove(); await readSSE(r, addMsg("a",""), q);
       } else {
@@ -433,7 +464,7 @@
         finalizeMsg(addMsg("a",""), ans, data.sources, q);
         hist.push({role:"assistant", content:ans});
       }
-    }catch(e){ t.remove(); var eem=addMsg("a",""); finalizeMsg(eem, "⚠️ Connessione non riuscita. Verifica che il servizio sia attivo.", null); _addRetry(eem, q); }
+    }catch(e){ t.remove(); var eem=addMsg("a",""); finalizeMsg(eem, TT("errNet"), null); _addRetry(eem, q); }
     if (hist.length > 20) hist = hist.slice(-20);
     send.disabled = false; input.focus();
   }
@@ -443,7 +474,7 @@
     if (!canListen) return;
     rec = new SR(); rec.lang = LANG; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
     var finalTxt = "";
-    rec.onstart = function(){ listening = true; mic.classList.add("live"); input.placeholder = "In ascolto..."; };
+    rec.onstart = function(){ listening = true; mic.classList.add("live"); input.placeholder = TT("listening"); };
     rec.onerror = function(){ stopListen(); };
     rec.onend = function(){
       var t = (finalTxt || input.value).trim(); finalTxt = "";
@@ -459,7 +490,7 @@
       input.value = (finalTxt + interim).trim();
     };
   }
-  function stopListen(){ listening = false; if(mic) mic.classList.remove("live"); input.placeholder = "Scrivi una domanda..."; }
+  function stopListen(){ listening = false; if(mic) mic.classList.remove("live"); input.placeholder = TT("ph"); }
 
   // STT PRO: registra col microfono e manda l'audio a /voice/stt (chiavi lato server).
   async function proListenStart(){
@@ -475,9 +506,9 @@
         var r = await fetch(VBASE + "/voice/stt", { method:"POST", headers: voiceHeaders({}), body: fd });
         if (!r.ok) throw new Error("stt " + r.status);
         var j = await r.json(); if (j && j.text) ask(j.text);
-      }catch(e){ input.placeholder = "Dettatura non riuscita, scrivi pure..."; }
+      }catch(e){ input.placeholder = TT("dictFail"); }
     };
-    listening = true; mic.classList.add("live"); input.placeholder = "In ascolto..."; stopAudio(); mr.start();
+    listening = true; mic.classList.add("live"); input.placeholder = TT("listening"); stopAudio(); mr.start();
   }
 
   function toggleListen(){

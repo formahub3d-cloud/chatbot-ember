@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     # col campo branding.lang; il client può passarla per richiesta.
     default_lang: str = "it"
 
+    # osservabilità errori (opzionale): Sentry. Vuoto = disattivato.
+    sentry_dsn: str = ""
+    sentry_env: str = ""
+
     # rate-limit condiviso tra repliche: se valorizzato, il limiter usa Redis
     # (finestra scorrevole su sorted-set) invece della memoria di processo.
     redis_url: str = ""            # es. redis://default:pwd@host:6379/0 (vuoto = in-memory)
