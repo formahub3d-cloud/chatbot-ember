@@ -1,0 +1,42 @@
+name: Re-ingest cervello
+
+# Tiene il cervello di Ember sempre fresco ri-lanciando POST /ingest.
+# Si attiva:
+#   - manualmente (Actions → Run workflow)
+#   - ogni notte alle 03:00 UTC (rete di sicurezza)
+#   - via repository_dispatch (type: vault-updated): il repo del vault (ovy-cervello)
+#     lo chiama dopo un push così l'indice si aggiorna quando cambiano le note. Esempio
+#     dal workflow del vault:
+#       curl -sf -X POST \
+#         -H "Authorization: Bearer $GH_PAT" \
+#         -H "Accept: application/vnd.github+json" \
+#         https://api.github.com/repos/formahub3d-cloud/chatbot-ember/dispatches \
+#         -d '{"event_type":"vault-updated"}'
+#
+# Richiede due impostazioni nel repo (Settings → Secrets and variables → Actions):
+#   - Variabile  EMBER_URL     (es. https://ember.formahub.it)   [opzionale]
+#   - Segreto    ADMIN_TOKEN   (token admin di Ember)            [obbligatorio]
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+  repository_dispatch:
+    types: [vault-updated]
+
+jobs:
+  reingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Trigger re-ingest
+        env:
+          EMBER_URL: ${{ vars.EMBER_URL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: python scripts/reingest.py

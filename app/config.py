@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     # lancia POST /admin/retention/run. 0 = nessuna cancellazione automatica.
     retention_days: int = 0
 
+    # stima costi (opzionale): tariffa media per richiesta in € — token medi per
+    # conversazione × prezzo del modello (vedi doc-chatbot-cervello). Usata SOLO per
+    # mostrare una stima di spesa per tenant in /admin/usage. 0 = non mostrare i costi.
+    cost_per_request_eur: float = 0.0
+    # alert spike costi (opzionale): se la stima di spesa giornaliera di un tenant
+    # supera questa soglia in €, /admin/usage logga un WARNING (+ Sentry se attivo)
+    # e la segnala nel campo "alerts". 0 = disattivato.
+    cost_alert_daily_eur: float = 0.0
+
     # billing Stripe (opzionale): checkout a livelli + webhook. Inerte finché
     # STRIPE_SECRET_KEY è vuota. Gli ID prezzo si creano nel dashboard Stripe.
     stripe_secret_key: str = ""

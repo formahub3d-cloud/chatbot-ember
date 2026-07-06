@@ -32,3 +32,15 @@ def init_sentry() -> bool:
     except Exception:  # pragma: no cover - dipendenza/rete
         log.warning("Sentry non inizializzato", exc_info=True)
         return False
+
+
+def capture_message(message: str, level: str = "warning") -> None:
+    """Invia un messaggio a Sentry (es. alert su spike di costo). No-op se Sentry
+    non è configurato o la libreria non è installata. Non solleva mai."""
+    if not enabled():
+        return
+    try:  # pragma: no cover - dipende da rete/dipendenza
+        import sentry_sdk
+        sentry_sdk.capture_message(message, level=level)
+    except Exception:
+        log.debug("capture_message ignorato", exc_info=True)

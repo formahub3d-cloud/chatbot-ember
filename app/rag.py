@@ -119,6 +119,13 @@ def scopes_of(grants) -> list:
     return _grant_lists(grants)[1]
 
 
+def is_master(grants) -> bool:
+    """True se i grant includono il jolly '*' (chiave master: vede tutti gli scope).
+    Solo per uso admin server-side — mai in un widget pubblico (vedi main._reject_master_browser)."""
+    orgs, tenants_, subs = _grant_lists(grants)
+    return MASTER in orgs or MASTER in tenants_ or MASTER in subs
+
+
 def build_filter(grants):
     """Costruisce il Filter Qdrant dai grant. None = nessun filtro (master, vede tutto).
 
@@ -128,7 +135,7 @@ def build_filter(grants):
     dati storici. Nessun grant valido = nega tutto (come il comportamento storico
     con lista vuota)."""
     orgs, tenants_, subs = _grant_lists(grants)
-    if MASTER in orgs or MASTER in tenants_ or MASTER in subs:
+    if is_master(grants):
         return None
     should = []
     if tenants_:

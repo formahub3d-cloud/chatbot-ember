@@ -50,7 +50,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -184,8 +184,18 @@ def _secs_to_midnight_utc() -> str:
     return str(max(1, int((nxt - now).total_seconds())))
 
 
+def _reject_master_browser(tenant: dict, origin: str) -> None:
+    """La chiave master ('*') vede TUTTI gli scope: è ammessa solo per uso admin
+    server-side (MCP/CLI/curl, che non inviano Origin). Se arriva da un browser
+    (Origin valorizzato, cioè il widget) → 403. Così 'master mai in widget pubblico'
+    è imposto in codice, non lasciato alla convenzione."""
+    if origin and rag.is_master(_grants(tenant)):
+        raise HTTPException(403, "Chiave master non utilizzabile da un browser.")
+
+
 def _guard(tenant: dict, key: str, origin: str) -> None:
-    """Controlli comuni agli endpoint tenant: origine, rate limit, quota."""
+    """Controlli comuni agli endpoint tenant: master-guard, origine, rate limit, quota."""
+    _reject_master_browser(tenant, origin)
     if not security.origin_allowed(origin, tenant.get("allowed_origins")):
         raise HTTPException(403, "Origine non autorizzata per questo tenant.")
     if not rate_ok(key):
@@ -277,6 +287,7 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     `event: sources` (fonti+scope) → N × `data: {"delta": ...}` → `event: done`.
     Senza flag resta il JSON classico {answer, sources, scopes} (retro-compat)."""
     tenant = tenant_or_401(x_tenant_key)
+    _reject_master_browser(tenant, origin)
     if not security.origin_allowed(origin, tenant.get("allowed_origins")):
         raise HTTPException(403, "Origine non autorizzata per questo tenant.")
     if not rate_ok(x_tenant_key):
@@ -436,10 +447,12 @@ def _require_apikeys() -> None:
 
 @app.get("/admin/usage")
 def admin_usage(authorization: str = Header(default="")):
-    """Uso per tenant del giorno (conteggio richieste da key_usage), senza segreti.
-    Bearer ADMIN_TOKEN. Vuoto se le quote non sono ancora attive (tabella assente)."""
+    """Uso per tenant del giorno (conteggio richieste da key_usage) + stima di spesa
+    in € (se COST_PER_REQUEST_EUR è impostata) e alert sui tenant oltre la soglia
+    giornaliera (COST_ALERT_DAILY_EUR). Senza segreti. Bearer ADMIN_TOKEN. Vuoto se le
+    quote non sono ancora attive (la tabella key_usage si popola coi tenant a quota)."""
     _require_admin(authorization)
-    return {"usage": tenants.usage_today()}
+    return costs.check_and_alert(tenants.usage_today())
 
 
 @app.get("/admin/access-logs")
