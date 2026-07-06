@@ -302,6 +302,17 @@
       sb.addEventListener("click", function(){ speak(textAcc); });
       msg.appendChild(sb);
     }
+    if (textAcc && textAcc.charAt(0) !== "⚠"){   // Copia (non su errori ⚠️)
+      var cb = document.createElement("button");
+      cb.className = "em-spk"; cb.type = "button"; cb.style.marginLeft = canSpeak ? "10px" : "0";
+      cb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copia</span>';
+      cb.addEventListener("click", function(){
+        try{ if(navigator.clipboard){ navigator.clipboard.writeText(textAcc).then(function(){
+          var s = cb.querySelector("span"); s.textContent = "Copiato"; setTimeout(function(){ s.textContent = "Copia"; }, 1500);
+        }).catch(function(){}); } }catch(e){}
+      });
+      msg.appendChild(cb);
+    }
     if (q){   // solo su risposte reali (non su errori/saluto): 👍/👎
       var fb = document.createElement("div");
       fb.style.cssText = "display:flex;gap:6px;margin-top:8px;align-items:center;font-size:12px";
@@ -392,6 +403,16 @@
     hist.push({role:"assistant", content:acc});   // memoria per i follow-up
   }
 
+  function _addRetry(msg, text){   // pulsante "Riprova" sui messaggi di errore
+    var rb = document.createElement("button");
+    rb.className = "em-spk"; rb.type = "button"; rb.style.marginTop = "6px";
+    rb.innerHTML = "↻ <span>Riprova</span>";
+    rb.addEventListener("click", function(){
+      var row = msg.parentNode; if (row && row.parentNode) row.parentNode.removeChild(row);
+      ask(text);
+    });
+    msg.appendChild(rb);
+  }
   async function ask(text){
     var q = (text != null ? text : input.value).trim(); if(!q) return;
     input.value = ""; addMsg("u", q); send.disabled = true;
@@ -403,7 +424,7 @@
       var headers = {"Content-Type":"application/json"};
       if (!PROXY) headers["X-Tenant-Key"] = KEY;
       var r = await fetch(url, { method:"POST", headers: headers, body: JSON.stringify({message:q, stream:true, history:sendHist}) });
-      if(!r.ok){ t.remove(); finalizeMsg(addMsg("a",""), "⚠️ Errore "+r.status+". Riprova tra poco.", null); }
+      if(!r.ok){ t.remove(); var em=addMsg("a",""); finalizeMsg(em, "⚠️ Errore "+r.status+". Riprova tra poco.", null); _addRetry(em, q); }
       else if (((r.headers.get("content-type")||"").indexOf("text/event-stream") !== -1) && r.body && window.TextDecoder){
         t.remove(); await readSSE(r, addMsg("a",""), q);
       } else {
@@ -412,7 +433,7 @@
         finalizeMsg(addMsg("a",""), ans, data.sources, q);
         hist.push({role:"assistant", content:ans});
       }
-    }catch(e){ t.remove(); finalizeMsg(addMsg("a",""), "⚠️ Connessione non riuscita. Verifica che il servizio sia attivo.", null); }
+    }catch(e){ t.remove(); var eem=addMsg("a",""); finalizeMsg(eem, "⚠️ Connessione non riuscita. Verifica che il servizio sia attivo.", null); _addRetry(eem, q); }
     if (hist.length > 20) hist = hist.slice(-20);
     send.disabled = false; input.focus();
   }

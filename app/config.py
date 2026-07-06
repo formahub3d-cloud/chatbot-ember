@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     max_message_chars: int = 2000  # lunghezza massima della domanda (anti-abuso/costi)
     security_headers: bool = True  # aggiunge header di sicurezza a ogni risposta
 
+    # lingua di default delle risposte del bot ("it" | "en"). Un tenant può forzarla
+    # col campo branding.lang; il client può passarla per richiesta.
+    default_lang: str = "it"
+
     # rate-limit condiviso tra repliche: se valorizzato, il limiter usa Redis
     # (finestra scorrevole su sorted-set) invece della memoria di processo.
     redis_url: str = ""            # es. redis://default:pwd@host:6379/0 (vuoto = in-memory)

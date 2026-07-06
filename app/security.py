@@ -36,10 +36,13 @@ def redact_pii(text: str) -> str:
 # Il cervello è fidato, ma un documento caricato via OCR (contratto) no.
 _INJECT = re.compile(
     r"(?im)^\s*(?:"
-    r"ignora(?:\s+le)?\s+(?:istruzioni|precedenti)|dimentica(?:\s+tutto)?|"
-    r"ignore\s+(?:the\s+)?(?:above|previous|instructions)|disregard|forget\s+(?:all|everything)|"
+    r"ignora(?:\s+le)?\s+(?:istruzioni|precedenti|regole)|dimentica(?:\s+tutto)?|"
+    r"ignore\s+(?:the\s+)?(?:above|previous|instructions?|rules?)|disregard|forget\s+(?:all|everything)|"
+    r"override\b|bypass\b|jailbreak|developer\s+mode|"
     r"system\s*:|assistant\s*:|nuove?\s+istruzioni|new\s+instructions?|"
-    r"tu\s+sei\s+ora|you\s+are\s+now|agisci\s+come|act\s+as"
+    r"tu\s+sei\s+ora|you\s+are\s+now|agisci\s+come|act\s+as|"
+    r"(?:rivela|mostra|stampa|reveal|print|show)\b.*(?:prompt|istruzioni|instructions?|system)|"
+    r"<\s*/?\s*system\s*>|\[\s*system\s*\]"
     r").*$"
 )
 

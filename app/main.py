@@ -48,7 +48,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys
 
 app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
 
@@ -118,6 +118,7 @@ class ChatIn(BaseModel):
     message: str
     stream: bool = False  # true → risposta SSE (text/event-stream) token per token
     history: list = []     # turni precedenti [{role, content}] dal client, per i follow-up
+    lang: str = ""         # "it" | "en" — se vuota: branding del tenant → default_lang
 
 
 class SearchIn(BaseModel):
@@ -152,6 +153,25 @@ class CheckoutIn(BaseModel):
     email: str = ""
 
 
+class TenantCreateIn(BaseModel):
+    name: str
+    orgs: str = ""             # code separati da virgola
+    tenants: str = ""
+    subs: str = ""
+    origins: str = ""
+    quota: int = 0
+    branding: dict | None = None
+
+
+class TenantNameIn(BaseModel):
+    name: str
+
+
+class TenantBrandIn(BaseModel):
+    name: str
+    branding: dict
+
+
 def _guard(tenant: dict, key: str, origin: str) -> None:
     """Controlli comuni agli endpoint tenant: origine, rate limit, quota."""
     if not security.origin_allowed(origin, tenant.get("allowed_origins")):
@@ -178,6 +198,7 @@ def config(x_tenant_key: str = Header(default="")):
         "title": brand.get("title", tenant.get("name", "Ember · Assistente")),
         "subtitle": brand.get("subtitle", "Assistente AI"),
         "accent": brand.get("accent", "#0ED4E4"),
+        "lang": brand.get("lang", settings.default_lang),   # lingua risposte (it|en)
         "voice_pro": voice.stt_enabled(),   # true → il widget può usare la voce PRO via proxy
     }
     # White-label per cliente: campi opzionali dal record del tenant. Inviati solo se
@@ -252,10 +273,11 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     body.message = security.cap_input(body.message, settings.max_message_chars)
     if not body.message:
         raise HTTPException(422, "Messaggio vuoto.")
+    lang = body.lang or (tenant.get("branding") or {}).get("lang") or settings.default_lang
     log.info("chat tenant=%s q=%r", tenant.get("name", "?"), security.redact_pii(body.message)[:200])
     if body.stream:
         try:
-            gen = rag.answer_stream(body.message, _grants(tenant), history=body.history)
+            gen = rag.answer_stream(body.message, _grants(tenant), history=body.history, lang=lang)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -277,7 +299,7 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
     try:
-        return rag.answer(body.message, _grants(tenant), history=body.history)
+        return rag.answer(body.message, _grants(tenant), history=body.history, lang=lang)
     except HTTPException:
         raise
     except Exception:
@@ -389,6 +411,46 @@ def retention_run(days: int = 0, authorization: str = Header(default="")):
     _require_admin(authorization)
     deleted = events.purge_old(days or None)
     return {"deleted": deleted, "retention_days": settings.retention_days}
+
+
+def _require_apikeys() -> None:
+    if not tenants._apikeys_enabled():
+        raise HTTPException(400, "Backend Supabase (api_keys) non attivo.")
+
+
+@app.get("/admin/tenants")
+def admin_tenants(authorization: str = Header(default="")):
+    """Elenco chiavi-tenant (senza segreti). Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    _require_apikeys()
+    return {"tenants": manage_apikeys.list_keys()}
+
+
+@app.post("/admin/tenants")
+def admin_tenant_create(body: TenantCreateIn, authorization: str = Header(default="")):
+    """Onboarding via API: crea una chiave-tenant e la restituisce IN CHIARO una sola
+    volta (nel DB solo l'hash). Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    _require_apikeys()
+    key = manage_apikeys.create_key(body.name, body.orgs, body.tenants, body.subs,
+                                    body.origins, body.quota, body.branding)
+    return {"name": body.name, "key": key, "nota": "chiave mostrata una sola volta"}
+
+
+@app.post("/admin/tenants/revoke")
+def admin_tenant_revoke(body: TenantNameIn, authorization: str = Header(default="")):
+    """Disattiva (active=false) le chiavi con questo nome. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    _require_apikeys()
+    return {"revoked": manage_apikeys.revoke(body.name)}
+
+
+@app.post("/admin/tenants/brand")
+def admin_tenant_brand(body: TenantBrandIn, authorization: str = Header(default="")):
+    """Imposta/aggiorna il branding (white-label) di un tenant. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    _require_apikeys()
+    return {"updated": manage_apikeys.set_branding(body.name, body.branding)}
 
 
 @app.post("/billing/checkout")
