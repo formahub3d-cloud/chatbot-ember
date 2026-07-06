@@ -256,6 +256,51 @@ def log_access(key_hash: str, action: str, tenant_code: str | None = None,
         log.exception("log_access fallito (ignorato)")
 
 
+def usage_today(limit: int = 200) -> list[dict]:
+    """Uso per chiave del giorno UTC (da key_usage), senza segreti: nome + conteggio.
+    [] se il backend Supabase non è attivo o la tabella non c'è ancora."""
+    if not _apikeys_enabled():
+        return []
+    from datetime import datetime, timezone
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute(
+                    "SELECT k.name, u.count FROM key_usage u "
+                    "LEFT JOIN api_keys k ON k.key_hash = u.key_hash "
+                    "WHERE u.period = %s ORDER BY u.count DESC LIMIT %s",
+                    (day, int(limit)),
+                )
+                rows = cur.fetchall()
+        return [{"name": r[0] or "(sconosciuto)", "count": int(r[1])} for r in rows]
+    except Exception:  # tabella assente o DB non raggiungibile
+        log.warning("usage_today non disponibile", exc_info=True)
+        return []
+
+
+def recent_access_logs(limit: int = 100) -> list[dict]:
+    """Ultime voci dell'audit trail access_logs (chi legge/scrive cosa). [] se il
+    backend Supabase non è attivo o in errore."""
+    if not _apikeys_enabled():
+        return []
+    limit = max(1, min(int(limit or 100), 500))
+    try:
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute(
+                    "SELECT action, tenant_code, org_code, detail, created_at "
+                    "FROM access_logs ORDER BY created_at DESC LIMIT %s", (limit,),
+                )
+                rows = cur.fetchall()
+        return [{"action": r[0], "tenant": r[1], "org": r[2], "detail": r[3],
+                 "at": r[4].isoformat() if hasattr(r[4], "isoformat") else str(r[4])}
+                for r in rows]
+    except Exception:
+        log.warning("recent_access_logs non disponibile", exc_info=True)
+        return []
+
+
 def get_tenant_by_key(key: str) -> dict | None:
     """Risolve un tenant dalla sua chiave.
     - Con GRANTS_BACKEND=supabase: lookup per HASH nella tabella api_keys (grant a

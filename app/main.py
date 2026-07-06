@@ -48,7 +48,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -174,14 +174,22 @@ class TenantBrandIn(BaseModel):
     branding: dict
 
 
+def _secs_to_midnight_utc() -> str:
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    nxt = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return str(max(1, int((nxt - now).total_seconds())))
+
+
 def _guard(tenant: dict, key: str, origin: str) -> None:
     """Controlli comuni agli endpoint tenant: origine, rate limit, quota."""
     if not security.origin_allowed(origin, tenant.get("allowed_origins")):
         raise HTTPException(403, "Origine non autorizzata per questo tenant.")
     if not rate_ok(key):
-        raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.")
+        raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.", headers={"Retry-After": "60"})
     if not tenants.quota_ok(tenant):
-        raise HTTPException(429, "Quota giornaliera superata per questo tenant.")
+        raise HTTPException(429, "Quota giornaliera superata per questo tenant.",
+                            headers={"Retry-After": _secs_to_midnight_utc()})
 
 
 @app.get("/health")
@@ -269,9 +277,10 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     if not security.origin_allowed(origin, tenant.get("allowed_origins")):
         raise HTTPException(403, "Origine non autorizzata per questo tenant.")
     if not rate_ok(x_tenant_key):
-        raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.")
+        raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.", headers={"Retry-After": "60"})
     if not tenants.quota_ok(tenant):
-        raise HTTPException(429, "Quota giornaliera superata per questo tenant.")
+        raise HTTPException(429, "Quota giornaliera superata per questo tenant.",
+                            headers={"Retry-After": _secs_to_midnight_utc()})
     body.message = security.cap_input(body.message, settings.max_message_chars)
     if not body.message:
         raise HTTPException(422, "Messaggio vuoto.")
@@ -418,6 +427,41 @@ def retention_run(days: int = 0, authorization: str = Header(default="")):
 def _require_apikeys() -> None:
     if not tenants._apikeys_enabled():
         raise HTTPException(400, "Backend Supabase (api_keys) non attivo.")
+
+
+@app.get("/admin/usage")
+def admin_usage(authorization: str = Header(default="")):
+    """Uso per tenant del giorno (conteggio richieste da key_usage), senza segreti.
+    Bearer ADMIN_TOKEN. Vuoto se le quote non sono ancora attive (tabella assente)."""
+    _require_admin(authorization)
+    return {"usage": tenants.usage_today()}
+
+
+@app.get("/admin/access-logs")
+def admin_access_logs(limit: int = 100, authorization: str = Header(default="")):
+    """Audit trail: ultime voci di access_logs (chi legge/scrive cosa). Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    return {"logs": tenants.recent_access_logs(limit)}
+
+
+@app.get("/admin/status")
+def admin_status(authorization: str = Header(default="")):
+    """Snapshot operativo delle funzioni attive (solo booleani/valori non sensibili).
+    Utile per verificare la configurazione a colpo d'occhio. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    return {
+        "grants_backend": settings.grants_backend.strip() or "static",
+        "supabase": tenants._apikeys_enabled(),
+        "mongo": bool(settings.mongo_uri.strip()),
+        "redis": bool(settings.redis_url.strip()),
+        "sentry": obs.enabled(),
+        "stripe": billing.enabled(),
+        "voice_provider": settings.voice_provider.strip() or "",
+        "analytics_persist": bool(settings.analytics_persist),
+        "retention_days": settings.retention_days,
+        "content_encryption": crypto.enabled(),
+        "default_lang": settings.default_lang,
+    }
 
 
 @app.get("/admin/tenants")
