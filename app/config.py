@@ -54,6 +54,16 @@ class Settings(BaseSettings):
     # lancia POST /admin/retention/run. 0 = nessuna cancellazione automatica.
     retention_days: int = 0
 
+    # billing Stripe (opzionale): checkout a livelli + webhook. Inerte finché
+    # STRIPE_SECRET_KEY è vuota. Gli ID prezzo si creano nel dashboard Stripe.
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_starter: str = ""
+    stripe_price_pro: str = ""
+    stripe_price_enterprise: str = ""
+    stripe_success_url: str = ""
+    stripe_cancel_url: str = ""
+
     # cifratura contenuti a riposo (GDPR) — per la colonna documents.content_encrypted.
     # Vuoto = disattivata. Una o più chiavi Fernet separate da virgola (la prima cifra,
     # tutte decifrano → rotazione). Genera una chiave con:  python -m app.crypto

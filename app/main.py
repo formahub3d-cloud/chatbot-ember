@@ -48,7 +48,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing
 
 app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
 
@@ -145,6 +145,11 @@ class FeedbackIn(BaseModel):
 class GdprEraseIn(BaseModel):
     tenant: str                # codice tenant (scope) di cui cancellare i dati
     confirm: bool = False      # senza confirm=true è solo un'anteprima (dry-run)
+
+
+class CheckoutIn(BaseModel):
+    tier: str                  # "starter" | "pro" | "enterprise"
+    email: str = ""
 
 
 def _guard(tenant: dict, key: str, origin: str) -> None:
@@ -384,6 +389,28 @@ def retention_run(days: int = 0, authorization: str = Header(default="")):
     _require_admin(authorization)
     deleted = events.purge_old(days or None)
     return {"deleted": deleted, "retention_days": settings.retention_days}
+
+
+@app.post("/billing/checkout")
+def billing_checkout(body: CheckoutIn):
+    """Crea una sessione di Checkout Stripe per un piano (customer-facing). Ritorna
+    l'URL a cui reindirizzare il cliente. Inerte se Stripe non è configurato."""
+    res = billing.create_checkout(body.tier, body.email)
+    if "error" in res:
+        raise HTTPException(400, res["error"])
+    return res
+
+
+@app.post("/billing/webhook")
+async def billing_webhook(request: Request):
+    """Webhook Stripe (firma verificata con STRIPE_WEBHOOK_SECRET). Registra l'evento;
+    il provisioning del tenant resta manuale (python -m app.manage_apikeys add)."""
+    ev = billing.verify_event(await request.body(), request.headers.get("Stripe-Signature", ""))
+    if ev is None:
+        raise HTTPException(400, "webhook non verificato")
+    etype = ev.get("type") if isinstance(ev, dict) else getattr(ev, "type", "?")
+    log.info("stripe webhook: %s", etype)
+    return {"received": True, "type": etype}
 
 
 @app.get("/admin/gdpr/export")
