@@ -57,7 +57,7 @@
   var I18N = {
     it: { open:"Apri la chat", close:"Chiudi", speakTgl:"Attiva/disattiva lettura vocale", talk:"Parla", msg:"Messaggio", send:"Invia",
       ph:"Scrivi una domanda...", note:"Assistente AI — può commettere errori. Verifica le informazioni importanti.",
-      listen:"Ascolta", copy:"Copia", copied:"Copiato", retry:"Riprova",
+      listen:"Ascolta", copy:"Copia", copied:"Copiato", retry:"Riprova", reasonPh:"Perché? (opzionale)", reasonSend:"Invia",
       fbUp:"Risposta utile", fbDown:"Risposta da migliorare", thanksUp:"Grazie! 👍", thanksDown:"Grazie, ne terremo conto.",
       listening:"In ascolto...", dictFail:"Dettatura non riuscita, scrivi pure...",
       errNet:"⚠️ Connessione non riuscita. Verifica che il servizio sia attivo.",
@@ -65,7 +65,7 @@
       greet:function(t){ return "Ciao! Sono "+t+". Sei in conversazione con un assistente AI: rispondo solo sulle aree a cui ho accesso e cito le fonti. Come posso aiutarti?"; } },
     en: { open:"Open chat", close:"Close", speakTgl:"Toggle read-aloud", talk:"Speak", msg:"Message", send:"Send",
       ph:"Ask a question...", note:"AI assistant — may make mistakes. Verify important information.",
-      listen:"Listen", copy:"Copy", copied:"Copied", retry:"Retry",
+      listen:"Listen", copy:"Copy", copied:"Copied", retry:"Retry", reasonPh:"Why? (optional)", reasonSend:"Send",
       fbUp:"Helpful answer", fbDown:"Answer to improve", thanksUp:"Thanks! 👍", thanksDown:"Thanks, we'll take note.",
       listening:"Listening...", dictFail:"Dictation failed, just type...",
       errNet:"⚠️ Connection failed. Check that the service is up.",
@@ -281,14 +281,18 @@
     h = h.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
     h = h.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
     h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    // liste puntate
-    var lines = h.split("\n"), out = [], inUl = false;
+    // liste puntate (-, •) e numerate (1. 2. …)
+    var lines = h.split("\n"), out = [], listType = null;
     for (var i=0;i<lines.length;i++){
-      var m = lines[i].match(/^\s*[-•]\s+(.*)$/);
-      if (m){ if(!inUl){out.push("<ul>");inUl=true;} out.push("<li>"+m[1]+"</li>"); }
-      else { if(inUl){out.push("</ul>");inUl=false;} out.push(lines[i]); }
+      var mu = lines[i].match(/^\s*[-•]\s+(.*)$/);
+      var mo = lines[i].match(/^\s*\d+\.\s+(.*)$/);
+      if (mu || mo){
+        var lt = mu ? "ul" : "ol";
+        if (listType !== lt){ if(listType) out.push("</"+listType+">"); out.push("<"+lt+">"); listType = lt; }
+        out.push("<li>"+(mu ? mu[1] : mo[1])+"</li>");
+      } else { if(listType){ out.push("</"+listType+">"); listType = null; } out.push(lines[i]); }
     }
-    if(inUl) out.push("</ul>");
+    if(listType) out.push("</"+listType+">");
     h = out.join("\n").replace(/\n{2,}/g,"</p><p>").replace(/\n/g,"<br>");
     return "<p>"+h+"</p>";
   }
@@ -306,7 +310,7 @@
     body.appendChild(row); body.scrollTop = body.scrollHeight;
     return msg;
   }
-  function sendFeedback(up, q, answer, sources){
+  function sendFeedback(up, q, answer, sources, reason){
     // Best-effort: un fallimento non deve mai disturbare la chat.
     try{
       var fbUrl = PROXY ? (String(PROXY).replace(/\/$/, "") + "/feedback") : (API + "/feedback");
@@ -314,7 +318,7 @@
       if (!PROXY) headers["X-Tenant-Key"] = KEY;
       fetch(fbUrl, { method:"POST", headers:headers, keepalive:true,
         body: JSON.stringify({ vote: up ? "up" : "down", question: q || "",
-          answer: String(answer||"").slice(0,500), sources: sources || [] }) }).catch(function(){});
+          answer: String(answer||"").slice(0,500), sources: sources || [], reason: reason || "" }) }).catch(function(){});
     }catch(e){}
   }
   function finalizeMsg(msg, textAcc, sources, q){
@@ -353,9 +357,18 @@
         b.setAttribute("aria-label", up ? TT("fbUp") : TT("fbDown"));
         b.style.cssText = "cursor:pointer;border:1px solid rgba(127,127,127,.35);background:transparent;border-radius:8px;padding:1px 7px;font-size:13px;line-height:1.3;opacity:.65";
         b.addEventListener("click", function(){
-          sendFeedback(up, q, textAcc, sources);
-          fb.textContent = up ? TT("thanksUp") : TT("thanksDown");
-          fb.style.opacity = ".6";
+          if (up){ sendFeedback(true, q, textAcc, sources, ""); fb.textContent = TT("thanksUp"); fb.style.opacity = ".6"; return; }
+          fb.innerHTML = "";   // 👎: chiedi un motivo opzionale
+          var inp = document.createElement("input");
+          inp.type = "text"; inp.placeholder = TT("reasonPh");
+          inp.style.cssText = "flex:1;min-width:0;background:transparent;border:1px solid rgba(127,127,127,.35);border-radius:8px;padding:3px 8px;color:inherit;font:inherit;font-size:12px";
+          var ok = document.createElement("button");
+          ok.type = "button"; ok.textContent = TT("reasonSend");
+          ok.style.cssText = "cursor:pointer;border:1px solid rgba(127,127,127,.35);background:transparent;border-radius:8px;padding:2px 8px;font-size:12px";
+          function submit(){ sendFeedback(false, q, textAcc, sources, inp.value); fb.textContent = TT("thanksDown"); fb.style.opacity = ".6"; }
+          ok.addEventListener("click", submit);
+          inp.addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submit(); } });
+          fb.appendChild(inp); fb.appendChild(ok); try{ inp.focus(); }catch(e){}
         });
         return b;
       }

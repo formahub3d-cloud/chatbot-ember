@@ -31,6 +31,22 @@ def _lang(lang) -> str:
     return "en" if str(lang or "").strip().lower().startswith("en") else "it"
 
 
+import re as _re
+_EN_HINT = _re.compile(r"\b(the|what|how|who|where|when|why|is|are|do|does|can|could|please|hello|hi|thanks|your|about)\b", _re.I)
+_IT_HINT = _re.compile(r"\b(il|lo|la|che|di|per|come|cosa|chi|dove|quando|perch[eé]|è|non|ciao|grazie|puoi|tuo|delle|degli)\b", _re.I)
+
+
+def detect_lang(text: str) -> str:
+    """Euristica leggera IT/EN sulla domanda (conteggio parole-spia). Default it."""
+    t = text or ""
+    return "en" if len(_EN_HINT.findall(t)) > len(_IT_HINT.findall(t)) else "it"
+
+
+def _resolve_lang(lang, question) -> str:
+    """'auto' → rileva dalla domanda; altrimenti normalizza a it/en."""
+    return detect_lang(question) if str(lang or "").strip().lower() == "auto" else _lang(lang)
+
+
 def no_answer(lang: str = "it") -> str:
     """Frase 'non lo so' nella lingua richiesta (deve combaciare col system prompt)."""
     return _NO_ANSWER_EN if _lang(lang) == "en" else NO_ANSWER
@@ -155,8 +171,9 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it") ->
     `grants`: lista storica (`allowed_scopes`) o dict con org/tenant/sub_tenant.
     Chiave master (`*`) = nessun filtro: usare SOLO in contesto admin privato.
     `history`: turni precedenti (dal client) per i follow-up; non è persistente.
-    `lang`: 'it' (default) o 'en' — lingua della risposta.
+    `lang`: 'it' (default), 'en' o 'auto' (rileva dalla domanda).
     """
+    lang = _resolve_lang(lang, question)
     hits = _retrieve(question, grants, k)
     scopes = scopes_of(grants)
     if not hits:
@@ -252,6 +269,7 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
         head = f"event: {event}\n" if event else ""
         return head + "data: " + _json.dumps(data, ensure_ascii=False) + "\n\n"
 
+    lang = _resolve_lang(lang, question)
     scopes = scopes_of(grants)
     hits = _retrieve(question, grants, k)
     if not hits:

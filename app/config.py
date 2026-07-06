@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     sentry_dsn: str = ""
     sentry_env: str = ""
 
+    # build info (esposti da GET /version): utili per verificare cosa è in produzione.
+    app_version: str = "0.3.0"
+    git_sha: str = ""
+
     # rate-limit condiviso tra repliche: se valorizzato, il limiter usa Redis
     # (finestra scorrevole su sorted-set) invece della memoria di processo.
     redis_url: str = ""            # es. redis://default:pwd@host:6379/0 (vuoto = in-memory)

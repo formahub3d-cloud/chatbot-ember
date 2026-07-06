@@ -9,6 +9,8 @@ Endpoint:
                           dei campi (NON consolida: richiede conferma umana)
 """
 import contextvars
+import csv
+import io
 import json
 import logging
 import tempfile
@@ -143,6 +145,7 @@ class FeedbackIn(BaseModel):
     question: str = ""
     answer: str = ""
     sources: list = []
+    reason: str = ""           # motivo opzionale (soprattutto sul 👎)
 
 
 class GdprEraseIn(BaseModel):
@@ -225,9 +228,9 @@ class TTSIn(BaseModel):
 
 
 @app.post("/voice/stt")
-async def do_stt(file: UploadFile = File(...), x_tenant_key: str = Header(default="")):
+async def do_stt(file: UploadFile = File(...), x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
     """Audio → testo (voce PRO). 501 se VOICE_PROVIDER non è configurato."""
-    tenant_or_401(x_tenant_key)
+    _guard(tenant_or_401(x_tenant_key), x_tenant_key, origin)
     if not voice.stt_enabled():
         raise HTTPException(501, "Voce PRO non attiva: usa la voce del browser.")
     audio = await file.read()
@@ -239,9 +242,9 @@ async def do_stt(file: UploadFile = File(...), x_tenant_key: str = Header(defaul
 
 
 @app.post("/voice/tts")
-def do_tts(body: TTSIn, x_tenant_key: str = Header(default="")):
+def do_tts(body: TTSIn, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
     """Testo → audio (voce PRO). 501 se VOICE_PROVIDER non è configurato."""
-    tenant_or_401(x_tenant_key)
+    _guard(tenant_or_401(x_tenant_key), x_tenant_key, origin)
     if not voice.tts_enabled():
         raise HTTPException(501, "Voce PRO non attiva: usa la voce del browser.")
     text = security.cap_input(body.text, settings.max_message_chars)
@@ -372,9 +375,11 @@ def do_feedback(body: FeedbackIn, x_tenant_key: str = Header(default=""), origin
     up = str(body.vote).strip().lower() in ("up", "1", "true", "positivo", "si", "sì", "👍")
     scopes = rag.scopes_of(_grants(tenant))
     qred = security.redact_pii(body.question or "")[:160]
-    metrics.bump_feedback(scopes, up, qred)
-    events.record("feedback_up" if up else "feedback_down", scopes, qred)
-    log.info("feedback · scope=%s · voto=%s · q=%r", scopes, "up" if up else "down", qred)
+    reason = security.redact_pii(body.reason or "")[:160] if not up else ""
+    qlog = qred + (" · motivo: " + reason if reason else "")
+    metrics.bump_feedback(scopes, up, qlog)
+    events.record("feedback_up" if up else "feedback_down", scopes, qlog)
+    log.info("feedback · scope=%s · voto=%s · q=%r", scopes, "up" if up else "down", qlog)
     return {"ok": True}
 
 
@@ -462,6 +467,39 @@ def admin_status(authorization: str = Header(default="")):
         "content_encryption": crypto.enabled(),
         "default_lang": settings.default_lang,
     }
+
+
+@app.get("/version")
+def version():
+    """Build info pubbliche: versione app + commit. Utile per sapere cosa è in prod."""
+    return {"name": "Ember", "version": settings.app_version, "commit": settings.git_sha[:12]}
+
+
+def _to_csv(rows: list, fields: list) -> str:
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
+    w.writeheader()
+    for r in rows:
+        w.writerow(r)
+    return buf.getvalue()
+
+
+@app.get("/admin/access-logs.csv")
+def admin_access_logs_csv(limit: int = 500, authorization: str = Header(default="")):
+    """Audit trail in CSV (per compliance/archiviazione). Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    data = _to_csv(tenants.recent_access_logs(limit), ["at", "action", "tenant", "org", "detail"])
+    return Response(data, media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=access-logs.csv"})
+
+
+@app.get("/admin/events.csv")
+def admin_events_csv(limit: int = 500, authorization: str = Header(default="")):
+    """Eventi analytics in CSV. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    data = _to_csv(events.recent(limit), ["at", "kind", "scope", "question"])
+    return Response(data, media_type="text/csv",
+                    headers={"Content-Disposition": "attachment; filename=events.csv"})
 
 
 @app.get("/admin/tenants")
@@ -592,11 +630,11 @@ def do_writeback(body: WritebackIn, x_tenant_key: str = Header(default=""), orig
 
 
 @app.post("/upload")
-async def do_upload(file: UploadFile = File(...), x_tenant_key: str = Header(default="")):
+async def do_upload(file: UploadFile = File(...), x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
     """Carica un documento → OCR → estrazione campi → ANTEPRIMA da confermare.
     Il consolidamento (write-back su vault/Notion) avviene solo dopo conferma umana.
     """
-    tenant_or_401(x_tenant_key)
+    _guard(tenant_or_401(x_tenant_key), x_tenant_key, origin)
     suffix = Path(file.filename or "doc.pdf").suffix or ".pdf"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(await file.read())
