@@ -102,6 +102,7 @@ create table if not exists api_keys (
     allowed_tenants      text[] not null default '{}',  -- storico: allowed_scopes
     allowed_sub_tenants  text[] not null default '{}',
     allowed_origins      text[] not null default '{}',
+    branding             jsonb,                          -- white-label per tenant: {title, subtitle, accent, avatar, logo, greeting}
     created_at           timestamptz not null default now()
 );
 

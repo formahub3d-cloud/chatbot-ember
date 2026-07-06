@@ -203,7 +203,7 @@ def resolve_key_apikeys(key: str) -> dict | None:
                 with c.cursor() as cur:
                     cur.execute(
                         "SELECT name, active, quota_day, allowed_orgs, allowed_tenants, "
-                        "allowed_sub_tenants, allowed_origins FROM api_keys WHERE key_hash = %s",
+                        "allowed_sub_tenants, allowed_origins, branding FROM api_keys WHERE key_hash = %s",
                         (kh,),
                     )
                     row = cur.fetchone()
@@ -217,7 +217,7 @@ def resolve_key_apikeys(key: str) -> dict | None:
         raise last_err
     if not row or not row[1]:  # assente o active=false
         return None
-    name, _active, quota_day, orgs, tenants_, subs, origins = row
+    name, _active, quota_day, orgs, tenants_, subs, origins, branding = row
     tenants_ = _as_list(tenants_)
     return {
         "name": name or "",
@@ -226,7 +226,7 @@ def resolve_key_apikeys(key: str) -> dict | None:
         "allowed_orgs": _as_list(orgs),
         "allowed_sub_tenants": _as_list(subs),
         "allowed_origins": _as_list(origins),
-        "branding": {},
+        "branding": branding or {},               # jsonb → dict (white-label per tenant)
         "quota_day": int(quota_day or 0),
         "key_hash": kh,
     }

@@ -48,9 +48,9 @@ class _FakeConn:
         pass
 
 
-def _row(name, active, quota, orgs, tenants_, subs, origins):
+def _row(name, active, quota, orgs, tenants_, subs, origins, branding=None):
     # ordine colonne = SELECT in resolve_key_apikeys
-    return (name, active, quota, orgs, tenants_, subs, origins)
+    return (name, active, quota, orgs, tenants_, subs, origins, branding)
 
 
 def _setup(monkeypatch, rows_by_key, sink=None):
@@ -64,13 +64,14 @@ def _setup(monkeypatch, rows_by_key, sink=None):
 def test_resolve_key_grant_tre_livelli(monkeypatch):
     kh = hash_key("K_ATS")
     _setup(monkeypatch, {kh: _row("ATS", True, 0, ["forma"], ["ats"], ["progetti"],
-                                  ["https://x.it"])})
+                                  ["https://x.it"], {"title": "Assistente ATS", "accent": "#DD24F2"})})
     t = T.get_tenant_by_key("K_ATS")
     assert t["name"] == "ATS"
     assert t["allowed_tenants"] == ["ats"] and t["allowed_scopes"] == ["ats"]
     assert t["allowed_orgs"] == ["forma"]
     assert t["allowed_sub_tenants"] == ["progetti"]
     assert t["allowed_origins"] == ["https://x.it"]
+    assert t["branding"] == {"title": "Assistente ATS", "accent": "#DD24F2"}   # white-label da api_keys
     assert t["key_hash"] == kh
 
 

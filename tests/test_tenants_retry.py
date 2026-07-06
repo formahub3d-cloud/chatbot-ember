@@ -15,8 +15,8 @@ class _FakeCur:
     def __exit__(self, *a): return False
     def execute(self, *a): pass
     def fetchone(self):
-        # name, active, quota_day, orgs, tenants, subs, origins
-        return ("ATS", True, 0, [], ["ats"], [], ["https://www.altuoservizio.it"])
+        # name, active, quota_day, orgs, tenants, subs, origins, branding
+        return ("ATS", True, 0, [], ["ats"], [], ["https://www.altuoservizio.it"], None)
 
 
 class _FakeConn:
