@@ -48,7 +48,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr
 
 app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
 
@@ -140,6 +140,11 @@ class FeedbackIn(BaseModel):
     question: str = ""
     answer: str = ""
     sources: list = []
+
+
+class GdprEraseIn(BaseModel):
+    tenant: str                # codice tenant (scope) di cui cancellare i dati
+    confirm: bool = False      # senza confirm=true è solo un'anteprima (dry-run)
 
 
 def _guard(tenant: dict, key: str, origin: str) -> None:
@@ -363,6 +368,25 @@ def prometheus_metrics(authorization: str = Header(default="")):
     ADMIN_TOKEN perché le serie per-scope rivelano i nomi tenant. In-memory."""
     _require_admin(authorization)
     return Response(metrics.prometheus(), media_type="text/plain; version=0.0.4; charset=utf-8")
+
+
+@app.get("/admin/gdpr/export")
+def gdpr_export(tenant: str, authorization: str = Header(default="")):
+    """GDPR — diritto di accesso/portabilità: tutti i dati di un tenant (documenti
+    con corpo DECIFRATO + eventi analytics). Protetto dal Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    return gdpr.export_tenant(tenant)
+
+
+@app.post("/admin/gdpr/erase")
+def gdpr_erase(body: GdprEraseIn, authorization: str = Header(default="")):
+    """GDPR — diritto all'oblio: cancella i dati di un tenant da Qdrant e Supabase.
+    Senza `confirm: true` restituisce solo l'anteprima (dry-run). Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    if not body.confirm:
+        return {"dry_run": True, "would_erase": gdpr.erase_counts(body.tenant),
+                "hint": "richiama con confirm=true per cancellare davvero"}
+    return {"dry_run": False, "result": gdpr.erase_tenant(body.tenant)}
 
 
 @app.get("/ready")
