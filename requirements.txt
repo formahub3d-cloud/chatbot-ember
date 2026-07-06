@@ -9,3 +9,4 @@ pydantic-settings==2.11.0
 psycopg2-binary==2.9.10
 pymongo[srv]==4.10.1
 redis==5.2.1                 # opzionale: rate-limit condiviso tra repliche (REDIS_URL)
+cryptography==44.0.3         # cifratura a riposo dei contenuti (CONTENT_ENC_KEY, app/crypto.py)
