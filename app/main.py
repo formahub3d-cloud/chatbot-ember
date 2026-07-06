@@ -169,12 +169,19 @@ def config(x_tenant_key: str = Header(default="")):
     Permette al widget di auto-configurarsi dal server senza ripetere i dati nell'HTML."""
     tenant = tenant_or_401(x_tenant_key)
     brand = tenant.get("branding", {}) or {}
-    return {
+    out = {
         "title": brand.get("title", tenant.get("name", "Ember · Assistente")),
         "subtitle": brand.get("subtitle", "Assistente AI"),
         "accent": brand.get("accent", "#0ED4E4"),
         "voice_pro": voice.stt_enabled(),   # true → il widget può usare la voce PRO via proxy
     }
+    # White-label per cliente: campi opzionali dal record del tenant. Inviati solo se
+    # valorizzati, così il widget usa i default quando il brand non li specifica.
+    for k in ("avatar", "logo", "greeting"):
+        v = brand.get(k)
+        if v:
+            out[k] = v
+    return out
 
 
 class TTSIn(BaseModel):
@@ -368,6 +375,15 @@ def prometheus_metrics(authorization: str = Header(default="")):
     ADMIN_TOKEN perché le serie per-scope rivelano i nomi tenant. In-memory."""
     _require_admin(authorization)
     return Response(metrics.prometheus(), media_type="text/plain; version=0.0.4; charset=utf-8")
+
+
+@app.post("/admin/retention/run")
+def retention_run(days: int = 0, authorization: str = Header(default="")):
+    """GDPR retention: cancella gli eventi analytics oltre la soglia. Senza `days`
+    usa RETENTION_DAYS. Da richiamare a mano o da un cron. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    deleted = events.purge_old(days or None)
+    return {"deleted": deleted, "retention_days": settings.retention_days}
 
 
 @app.get("/admin/gdpr/export")

@@ -56,6 +56,33 @@ def record(kind: str, scopes, question: str = "") -> bool:
         return False
 
 
+def _db_ready() -> bool:
+    """Backend Supabase raggiungibile (indipendente da analytics_persist): serve alla
+    retention, che può ripulire lo storico anche quando la scrittura è disattivata."""
+    return settings.grants_backend.strip().lower() == "supabase" and bool(settings.database_url.strip())
+
+
+def purge_old(days: int | None = None) -> int:
+    """Retention GDPR: cancella gli eventi più vecchi di `days` giorni (default
+    settings.retention_days). 0/None = disattivato → 0. Best-effort. Ritorna il
+    numero di righe cancellate."""
+    d = settings.retention_days if days is None else days
+    if not _db_ready() or not d or int(d) <= 0:
+        return 0
+    try:
+        with tenants._conn() as c:
+            with c.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM analytics_events WHERE created_at < now() - make_interval(days => %s)",
+                    (int(d),))
+                n = cur.rowcount
+            c.commit()
+        return n if (n and n > 0) else 0
+    except Exception:  # pragma: no cover - best-effort, mai bloccante
+        log.warning("retention: purge analytics fallito (ignorato)", exc_info=True)
+        return 0
+
+
 def recent(limit: int = 50) -> list[dict]:
     """Ultimi eventi (più recenti prima) per una vista admin. [] se disattivo/errore."""
     if not enabled():

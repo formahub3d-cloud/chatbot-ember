@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     # contatori in memoria). Off di default per non aggiungere latenza al pilota.
     analytics_persist: bool = False
 
+    # retention GDPR: cancella gli eventi analytics più vecchi di N giorni quando si
+    # lancia POST /admin/retention/run. 0 = nessuna cancellazione automatica.
+    retention_days: int = 0
+
     # cifratura contenuti a riposo (GDPR) — per la colonna documents.content_encrypted.
     # Vuoto = disattivata. Una o più chiavi Fernet separate da virgola (la prima cifra,
     # tutte decifrano → rotazione). Genera una chiave con:  python -m app.crypto

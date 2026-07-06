@@ -74,15 +74,24 @@
   var rec = null, listening = false, mr = null, curAudio = null, cfgLoaded = false;
   function voiceHeaders(extra){ var h = extra || {}; if(!PROXY) h["X-Tenant-Key"] = KEY; return h; }
 
-  // Auto-configurazione: chiede al server se la voce PRO è attiva e, in caso, la usa.
+  // Auto-configurazione dalla CHIAVE del tenant: white-label (titolo, sottotitolo,
+  // avatar/logo, benvenuto) + voce PRO se il server la espone. Così un cliente si
+  // personalizza da solo con la sua chiave, senza toccare lo snippet. L'accent resta
+  // impostato all'embed (data-accent / CFG.accent) perché è cablato nel tema CSS.
   async function maybeAutoConfig(){
-    if (cfgLoaded || VMODE === "browser" || VMODE === "pro") return;
+    if (cfgLoaded) return;
     cfgLoaded = true;
     try{
       var r = await fetch(VBASE + "/config", { headers: voiceHeaders({}) });
       if (!r.ok) return;
       var c = await r.json();
-      if (c && c.voice_pro && hasMR && VOICE) PRO = true;   // il server ha la voce PRO → usala
+      if (!c) return;
+      if (c.title){ TITLE = c.title; var tb = panel.querySelector(".em-tt b"); if(tb) tb.textContent = c.title; }
+      if (c.subtitle){ SUBT = c.subtitle; var ts = panel.querySelector(".em-tt span"); if(ts) ts.innerHTML = '<i class="em-live"></i>' + esc(c.subtitle); }
+      var img = c.avatar || c.logo;
+      if (img){ var av = panel.querySelector(".em-av"); if(av) av.innerHTML = '<img src="' + esc(img) + '" alt="">'; }
+      if (c.greeting){ GREET = c.greeting; }
+      if (c.voice_pro && hasMR && VOICE && VMODE !== "browser") PRO = true;
     }catch(e){}
   }
 
@@ -466,12 +475,12 @@
   }
 
   // ── Open/close ──
-  function toggle(open){
+  async function toggle(open){
     panel.classList.toggle("em-open", open);
     btn.style.display = open ? "none" : "grid";
     btn.setAttribute("aria-expanded", open ? "true" : "false");
     if (open){
-      maybeAutoConfig();
+      await maybeAutoConfig();   // applica il branding del tenant prima del benvenuto
       input.focus();
       if(!greeted){ greeted = true; finalizeMsg(addMsg("a",""), GREET, null); }
     } else { stopAudio(); try{ btn.focus(); }catch(e){} }   // torna il focus al lanciatore
