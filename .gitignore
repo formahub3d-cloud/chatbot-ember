@@ -4,3 +4,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Backup locali (PII possibile) — mai su Git
+backup/
