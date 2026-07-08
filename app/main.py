@@ -49,7 +49,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -665,3 +665,95 @@ async def do_upload(file: UploadFile = File(...), x_tenant_key: str = Header(def
     fields = extract.extract_unilav(text)
     return {"preview": fields, "note": "Conferma i campi prima del consolidamento.",
             "consolidato": False}
+
+
+class UploadConfirmIn(BaseModel):
+    fields: dict
+    cliente: str = "ats"
+    vault: bool = True      # scrivi la nota contratto nel vault (se VAULT_PATH c'è)
+    notion: bool = True     # inserisci la riga nel database Notion (se token c'è)
+
+
+@app.post("/upload/confirm")
+def upload_confirm(body: UploadConfirmIn, x_tenant_key: str = Header(default=""),
+                   origin: str = Header(default="")):
+    """Consolida un contratto DOPO la conferma umana dei campi (regola 5): scrive la
+    nota nel vault (cartella privata del cliente) e/o la riga nel database Notion.
+    Blocca gli errori formali (CF a 16 caratteri, campi obbligatori). Lo scope di
+    destinazione (cliente) deve essere tra quelli concessi al tenant."""
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+    grants = _grants(tenant)
+    ctx = rag.list_context(grants)
+    if not ctx["master"] and body.cliente not in (ctx["allowed_tenants"] or []):
+        raise HTTPException(403, "Scope di destinazione non consentito per questo tenant.")
+    fields = dict(body.fields or {})
+    fields["codice_fiscale"] = (fields.get("codice_fiscale") or "").strip().upper()
+    problems = extract.validate_unilav(fields)
+    if problems:
+        raise HTTPException(422, "Campi non validi: " + "; ".join(problems))
+    out = {"vault": {"status": "skipped"}, "notion": {"status": "skipped"}}
+    if body.vault:
+        if not settings.vault_path.strip():
+            out["vault"] = {"status": "skipped",
+                            "reason": "VAULT_PATH non configurato su questo deploy"}
+        else:
+            try:
+                path = writeback.save_contract_note(fields, cliente=body.cliente)
+                out["vault"] = {"status": "ok", "path": path}
+                fields.setdefault("slug", Path(path).stem)
+            except Exception:
+                log.exception("write-back vault fallito")
+                out["vault"] = {"status": "error", "reason": "scrittura nel vault fallita"}
+    if body.notion:
+        out["notion"] = writeback.notion_upsert(fields)
+    consolidato = out["vault"].get("status") == "ok" or out["notion"].get("status") == "ok"
+    if consolidato:
+        tenants.log_access(tenant.get("key_hash"), "create", tenant_code=body.cliente,
+                           detail=f"upload/confirm {out['vault'].get('path', '')}".strip())
+    return {"consolidato": consolidato, **out}
+
+
+class ContractIn(BaseModel):
+    template: str
+    data: dict = {}
+
+
+@app.get("/contracts/templates")
+def contracts_templates(x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
+    """Catalogo dei template contratto (id, titolo, campi con obbligatorietà)."""
+    _guard(tenant_or_401(x_tenant_key), x_tenant_key, origin)
+    return {"templates": contracts.list_templates()}
+
+
+@app.post("/contracts/fill")
+def contracts_fill(body: ContractIn, x_tenant_key: str = Header(default=""),
+                   origin: str = Header(default="")):
+    """Merge dei dati persona nel template scelto → TESTO del contratto da rivedere
+    (conferma umana) + elenco dei campi obbligatori ancora mancanti."""
+    _guard(tenant_or_401(x_tenant_key), x_tenant_key, origin)
+    try:
+        return contracts.fill(body.template, body.data)
+    except KeyError:
+        raise HTTPException(404, "Template sconosciuto. Vedi /contracts/templates.")
+
+
+@app.post("/contracts/pdf")
+def contracts_pdf(body: ContractIn, x_tenant_key: str = Header(default=""),
+                  origin: str = Header(default="")):
+    """Genera il PDF del contratto compilato. Rifiuta (422) se mancano campi
+    obbligatori: prima si completa/conferma il testo con /contracts/fill.
+    L'invio alla firma (e-sign) è un passo esterno."""
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+    try:
+        filled = contracts.fill(body.template, body.data)
+    except KeyError:
+        raise HTTPException(404, "Template sconosciuto. Vedi /contracts/templates.")
+    if filled["missing"]:
+        raise HTTPException(422, "Campi obbligatori mancanti: " + ", ".join(filled["missing"]))
+    pdf = contracts.to_pdf(filled["text"], filled["titolo"])
+    tenants.log_access(tenant.get("key_hash"), "create", detail=f"contracts/pdf {body.template}")
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition":
+                             f'attachment; filename="contratto-{body.template}.pdf"'})

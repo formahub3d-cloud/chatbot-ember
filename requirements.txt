@@ -12,3 +12,4 @@ redis==5.2.1                 # opzionale: rate-limit condiviso tra repliche (RED
 cryptography==44.0.3         # cifratura a riposo dei contenuti (CONTENT_ENC_KEY, app/crypto.py)
 stripe==11.4.1               # opzionale: billing/checkout a livelli (STRIPE_SECRET_KEY, app/billing.py)
 sentry-sdk==2.64.0           # opzionale: osservabilità errori (SENTRY_DSN, app/obs.py)
+fpdf2==2.8.7

@@ -31,6 +31,30 @@ def extract_unilav(text: str) -> dict:
     }
 
 
+# CF italiano: 6 lettere + 2 cifre + lettera + 2 cifre + lettera + 3 cifre + lettera
+_CF_RE = re.compile(r"^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$")
+
+
+def validate_unilav(fields: dict) -> list[str]:
+    """Controlli formali PRIMA del consolidamento (la conferma umana resta
+    obbligatoria: qui si bloccano solo gli errori oggettivi). Ritorna l'elenco
+    dei problemi; lista vuota = campi formalmente ok."""
+    problems = []
+    f = fields or {}
+    if not (f.get("nome") or "").strip():
+        problems.append("nome mancante")
+    if not (f.get("cognome") or "").strip():
+        problems.append("cognome mancante")
+    cf = (f.get("codice_fiscale") or "").strip().upper()
+    if not cf:
+        problems.append("codice fiscale mancante")
+    elif not _CF_RE.match(cf):
+        problems.append("codice fiscale non valido (atteso formato a 16 caratteri)")
+    if not (f.get("codice_comunicazione") or "").strip():
+        problems.append("codice comunicazione mancante")
+    return problems
+
+
 def extract_fields_llm(text: str, fields: list[str]) -> dict:
     system = (
         "Estrai dal testo i campi richiesti. Rispondi SOLO con JSON valido, "
