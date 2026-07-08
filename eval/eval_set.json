@@ -1,0 +1,28 @@
+{
+  "_commento": "Set di collaudo della qualità RAG. Ogni caso: domanda, scope della chiave da usare, keyword attese (almeno min_hit tra queste, case-insensitive) oppure expect_gap=true se la risposta corretta è 'non lo so' (fuori scope/assente). Aggiorna le keyword quando il cervello cambia.",
+  "cases": [
+    {"id": "forma-identita", "key_env": "EVAL_KEY_FORMA", "q": "Che cos'è FORMA Hub e di cosa si occupa?",
+     "keywords": ["forma", "3d", "startup"], "min_hit": 2},
+    {"id": "forma-prodotti", "key_env": "EVAL_KEY_FORMA", "q": "Quali prodotti e servizi offre FORMA?",
+     "keywords": ["stampa 3d", "modellazione", "servizi digitali", "sostenibilit", "crowdfunding", "ai"], "min_hit": 2},
+    {"id": "forma-chatbot", "key_env": "EVAL_KEY_FORMA", "q": "Come funziona il chatbot sul cervello OVY?",
+     "keywords": ["tenant", "scope", "qdrant", "cervello", "chiave"], "min_hit": 2},
+    {"id": "forma-clienti", "key_env": "EVAL_KEY_FORMA", "q": "Chi è il cliente ATS?",
+     "keywords": ["al tuo servizio", "benevento", "aloia"], "min_hit": 1},
+    {"id": "forma-kpi", "key_env": "EVAL_KEY_FORMA", "q": "Quali sono i KPI baseline di FORMA?",
+     "keywords": ["kpi", "baseline", "2025", "metric"], "min_hit": 1},
+    {"id": "forma-onboarding", "key_env": "EVAL_KEY_FORMA", "q": "Come funziona il processo di onboarding di un nuovo cliente?",
+     "keywords": ["onboarding", "cliente", "process"], "min_hit": 1},
+    {"id": "gap-fuori-dominio", "key_env": "EVAL_KEY_FORMA", "q": "Qual è la ricetta della carbonara perfetta?",
+     "expect_gap": true},
+    {"id": "isolamento-ats-non-vede-forma", "key_env": "EVAL_KEY_ATS",
+     "q": "Quali sono i KPI baseline e gli OKR di FORMA Hub?", "expect_gap": true,
+     "_nota": "la chiave ATS non deve leggere il core FORMA"},
+    {"id": "ats-proprio-scope", "key_env": "EVAL_KEY_ATS", "q": "Parlami di Al Tuo Servizio",
+     "keywords": ["al tuo servizio", "ats"], "min_hit": 1},
+    {"id": "gap-cliente-inesistente", "key_env": "EVAL_KEY_FORMA",
+     "q": "Che contratti abbiamo firmato col cliente Rossi Costruzioni?", "expect_gap": true}
+  ],
+  "gap_markers": ["non ho questa informazione", "non lo so", "non ho informazioni",
+                  "non è presente", "non trovo", "i don't have", "no information"]
+}
