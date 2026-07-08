@@ -11,7 +11,6 @@ Endpoint:
 import contextvars
 import csv
 import io
-import json
 import logging
 import tempfile
 import uuid
@@ -201,7 +200,7 @@ def _guard(tenant: dict, key: str, origin: str) -> None:
     if not rate_ok(key):
         raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.", headers={"Retry-After": "60"})
     if not tenants.quota_ok(tenant):
-        raise HTTPException(429, "Quota giornaliera superata per questo tenant.",
+        raise HTTPException(429, "Quota superata per questo tenant (giornaliera o mensile).",
                             headers={"Retry-After": _secs_to_midnight_utc()})
 
 
@@ -293,7 +292,7 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     if not rate_ok(x_tenant_key):
         raise HTTPException(429, "Troppe richieste. Riprova tra un minuto.", headers={"Retry-After": "60"})
     if not tenants.quota_ok(tenant):
-        raise HTTPException(429, "Quota giornaliera superata per questo tenant.",
+        raise HTTPException(429, "Quota superata per questo tenant (giornaliera o mensile).",
                             headers={"Retry-After": _secs_to_midnight_utc()})
     body.message = security.cap_input(body.message, settings.max_message_chars)
     if not body.message:
@@ -413,6 +412,15 @@ def admin_insights(authorization: str = Header(default="")):
     ultimi feedback negativi (redatti). Protetto dal Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
     return metrics.insights()
+
+
+@app.get("/admin/learning")
+def admin_learning(authorization: str = Header(default="")):
+    """Auto-miglioramento del cervello: task di apprendimento azionabili generate
+    dai gap (domande senza risposta) e dai feedback 👎 — raggruppate per scope e
+    domanda, con conteggio e suggerimento concreto. Bearer ADMIN_TOKEN. In-memory."""
+    _require_admin(authorization)
+    return metrics.learning_tasks()
 
 
 @app.get("/admin/events")

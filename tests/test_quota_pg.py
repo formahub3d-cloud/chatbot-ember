@@ -80,3 +80,33 @@ def test_fail_open(monkeypatch):
         raise RuntimeError("db down")
     monkeypatch.setattr(T, "_conn", boom)
     assert T.quota_ok({"quota_day": 1, "key_hash": "kh"}) is True    # errore → consenti
+
+
+# ── Quota mensile (quota_month) ───────────────────────────────────────────────
+
+def test_mensile_sotto_soglia(monkeypatch):
+    st = _pg(monkeypatch, 5)
+    assert T.quota_ok({"quota_month": 100, "key_hash": "kh"}) is True
+    assert st["params"][1] and len(st["params"][1]) == 7      # period "YYYY-MM"
+
+
+def test_mensile_oltre_soglia(monkeypatch):
+    _pg(monkeypatch, 101)
+    assert T.quota_ok({"quota_month": 100, "key_hash": "kh"}) is False
+
+
+def test_giornaliera_e_mensile_insieme(monkeypatch):
+    # sotto la giornaliera ma oltre la mensile → bloccato
+    _pg(monkeypatch, 50)
+    assert T.quota_ok({"quota_day": 100, "quota_month": 40, "key_hash": "kh"}) is False
+
+
+def test_mensile_illimitata_a_zero(monkeypatch):
+    _pg(monkeypatch, 999)
+    assert T.quota_ok({"quota_day": 0, "quota_month": 0, "key_hash": "kh"}) is True
+
+
+def test_mensile_da_branding_supabase():
+    # resolve_key_apikeys espone quota_month dal jsonb branding (nessuna migrazione)
+    b = {"quota_month": "300"}
+    assert int((b or {}).get("quota_month", 0) or 0) == 300

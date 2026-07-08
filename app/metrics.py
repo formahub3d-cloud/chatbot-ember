@@ -8,6 +8,7 @@ thread-safe, e non devono MAI far fallire una richiesta.
 """
 from collections import defaultdict, deque
 from threading import Lock
+import re
 import time
 
 _lock = Lock()
@@ -95,6 +96,47 @@ def insights() -> dict:
             "gaps": list(_recent_gaps)[::-1],
             "negative_feedback": list(_recent_neg)[::-1],
         }
+
+
+_NORM_RE = re.compile(r"[^\w\sàèéìòù]", re.UNICODE)
+
+
+def _norm_q(q: str) -> str:
+    """Normalizza una domanda per il raggruppamento: minuscole, niente punteggiatura,
+    spazi compattati. Serve a contare come UNA le varianti della stessa domanda."""
+    return " ".join(_NORM_RE.sub(" ", (q or "").lower()).split())
+
+
+def learning_tasks() -> dict:
+    """Auto-miglioramento del cervello: trasforma i gap (domande senza risposta) e i
+    feedback 👎 in TASK azionabili — raggruppate per scope+domanda, con conteggio e
+    un suggerimento concreto. Ordinate per frequenza, poi per recenza. Sola lettura."""
+    with _lock:
+        gaps = list(_recent_gaps)
+        negs = list(_recent_neg)
+    groups: dict[tuple, dict] = {}
+    for kind, items in (("gap", gaps), ("feedback", negs)):
+        for it in items:
+            key = (kind, it.get("scope", ""), _norm_q(it.get("q", "")))
+            g = groups.get(key)
+            if g:
+                g["count"] += 1
+                g["last_at"] = max(g["last_at"], it.get("at", 0))
+            else:
+                groups[key] = {"kind": kind, "scope": it.get("scope", ""),
+                               "question": it.get("q", ""), "count": 1,
+                               "last_at": it.get("at", 0)}
+    tasks = []
+    for g in sorted(groups.values(), key=lambda g: (-g["count"], -g["last_at"])):
+        if g["kind"] == "gap":
+            g["suggestion"] = (f'Aggiungi (o arricchisci) una nota nello scope "{g["scope"]}" '
+                               f'che risponda a: "{g["question"]}" — poi rilancia l\'ingest.')
+        else:
+            g["suggestion"] = (f'Risposta segnalata 👎 nello scope "{g["scope"]}": rivedi la nota '
+                               f'di origine per "{g["question"]}" e chiarisci il contenuto.')
+        tasks.append(g)
+    return {"tasks": tasks,
+            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
 
 
 def _esc(s: str) -> str:

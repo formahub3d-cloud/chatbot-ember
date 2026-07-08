@@ -228,6 +228,9 @@ def resolve_key_apikeys(key: str) -> dict | None:
         "allowed_origins": _as_list(origins),
         "branding": branding or {},               # jsonb → dict (white-label per tenant)
         "quota_day": int(quota_day or 0),
+        # Quota mensile senza migrazione schema: si imposta nel jsonb branding
+        # (chiave "quota_month", es. via manage_apikeys brand). 0/assente = illimitata.
+        "quota_month": int((branding or {}).get("quota_month", 0) or 0),
         "key_hash": kh,
     }
 
@@ -331,6 +334,7 @@ def get_tenant_by_key(key: str) -> dict | None:
             "allowed_origins": doc.get("allowed_origins", []),
             "branding": doc.get("branding", {}),
             "quota_day": int(doc.get("quota_day", 0) or 0),
+            "quota_month": int(doc.get("quota_month", 0) or 0),
             "key_hash": doc.get("key_hash"),
         }
     return get_tenants().get(key)
@@ -356,30 +360,47 @@ def _quota_ok_pg(kh: str, limit: int, period: str) -> bool:
         return True
 
 
+def _quota_ok_mongo(kh: str, limit: int, period: str) -> bool:
+    """Contatore quota atomico su Mongo (setup storico), per-periodo. Fail-open."""
+    from pymongo import ReturnDocument
+    try:
+        col = _mdb()[settings.usage_collection]
+        doc = col.find_one_and_update(
+            {"key_hash": kh, "day": period},
+            {"$inc": {"count": 1}},
+            upsert=True, return_document=ReturnDocument.AFTER,
+        )
+        return int(doc.get("count", 1)) <= limit
+    except Exception:
+        log.exception("quota check (mongo) fallita: consento (fail-open)")
+        return True
+
+
+def _quota_check(kh: str, limit: int, period: str) -> bool:
+    """Incrementa il contatore del periodo e confronta col limite, sul backend attivo.
+    Mongo se configurato (setup storico); altrimenti Supabase (backend OVYON live)."""
+    if _mongo_enabled():
+        return _quota_ok_mongo(kh, limit, period)
+    if _apikeys_enabled():
+        return _quota_ok_pg(kh, limit, period)
+    return True
+
+
 def quota_ok(tenant: dict) -> bool:
-    """True se il tenant è sotto la quota giornaliera. Contatore atomico per-giorno
-    (UTC) su Supabase (key_usage) o, in alternativa, Mongo. quota_day<=0 o nessun
+    """True se il tenant è sotto le quote: giornaliera (`quota_day`) E mensile
+    (`quota_month`). Contatori atomici per-periodo (UTC) su Supabase (key_usage,
+    period 'YYYY-MM-DD' e 'YYYY-MM') o, in alternativa, Mongo. Limite <=0 o nessun
     backend = illimitato. Fail-open in errore."""
-    limit = int((tenant or {}).get("quota_day", 0) or 0)
-    kh = (tenant or {}).get("key_hash")
-    if limit <= 0 or not kh:
+    t = tenant or {}
+    kh = t.get("key_hash")
+    if not kh:
         return True
     from datetime import datetime, timezone
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    # Mongo se configurato (setup storico); altrimenti Supabase (backend OVYON live).
-    if _mongo_enabled():
-        from pymongo import ReturnDocument
-        try:
-            col = _mdb()[settings.usage_collection]
-            doc = col.find_one_and_update(
-                {"key_hash": kh, "day": day},
-                {"$inc": {"count": 1}},
-                upsert=True, return_document=ReturnDocument.AFTER,
-            )
-            return int(doc.get("count", 1)) <= limit
-        except Exception:
-            log.exception("quota check (mongo) fallita: consento (fail-open)")
-            return True
-    if _apikeys_enabled():
-        return _quota_ok_pg(kh, limit, day)
+    now = datetime.now(timezone.utc)
+    day_limit = int(t.get("quota_day", 0) or 0)
+    if day_limit > 0 and not _quota_check(kh, day_limit, now.strftime("%Y-%m-%d")):
+        return False
+    month_limit = int(t.get("quota_month", 0) or 0)
+    if month_limit > 0 and not _quota_check(kh, month_limit, now.strftime("%Y-%m")):
+        return False
     return True

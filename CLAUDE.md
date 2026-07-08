@@ -46,7 +46,7 @@ identico ai valori storici. Mappatura e razionale: `ovyon/docs/doc-ovyon-ember-s
 - `app/tenants.py` — chiavi→scope; store statico/Postgres/Mongo/**Supabase `api_keys`** + audit `log_access`
 - `app/rls.py` — GUC `ovyon.*` (`session_grants`) per la RLS Supabase lato Ember
 - `app/docstore.py` — sync metadati nota → tabella Supabase `documents` (durante l'ingest)
-- `app/main.py` — API: `/health` `/ingest` `/chat` (con `{"stream": true}` SSE) `/upload`, e per il connettore MCP `/search` `/document` `/context` `/writeback`
+- `app/main.py` — API: `/health` `/ingest` `/chat` (con `{"stream": true}` SSE) `/upload`, e per il connettore MCP `/search` `/document` `/context` `/writeback`; admin: `/admin/learning` (task di apprendimento da gap+👎), quote per tenant `quota_day` E `quota_month` (mensile; su Supabase via chiave `quota_month` nel jsonb `branding`)
 - `mcp-connector/` — server MCP (5 tool) verso Ember · `db/` — schema Supabase OVYON · `scripts/verify_ingest.py` — collaudo post-ingest · `OVYON-SETUP.md` — runbook produzione
 
 ## Comandi
