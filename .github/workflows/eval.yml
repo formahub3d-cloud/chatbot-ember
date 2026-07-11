@@ -1,0 +1,31 @@
+name: Eval RAG
+
+# Collaudo automatico della qualità delle risposte (scripts/eval_rag.py) contro
+# l'Ember di produzione. Passa se lo score >= 0.8 (soglia del brief).
+# Si attiva:
+#   - manualmente (Actions → Run workflow)
+#   - ogni lunedì alle 06:00 UTC (controllo settimanale di regressione)
+#
+# Richiede (Settings → Secrets and variables → Actions):
+#   - Segreti  EVAL_KEY_FORMA, EVAL_KEY_ATS  (chiavi tenant di eval, quota 200/g)
+#   - Variabile EMBER_URL (opzionale, default https://ember.formahub.it)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Eval RAG (soglia 0.8)
+        env:
+          EVAL_KEY_FORMA: ${{ secrets.EVAL_KEY_FORMA }}
+          EVAL_KEY_ATS: ${{ secrets.EVAL_KEY_ATS }}
+        run: |
+          python scripts/eval_rag.py --base "${{ vars.EMBER_URL || 'https://ember.formahub.it' }}" --min 0.8
