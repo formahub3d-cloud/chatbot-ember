@@ -8,6 +8,7 @@ Endpoint:
   POST /upload            (tenant) carica un contratto → OCR + estrazione → ANTEPRIMA
                           dei campi (NON consolida: richiede conferma umana)
 """
+import base64
 import contextvars
 import csv
 import io
@@ -49,7 +50,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -767,3 +768,47 @@ def contracts_pdf(body: ContractIn, x_tenant_key: str = Header(default=""),
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition":
                              f'attachment; filename="contratto-{body.template}.pdf"'})
+
+
+class SignIn(BaseModel):
+    template: str
+    data: dict = {}
+    nome: str = ""
+    ragione_sociale: str = ""
+    company: str = ""          # alias EN di ragione_sociale
+    email: str = ""
+
+
+@app.post("/contracts/sign")
+def contracts_sign(body: SignIn, request: Request, x_tenant_key: str = Header(default=""),
+                   origin: str = Header(default="")):
+    """Firma elettronica semplice (SES): il CLIENTE conferma l'accordo sul contratto.
+    Rigenera il PDF del template compilato, ne calcola l'hash sha256 e produce un record
+    di firma verificabile (chi/quando/cosa=hash/come=email·IP) + il PDF con il timbro di
+    firma in coda (base64). Non è un write-back al vault; non logga PII (solo l'hash).
+    Errore 422 se mancano nome/ragione_sociale o campi obbligatori del contratto."""
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+    ragione = (body.ragione_sociale or body.company).strip()
+    if not body.nome.strip() or not ragione:
+        raise HTTPException(422, "Firma: 'nome' e 'ragione_sociale' sono obbligatori.")
+    try:
+        filled = contracts.fill(body.template, body.data)
+    except KeyError:
+        raise HTTPException(404, "Template sconosciuto. Vedi /contracts/templates.")
+    if filled["missing"]:
+        raise HTTPException(422, "Campi obbligatori mancanti: " + ", ".join(filled["missing"]))
+    pdf = contracts.to_pdf(filled["text"], filled["titolo"])
+    doc_hash = esign.pdf_hash(pdf)
+    ip = request.client.host if request.client else ""
+    try:
+        record = esign.build_record(body.nome, ragione, doc_hash, email=body.email, ip=ip)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    signed_pdf = esign.stamp(filled["text"], record, filled["titolo"])
+    # Audit senza PII: solo il template + l'impronta del documento (regola 6).
+    tenants.log_access(tenant.get("key_hash"), "create",
+                       detail=f"contracts/sign {body.template} sha256={doc_hash[:12]}")
+    return {"signature": record,
+            "pdf_sha256": doc_hash,
+            "pdf_base64": base64.b64encode(signed_pdf).decode("ascii")}
