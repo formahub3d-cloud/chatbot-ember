@@ -440,10 +440,15 @@ def prometheus_metrics(authorization: str = Header(default="")):
 
 
 @app.post("/admin/retention/run")
-def retention_run(days: int = 0, authorization: str = Header(default="")):
+def retention_run(days: int = 0, dry_run: bool = False, authorization: str = Header(default="")):
     """GDPR retention: cancella gli eventi analytics oltre la soglia. Senza `days`
-    usa RETENTION_DAYS. Da richiamare a mano o da un cron. Bearer ADMIN_TOKEN."""
+    usa RETENTION_DAYS. Con `dry_run=true` NON cancella: restituisce solo quante
+    righe verrebbero eliminate (anteprima). Da richiamare a mano o da un cron.
+    Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
+    if dry_run:
+        return {"dry_run": True, "would_delete": events.preview_old(days or None),
+                "retention_days": settings.retention_days}
     deleted = events.purge_old(days or None)
     return {"deleted": deleted, "retention_days": settings.retention_days}
 
