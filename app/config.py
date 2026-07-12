@@ -34,6 +34,15 @@ class Settings(BaseSettings):
 
     # cervello
     vault_path: str = ""
+    # auto-ingest da git (opzionale): se valorizzato, PRIMA di indicizzare il vault
+    # viene aggiornato dal repo (git pull --ff-only se già clonato, altrimenti git
+    # clone --depth 1). Serve su Railway, dove il vault non si aggiorna da solo: il
+    # flusso repository_dispatch vault-updated → POST /ingest riporta le note fresche.
+    # Vuoto = comportamento storico (legge la cartella locale VAULT_PATH così com'è).
+    vault_git_url: str = ""
+    # token per repo PRIVATO (iniettato nell'URL come x-access-token, MAI loggato).
+    # Vuoto = repo pubblico. È un segreto: solo segnaposto in .env.example.
+    vault_git_token: str = ""
 
     # sicurezza
     admin_token: str = "change-me"
@@ -44,6 +53,14 @@ class Settings(BaseSettings):
     # lingua di default delle risposte del bot ("it" | "en"). Un tenant può forzarla
     # col campo branding.lang; il client può passarla per richiesta.
     default_lang: str = "it"
+
+    # ricerca web (capability agente, OPT-IN, OFF di default). Ember può cercare su
+    # internet via Tavily oltre a rispondere dal cervello. Gating: WEB_SEARCH globale
+    # OPPURE branding.web_search del singolo tenant. INERTE finché TAVILY_API_KEY è vuota
+    # (nessuna chiamata, nessun costo) — vedi app/websearch.py. Con capability OFF /chat
+    # è identico a oggi. Il contenuto web è DATO NON FIDATO (mai istruzioni).
+    tavily_api_key: str = ""
+    web_search: bool = False
 
     # osservabilità errori (opzionale): Sentry. Vuoto = disattivato.
     sentry_dsn: str = ""

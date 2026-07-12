@@ -123,6 +123,8 @@ class ChatIn(BaseModel):
     stream: bool = False  # true → risposta SSE (text/event-stream) token per token
     history: list = []     # turni precedenti [{role, content}] dal client, per i follow-up
     lang: str = ""         # "it" | "en" — se vuota: branding del tenant → default_lang
+    web: bool = False      # richiesta esplicita di ricerca web (agente); effettiva solo se
+    #                        la capability web è abilitata (WEB_SEARCH o branding.web_search)
 
 
 class SearchIn(BaseModel):
@@ -303,11 +305,17 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     # SICUREZZA: il tier modula SOLO lo stile della risposta (vedi rag.style_directive);
     # NON entra nei grant e NON tocca il filtro Qdrant → lo scope dei dati resta identico.
     tier = (tenant.get("branding") or {}).get("tier")
+    # Capability ricerca web (OPT-IN, OFF di default): abilitata se WEB_SEARCH globale
+    # OPPURE branding.web_search del tenant. SICUREZZA: è ADDITIVA — non tocca i grant né
+    # il filtro Qdrant (lo scope del vault resta identico), e il contenuto web è trattato
+    # come dato non fidato in rag. Con capability OFF /chat è identico a oggi (nessuna
+    # chiamata web, nessun costo). Inerte comunque senza TAVILY_API_KEY (websearch.search).
+    web_enabled = settings.web_search or bool((tenant.get("branding") or {}).get("web_search"))
     log.info("chat tenant=%s q=%r", tenant.get("name", "?"), security.redact_pii(body.message)[:200])
     if body.stream:
         try:
             gen = rag.answer_stream(body.message, _grants(tenant), history=body.history,
-                                    lang=lang, tier=tier)
+                                    lang=lang, tier=tier, web=body.web, web_enabled=web_enabled)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -329,7 +337,8 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
     try:
-        return rag.answer(body.message, _grants(tenant), history=body.history, lang=lang, tier=tier)
+        return rag.answer(body.message, _grants(tenant), history=body.history, lang=lang,
+                          tier=tier, web=body.web, web_enabled=web_enabled)
     except HTTPException:
         raise
     except Exception:

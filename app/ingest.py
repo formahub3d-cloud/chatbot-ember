@@ -19,7 +19,9 @@ retro-compatibile (stessi valori di prima) ed è definito come alias del tenant.
 Questo permette una re-ingest ADDITIVA (aggiunge org/sub_tenant al payload) senza
 rompere i filtri esistenti basati su `allowed_scopes`.
 """
+import logging
 import re
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -28,6 +30,75 @@ from qdrant_client.models import Distance, VectorParams, PointStruct, PayloadSch
 
 from .config import settings
 from .providers import embed, EMBED_DIM
+
+log = logging.getLogger("ember.ingest")
+
+
+# ── Auto-ingest: aggiornamento del vault da git prima di indicizzare ──────────
+# Su Railway il vault (cartella VAULT_PATH) non si aggiorna da solo: se VAULT_GIT_URL
+# è impostato, prima di leggere le note si prendono quelle fresche dal repo del cervello.
+# Isolato in una funzione pura/testabile, separata dall'esecuzione dell'ingest.
+
+def _redact_url(text: str) -> str:
+    """Redige eventuali credenziali (`//utente:token@host`) da un URL o da un
+    messaggio d'errore, così il token non finisce MAI nei log (git a volte riecheggia
+    l'URL remoto — token incluso — nei messaggi d'errore)."""
+    return re.sub(r"//[^/@\s]+@", "//***@", text or "")
+
+
+def _authed_url(url: str, token: str) -> str:
+    """Inietta il token per repo privato: `https://x-access-token:<token>@github.com/...`.
+    Token vuoto o schema non-https → URL invariato (repo pubblico / ssh non gestito qui).
+    Il risultato NON va mai loggato (contiene il segreto): usare _redact_url() sui log."""
+    if token and url.startswith("https://"):
+        return f"https://x-access-token:{token}@{url[len('https://'):]}"
+    return url
+
+
+def sync_vault(vault_path: str, url: str, token: str = "") -> bool:
+    """Aggiorna il vault locale dal repo git PRIMA dell'ingest. Funzione pura/testabile.
+
+    - `url` vuoto → no-op, ritorna False (comportamento storico: legge la cartella locale).
+    - `<vault_path>/.git` esiste → `git -C <vault_path> pull --ff-only`.
+    - altrimenti → `git clone --depth 1 <url> <vault_path>`.
+
+    Usa subprocess con LISTA di argomenti (mai shell=True). Il token per repo privato è
+    iniettato nell'URL (x-access-token) e non viene MAI loggato: nei log compare solo
+    l'URL redatto (host/path senza credenziali). Ritorna True se ha tentato un pull/clone.
+
+    GESTIONE ERRORI (scelta motivata):
+    - pull fallito ma esiste già una copia locale (.git) → si LOGGA e si PROSEGUE con la
+      copia esistente: meglio indicizzare note leggermente stantie che far esplodere
+      l'ingest per un blip di rete. La rete di sicurezza notturna riproverà.
+    - clone iniziale fallito → NON c'è alcuna copia locale da cui partire: si solleva
+      RuntimeError (→ /ingest risponde 500 con messaggio chiaro), perché senza vault non
+      c'è nulla da indicizzare e proseguire indicizzerebbe il vuoto azzerando il cervello.
+    """
+    if not url:
+        return False
+    vp = Path(vault_path)
+    safe = _redact_url(url)
+    if (vp / ".git").exists():
+        try:
+            subprocess.run(["git", "-C", str(vp), "pull", "--ff-only"],
+                           check=True, capture_output=True, text=True)
+            log.info("vault: git pull --ff-only ok (%s)", safe)
+        except (subprocess.CalledProcessError, OSError) as e:
+            # copia locale già presente: si prosegue con quella (non blocchiamo l'ingest).
+            log.warning("vault: git pull fallito (%s), proseguo con la copia locale: %s",
+                        safe, _redact_url(str(e)))
+        return True
+    vp.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        subprocess.run(["git", "clone", "--depth", "1", _authed_url(url, token), str(vp)],
+                       check=True, capture_output=True, text=True)
+        log.info("vault: git clone --depth 1 ok (%s → %s)", safe, vp)
+    except (subprocess.CalledProcessError, OSError) as e:
+        # nessuna copia locale da cui ripartire: senza vault non c'è ingest → errore chiaro.
+        log.error("vault: git clone fallito (%s): %s", safe, _redact_url(str(e)))
+        raise RuntimeError(f"Impossibile clonare il vault da {safe}") from e
+    return True
+
 
 # Cartelle non utili al chatbot (derivati, scratch, fonti grezze).
 # 'contratti' è escluso PER DEFAULT (dati personali): per farli interrogare dal
@@ -147,6 +218,9 @@ def iter_notes(vault: Path):
 def run() -> dict:
     if not settings.vault_path:
         raise RuntimeError("VAULT_PATH non impostato nel .env")
+    # Auto-ingest: se VAULT_GIT_URL è impostato, aggiorna il vault dal repo del cervello
+    # PRIMA di leggerlo. Vuoto = no-op → legge la cartella locale (comportamento storico).
+    sync_vault(settings.vault_path, settings.vault_git_url, settings.vault_git_token)
     vault = Path(settings.vault_path)
     c = client()
 
