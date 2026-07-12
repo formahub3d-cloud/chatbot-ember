@@ -75,8 +75,44 @@ _SYSTEM_EN = (
 )
 
 
-def _system(lang: str = "it") -> str:
-    return _SYSTEM_EN if _lang(lang) == "en" else _SYSTEM_IT
+# ── Stile per tier/archetipo OVYON (Blocco J — "fronting tier cliente") ───────
+# SICUREZZA (regola tassativa #4, NON negoziabile): il tier NON amplia MAI lo
+# scope dei dati. Cambia ESCLUSIVAMENTE la FORMA della risposta (lunghezza / tono
+# / struttura) aggiungendo un'istruzione di stile al system prompt. NON tocca i
+# grant né build_filter()/_retrieve(): quali note vengono lette resta identico a
+# prescindere dal tier. Le stringhe qui sotto descrivono SOLO la forma della
+# risposta, mai il permesso di accedere ad altri dati.
+_STYLE_BY_TIER: dict[str, str] = {
+    # dante (base): risposte concise e dirette.
+    "dante": "STILE DELLA RISPOSTA: sii conciso e diretto, vai dritto al punto "
+             "senza giri di parole superflui.",
+    # virgilio (pro): risposte più articolate, con contesto e guida passo-passo.
+    "virgilio": "STILE DELLA RISPOSTA: sii più articolato; aggiungi il contesto "
+                "utile e, quando serve, guida l'utente passo passo.",
+    # beatrice (enterprise): risposte strategiche (sintesi + implicazioni + passi).
+    "beatrice": "STILE DELLA RISPOSTA: adotta un taglio strategico: una sintesi "
+                "essenziale, le implicazioni principali e i prossimi passi consigliati.",
+}
+
+
+def style_directive(tier: str | None) -> str:
+    """Istruzione di SOLO STILE per l'archetipo/tier del tenant (dante/virgilio/
+    beatrice). Funzione pura e testabile.
+
+    SICUREZZA: non allarga MAI l'accesso ai dati — ritorna soltanto una direttiva
+    sulla FORMA della risposta. tier None/""/sconosciuto → "" (nessuna modifica,
+    retro-compatibile). Case-insensitive (normalizza lower/strip)."""
+    return _STYLE_BY_TIER.get(str(tier or "").strip().lower(), "")
+
+
+def _system(lang: str = "it", tier: str | None = None) -> str:
+    """System prompt vincolato al contenuto, nella lingua richiesta. Se il tenant
+    ha un tier/archetipo, in CODA si AGGIUNGE (mai si sostituisce) la direttiva di
+    stile: i vincoli anti-injection e di scope restano intatti. Senza tier (o tier
+    sconosciuto) il prompt è identico a prima → retro-compatibile."""
+    base = _SYSTEM_EN if _lang(lang) == "en" else _SYSTEM_IT
+    style = style_directive(tier)
+    return f"{base} {style}" if style else base
 
 
 SYSTEM = _SYSTEM_IT   # retro-compatibilità (default italiano)
@@ -172,16 +208,19 @@ def _log_gap(question: str, grants) -> None:
     log.info("gap · scope=%s · q=%r", scopes_of(grants), redact_pii(question)[:200])
 
 
-def answer(question: str, grants, k: int = 6, history=None, lang: str = "it") -> dict:
+def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
+           tier: str | None = None) -> dict:
     """Risposta vincolata al contenuto visibile ai `grants` del tenant.
 
     `grants`: lista storica (`allowed_scopes`) o dict con org/tenant/sub_tenant.
     Chiave master (`*`) = nessun filtro: usare SOLO in contesto admin privato.
     `history`: turni precedenti (dal client) per i follow-up; non è persistente.
     `lang`: 'it' (default), 'en' o 'auto' (rileva dalla domanda).
+    `tier`: archetipo OVYON (dante/virgilio/beatrice) → SOLO stile della risposta.
+    Il tier NON tocca `grants`/il filtro: lo scope dei dati resta invariato.
     """
     lang = _resolve_lang(lang, question)
-    hits = _retrieve(question, grants, k)
+    hits = _retrieve(question, grants, k)   # NB: tier NON passa qui → scope invariato
     scopes = scopes_of(grants)
     if not hits:
         _log_gap(question, grants)
@@ -192,7 +231,7 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it") ->
 
     context = _build_context(hits)
     user = f"{_hist_block(history)}CONTENUTO:\n{context}\n\nDOMANDA: {question}"
-    out = _clean_answer(chat(_system(lang), user))
+    out = _clean_answer(chat(_system(lang, tier), user))
     sources = sorted({h.payload["slug"] for h in hits})
     metrics.bump_chat(scopes)
     events.record("chat", scopes)
@@ -263,12 +302,15 @@ def _retrieve(question: str, grants, k: int = 6):
     return _filter_hits(hits, k)
 
 
-def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "it"):
+def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "it",
+                  tier: str | None = None):
     """Come answer(), ma genera eventi SSE (stringhe già formattate).
 
     Sequenza: `event: sources` (fonti+scope, subito dopo il retrieval),
     poi tanti `data: {"delta": ...}` con i token, infine `event: done`.
     In caso di errore a stream avviato: `event: error`.
+
+    `tier`: archetipo OVYON → SOLO stile della risposta; non tocca il filtro/scope.
     """
     import json as _json
 
@@ -278,7 +320,7 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
 
     lang = _resolve_lang(lang, question)
     scopes = scopes_of(grants)
-    hits = _retrieve(question, grants, k)
+    hits = _retrieve(question, grants, k)   # NB: tier NON passa qui → scope invariato
     if not hits:
         _log_gap(question, grants)
         q_red = redact_pii(question)[:200]
@@ -297,7 +339,7 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
     context = _build_context(hits)
     user = f"{_hist_block(history)}CONTENUTO:\n{context}\n\nDOMANDA: {question}"
     try:
-        for delta in chat_stream(_system(lang), user):
+        for delta in chat_stream(_system(lang, tier), user):
             yield sse(None, {"delta": delta})
     except Exception:  # pragma: no cover - errore del provider a stream avviato
         yield sse("error", {"message": "Errore del provider durante la risposta."})
