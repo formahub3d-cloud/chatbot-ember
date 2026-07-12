@@ -298,10 +298,15 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     if not body.message:
         raise HTTPException(422, "Messaggio vuoto.")
     lang = body.lang or (tenant.get("branding") or {}).get("lang") or settings.default_lang
+    # Tier/archetipo OVYON (dante/virgilio/beatrice) dal branding del tenant.
+    # SICUREZZA: il tier modula SOLO lo stile della risposta (vedi rag.style_directive);
+    # NON entra nei grant e NON tocca il filtro Qdrant → lo scope dei dati resta identico.
+    tier = (tenant.get("branding") or {}).get("tier")
     log.info("chat tenant=%s q=%r", tenant.get("name", "?"), security.redact_pii(body.message)[:200])
     if body.stream:
         try:
-            gen = rag.answer_stream(body.message, _grants(tenant), history=body.history, lang=lang)
+            gen = rag.answer_stream(body.message, _grants(tenant), history=body.history,
+                                    lang=lang, tier=tier)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -323,7 +328,7 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
     try:
-        return rag.answer(body.message, _grants(tenant), history=body.history, lang=lang)
+        return rag.answer(body.message, _grants(tenant), history=body.history, lang=lang, tier=tier)
     except HTTPException:
         raise
     except Exception:
@@ -440,10 +445,15 @@ def prometheus_metrics(authorization: str = Header(default="")):
 
 
 @app.post("/admin/retention/run")
-def retention_run(days: int = 0, authorization: str = Header(default="")):
+def retention_run(days: int = 0, dry_run: bool = False, authorization: str = Header(default="")):
     """GDPR retention: cancella gli eventi analytics oltre la soglia. Senza `days`
-    usa RETENTION_DAYS. Da richiamare a mano o da un cron. Bearer ADMIN_TOKEN."""
+    usa RETENTION_DAYS. Con `dry_run=true` NON cancella: restituisce solo quante
+    righe verrebbero eliminate (anteprima). Da richiamare a mano o da un cron.
+    Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
+    if dry_run:
+        return {"dry_run": True, "would_delete": events.preview_old(days or None),
+                "retention_days": settings.retention_days}
     deleted = events.purge_old(days or None)
     return {"deleted": deleted, "retention_days": settings.retention_days}
 

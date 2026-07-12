@@ -62,12 +62,41 @@ def _db_ready() -> bool:
     return settings.grants_backend.strip().lower() == "supabase" and bool(settings.database_url.strip())
 
 
+def _retention_window(days: int | None) -> int:
+    """Soglia effettiva in giorni: override esplicito o settings.retention_days.
+    <= 0 (o backend non pronto) significa retention disattivata."""
+    d = settings.retention_days if days is None else days
+    return int(d) if (_db_ready() and d and int(d) > 0) else 0
+
+
+def preview_old(days: int | None = None) -> int:
+    """Retention dry-run: quante righe VERREBBERO cancellate da purge_old con la
+    stessa soglia/filtro, senza cancellare nulla. 0 se disattivato o in errore.
+    Utile per stimare l'impatto prima dell'azione distruttiva (come il dry-run di
+    /admin/gdpr/erase)."""
+    d = _retention_window(days)
+    if not d:
+        return 0
+    try:
+        with tenants._conn() as c:
+            with c.cursor() as cur:
+                cur.execute(
+                    "SELECT count(*) FROM analytics_events "
+                    "WHERE created_at < now() - make_interval(days => %s)",
+                    (d,))
+                row = cur.fetchone()
+        return int(row[0]) if row and row[0] else 0
+    except Exception:  # pragma: no cover - best-effort, mai bloccante
+        log.warning("retention: preview analytics fallito (ignorato)", exc_info=True)
+        return 0
+
+
 def purge_old(days: int | None = None) -> int:
     """Retention GDPR: cancella gli eventi più vecchi di `days` giorni (default
     settings.retention_days). 0/None = disattivato → 0. Best-effort. Ritorna il
     numero di righe cancellate."""
-    d = settings.retention_days if days is None else days
-    if not _db_ready() or not d or int(d) <= 0:
+    d = _retention_window(days)
+    if not d:
         return 0
     try:
         with tenants._conn() as c:
