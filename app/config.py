@@ -85,6 +85,16 @@ class Settings(BaseSettings):
     stripe_success_url: str = ""
     stripe_cancel_url: str = ""
 
+    # setup fee una tantum al checkout (INERTE di default). Con BILLING_SETUP_FEE=true
+    # il checkout di un tier aggiunge, oltre al canone ricorrente, un price ONE-TIME
+    # (risolto per lookup_key) come line item aggiuntivo. Flag off → checkout identico
+    # a oggi (nessun addebito extra). I lookup_key NON sono segreti: sono etichette dei
+    # prezzi gia' creati su Stripe (Prodotti → Prezzi), uno per tier.
+    billing_setup_fee: bool = False
+    stripe_setup_lookup_starter: str = "setup_starter_dante"
+    stripe_setup_lookup_pro: str = "setup_business_virgilio"
+    stripe_setup_lookup_enterprise: str = "setup_enterprise_beatrice"
+
     # cifratura contenuti a riposo (GDPR) — per la colonna documents.content_encrypted.
     # Vuoto = disattivata. Una o più chiavi Fernet separate da virgola (la prima cifra,
     # tutte decifrano → rotazione). Genera una chiave con:  python -m app.crypto
