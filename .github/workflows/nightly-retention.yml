@@ -1,0 +1,66 @@
+name: Nightly retention (GDPR)
+
+# Applica la retention GDPR degli eventi analytics chiamando
+# POST /admin/retention/run su Ember (vedi app/main.py::retention_run).
+#
+# NON DISTRUTTIVO DI DEFAULT: sia lo scheduling notturno sia il dispatch manuale
+# partono con dry_run=true → solo ANTEPRIMA di quante righe verrebbero eliminate,
+# nessuna cancellazione. La cancellazione vera richiede una mano umana esplicita:
+#   Actions → Run workflow → dry_run = "false".
+# Così nessun dato viene mai cancellato automaticamente da un cron.
+#
+# Richiede (Settings → Secrets and variables → Actions) — gli stessi del re-ingest:
+#   - Segreto    ADMIN_TOKEN   (token admin di Ember, Bearer)   [obbligatorio]
+#   - Variabile  EMBER_URL     (es. https://ember.formahub.it)  [opzionale]
+#
+# Solo curl (preinstallato su ubuntu-latest): nessuna dipendenza da installare.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Anteprima senza cancellare (true) oppure cancellazione reale (false)"
+        type: choice
+        default: "true"
+        options:
+          - "true"
+          - "false"
+  schedule:
+    - cron: "30 2 * * *"   # 02:30 UTC ogni notte (sempre dry-run)
+
+jobs:
+  retention:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retention run (dry-run di default)
+        env:
+          EMBER_URL: ${{ vars.EMBER_URL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          # Schedule → inputs vuoti → 'true'. Dispatch → il valore scelto (default 'true').
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'true' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ADMIN_TOKEN:-}" ]; then
+            echo "::error::ADMIN_TOKEN mancante: impostalo come GitHub secret."
+            exit 1
+          fi
+          BASE="${EMBER_URL:-https://ember.formahub.it}"
+          BASE="${BASE%/}"
+          DRY="${DRY_RUN:-true}"
+          if [ "$DRY" = "false" ]; then
+            echo "⚠️  Modalità REALE: verranno cancellati gli eventi oltre la soglia RETENTION_DAYS."
+          else
+            DRY="true"   # qualsiasi valore diverso da 'false' → anteprima sicura
+            echo "Modalità anteprima (dry-run): nessuna cancellazione."
+          fi
+          echo "Retention → POST ${BASE}/admin/retention/run?dry_run=${DRY}"
+          code=$(curl -sS -o retention.out -w "%{http_code}" \
+            -X POST "${BASE}/admin/retention/run?dry_run=${DRY}" \
+            -H "Authorization: Bearer ${ADMIN_TOKEN}")
+          echo "HTTP ${code}"
+          echo "Risposta:"
+          cat retention.out; echo
+          if [ "$code" != "200" ]; then
+            echo "::error::retention fallita (HTTP ${code})."
+            exit 1
+          fi
