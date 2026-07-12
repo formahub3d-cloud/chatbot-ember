@@ -34,6 +34,15 @@ class Settings(BaseSettings):
 
     # cervello
     vault_path: str = ""
+    # auto-ingest da git (opzionale): se valorizzato, PRIMA di indicizzare il vault
+    # viene aggiornato dal repo (git pull --ff-only se già clonato, altrimenti git
+    # clone --depth 1). Serve su Railway, dove il vault non si aggiorna da solo: il
+    # flusso repository_dispatch vault-updated → POST /ingest riporta le note fresche.
+    # Vuoto = comportamento storico (legge la cartella locale VAULT_PATH così com'è).
+    vault_git_url: str = ""
+    # token per repo PRIVATO (iniettato nell'URL come x-access-token, MAI loggato).
+    # Vuoto = repo pubblico. È un segreto: solo segnaposto in .env.example.
+    vault_git_token: str = ""
 
     # sicurezza
     admin_token: str = "change-me"
