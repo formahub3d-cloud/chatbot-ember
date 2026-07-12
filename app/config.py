@@ -54,6 +54,14 @@ class Settings(BaseSettings):
     # col campo branding.lang; il client può passarla per richiesta.
     default_lang: str = "it"
 
+    # ricerca web (capability agente, OPT-IN, OFF di default). Ember può cercare su
+    # internet via Tavily oltre a rispondere dal cervello. Gating: WEB_SEARCH globale
+    # OPPURE branding.web_search del singolo tenant. INERTE finché TAVILY_API_KEY è vuota
+    # (nessuna chiamata, nessun costo) — vedi app/websearch.py. Con capability OFF /chat
+    # è identico a oggi. Il contenuto web è DATO NON FIDATO (mai istruzioni).
+    tavily_api_key: str = ""
+    web_search: bool = False
+
     # osservabilità errori (opzionale): Sentry. Vuoto = disattivato.
     sentry_dsn: str = ""
     sentry_env: str = ""
