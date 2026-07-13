@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     # token per repo PRIVATO (iniettato nell'URL come x-access-token, MAI loggato).
     # Vuoto = repo pubblico. È un segreto: solo segnaposto in .env.example.
     vault_git_token: str = ""
+    # Realtime: dopo un write-back confermato, re-indicizza SUBITO (incrementale) la
+    # nota appena scritta → il cervello la riflette "man mano", senza attendere un
+    # ingest completo. OFF di default (opt-in). Best-effort: un errore non blocca mai
+    # il write-back. Non fa git pull (indicizza la copia locale appena scritta).
+    auto_reingest: bool = False
 
     # sicurezza
     admin_token: str = "change-me"

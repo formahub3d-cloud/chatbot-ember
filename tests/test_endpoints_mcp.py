@@ -75,3 +75,34 @@ def test_writeback_anteprima_poi_conferma(tmp_path, monkeypatch):
                      headers={"X-Tenant-Key": "K_ATS"})
     assert r2.status_code == 200 and r2.json()["consolidato"] is True
     assert (tmp_path / "forma/clienti/ats/generati/report-q3.md").read_text("utf-8").find("testo") >= 0
+
+
+def test_writeback_auto_reingest_on(tmp_path, monkeypatch):
+    """AUTO_REINGEST on: dopo un write-back confermato, la nota è re-indicizzata subito."""
+    from app import ingest
+    monkeypatch.setattr(settings, "vault_path", str(tmp_path))
+    monkeypatch.setattr(settings, "auto_reingest", True)
+    seen = {}
+    monkeypatch.setattr(ingest, "reindex_paths",
+                        lambda paths, **k: seen.update(paths=paths, kw=k) or {"mode": "incremental", "indexed": 1})
+    r = client.post("/writeback",
+                    json={"scope": "ats", "title": "Nota Live", "body": "testo", "confirm": True},
+                    headers={"X-Tenant-Key": "K_ATS"})
+    assert r.status_code == 200 and r.json()["consolidato"] is True
+    assert seen["paths"] == [r.json()["path"]]          # ha re-indicizzato la nota scritta
+    assert seen["kw"].get("sync") is False              # niente git pull sulla copia locale
+    assert r.json()["reingest"]["indexed"] == 1
+
+
+def test_writeback_auto_reingest_off(tmp_path, monkeypatch):
+    """Default (off): nessuna re-indicizzazione automatica, comportamento storico."""
+    from app import ingest
+    monkeypatch.setattr(settings, "vault_path", str(tmp_path))
+    monkeypatch.setattr(settings, "auto_reingest", False)
+    called = {"v": False}
+    monkeypatch.setattr(ingest, "reindex_paths", lambda *a, **k: called.update(v=True) or {})
+    r = client.post("/writeback",
+                    json={"scope": "ats", "title": "Nota Off", "body": "testo", "confirm": True},
+                    headers={"X-Tenant-Key": "K_ATS"})
+    assert r.status_code == 200 and r.json()["consolidato"] is True
+    assert called["v"] is False and "reingest" not in r.json()
