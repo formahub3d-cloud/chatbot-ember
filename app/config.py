@@ -62,6 +62,25 @@ class Settings(BaseSettings):
     tavily_api_key: str = ""
     web_search: bool = False
 
+    # ── Ponte agenti Divina (ovy-orchestrator) — capability OPT-IN, OFF di default ──
+    # Quando la chat riceve un COMPITO (non semplice Q&A), Ember può instradarlo
+    # all'agente Divina giusto (Dante/Virgilio/Beatrice) via POST {DIVINA_URL}/agents/route,
+    # invece di rispondere col RAG. GATING (non negoziabile): il ponte opera SOLO se
+    # AGENTS_BRIDGE=true E DIVINA_URL + DIVINA_ADMIN_TOKEN sono configurati. Con OFF o
+    # senza config /chat è identico a oggi (RAG), nessuna chiamata a Divina. A Divina si
+    # passa SOLO il tenant_code (lo scope lo applica Divina con la sua RLS): i grant e il
+    # filtro Qdrant del RAG NON cambiano. Fallback pulito al RAG se Divina è
+    # irraggiungibile o non instrada. Vedi app/agents_bridge.py.
+    agents_bridge: bool = False
+    # Euristico opzionale: con AGENTS_AUTO=true i messaggi "task-like" (verbo imperativo
+    # tipo scrivi/analizza/prepara/genera/crea) vengono auto-instradati anche senza il
+    # flag agent nel body. OFF di default → serve il flag esplicito agent:true.
+    agents_auto: bool = False
+    # Endpoint del servizio Divina e token admin (Bearer). DIVINA_ADMIN_TOKEN è un
+    # SEGRETO: solo segnaposto in .env.example, valore reale nelle env di deploy.
+    divina_url: str = ""
+    divina_admin_token: str = ""
+
     # osservabilità errori (opzionale): Sentry. Vuoto = disattivato.
     sentry_dsn: str = ""
     sentry_env: str = ""
