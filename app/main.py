@@ -50,7 +50,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -118,6 +118,36 @@ def _grants(tenant: dict) -> dict:
     }
 
 
+def _tenant_code(tenant: dict) -> str:
+    """Codice tenant da passare a Divina per la sua RLS (ponte agenti). Preferisce
+    branding.tenant_code (esplicito), altrimenti il primo allowed_scope (livello
+    tenant). Vuoto = niente instradamento (il ponte resta inerte). SICUREZZA: è l'UNICA
+    informazione di scope passata a Divina; i grant/il filtro Qdrant del RAG non cambiano."""
+    brand = tenant.get("branding") or {}
+    code = str(brand.get("tenant_code") or "").strip()
+    if code:
+        return code
+    scopes = tenant.get("allowed_scopes") or []
+    return scopes[0] if scopes else ""
+
+
+def _agent_response(routed: dict, grants: dict) -> dict:
+    """Shape di /chat quando si instrada a un agente Divina: l'output dell'agente come
+    `answer`, e in `sources` una voce di tipo `agent` (agente/skill/confidenza) seguita
+    dalle eventuali `web_sources` di Divina. `scopes` = quelli del tenant, per parità di
+    shape col RAG (nessun ampliamento: restano i grant del tenant)."""
+    sources: list = [{"type": "agent",
+                      "agent": routed.get("agent"),
+                      "skill": routed.get("skill"),
+                      "confidence": routed.get("confidence")}]
+    web = routed.get("web_sources")
+    if isinstance(web, list):
+        sources.extend(web)
+    return {"answer": routed.get("output") or "",
+            "sources": sources,
+            "scopes": rag.scopes_of(grants)}
+
+
 class ChatIn(BaseModel):
     message: str
     stream: bool = False  # true → risposta SSE (text/event-stream) token per token
@@ -125,6 +155,8 @@ class ChatIn(BaseModel):
     lang: str = ""         # "it" | "en" — se vuota: branding del tenant → default_lang
     web: bool = False      # richiesta esplicita di ricerca web (agente); effettiva solo se
     #                        la capability web è abilitata (WEB_SEARCH o branding.web_search)
+    agent: bool = False    # richiesta esplicita di instradare a un agente Divina (COMPITO);
+    #                        effettiva solo col ponte attivo (AGENTS_BRIDGE + DIVINA_URL/token)
 
 
 class SearchIn(BaseModel):
@@ -312,6 +344,19 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     # chiamata web, nessun costo). Inerte comunque senza TAVILY_API_KEY (websearch.search).
     web_enabled = settings.web_search or bool((tenant.get("branding") or {}).get("web_search"))
     log.info("chat tenant=%s q=%r", tenant.get("name", "?"), security.redact_pii(body.message)[:200])
+    # Ponte agenti Divina (OPT-IN, OFF di default). Se la richiesta è un COMPITO — flag
+    # esplicito agent:true, oppure euristico task-like con AGENTS_AUTO — e il ponte è
+    # attivo e configurato, si instrada all'agente Divina giusto invece del RAG.
+    # SICUREZZA: a Divina passa SOLO il tenant_code (lo scope lo applica Divina con la sua
+    # RLS); i grant/il filtro Qdrant del RAG NON cambiano. Con ponte OFF o senza config il
+    # blocco è saltato → /chat identico a oggi. Fallback pulito al RAG se Divina è inerte,
+    # irraggiungibile o non instrada (routed:false) → mai un errore secco.
+    want_agent = body.agent or (settings.agents_auto and agents_bridge.is_task_like(body.message))
+    if want_agent and agents_bridge.enabled():
+        routed = agents_bridge.route(_tenant_code(tenant), body.message, body.history)
+        if routed and routed.get("routed"):
+            return _agent_response(routed, _grants(tenant))
+        # Divina inerte/irraggiungibile o non ha instradato → si prosegue col RAG.
     if body.stream:
         try:
             gen = rag.answer_stream(body.message, _grants(tenant), history=body.history,
