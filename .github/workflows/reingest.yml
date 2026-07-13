@@ -39,4 +39,7 @@ jobs:
         env:
           EMBER_URL: ${{ vars.EMBER_URL }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          # Se il dispatch vault-updated porta i path .md cambiati → re-ingest
+          # INCREMENTALE solo di quelli; altrimenti (nightly/manuale) → completo.
+          INGEST_PATHS: ${{ toJSON(github.event.client_payload.paths) }}
         run: python scripts/reingest.py

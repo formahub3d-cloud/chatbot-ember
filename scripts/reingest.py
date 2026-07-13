@@ -23,10 +23,29 @@ import urllib.request
 DEFAULT_URL = "https://ember.formahub.it"
 
 
-def build_request(base_url: str, token: str) -> urllib.request.Request:
-    """Costruisce la POST /ingest autenticata. Isolata per essere testabile."""
+def load_paths(raw: str | None) -> list[str] | None:
+    """Interpreta INGEST_PATHS: JSON array o lista separata da virgole → lista di path.
+    Vuoto/'null' → None (ingest COMPLETO). Isolata per essere testabile."""
+    raw = (raw or "").strip()
+    if not raw or raw.lower() == "null":
+        return None
+    try:
+        v = json.loads(raw)
+        if isinstance(v, list):
+            paths = [str(x).strip() for x in v if str(x).strip()]
+            return paths or None
+    except json.JSONDecodeError:
+        pass
+    paths = [p.strip() for p in raw.split(",") if p.strip()]
+    return paths or None
+
+
+def build_request(base_url: str, token: str, paths: list[str] | None = None) -> urllib.request.Request:
+    """Costruisce la POST /ingest autenticata. Con `paths` → body incrementale
+    {"paths":[...]}; senza → nessun body (ingest completo). Isolata per essere testabile."""
     url = base_url.rstrip("/") + "/ingest"
-    req = urllib.request.Request(url, method="POST")
+    data = json.dumps({"paths": paths}).encode("utf-8") if paths else None
+    req = urllib.request.Request(url, data=data, method="POST")
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
     return req
@@ -39,8 +58,10 @@ def main() -> int:
         print("⚠️  ADMIN_TOKEN mancante: impostalo nell'ambiente (GitHub secret in CI).")
         return 2
 
-    req = build_request(base_url, token)
-    print(f"Re-ingest → {req.full_url}")
+    paths = load_paths(os.environ.get("INGEST_PATHS"))
+    req = build_request(base_url, token, paths)
+    mode = f"incrementale ({len(paths)} note)" if paths else "completo"
+    print(f"Re-ingest {mode} → {req.full_url}")
     try:
         with urllib.request.urlopen(req, timeout=300) as resp:
             body = resp.read().decode("utf-8", "replace")
