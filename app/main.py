@@ -90,6 +90,13 @@ async def _security_headers(request: Request, call_next):
 # dell'API, aggiornato a ogni deploy. → https://<dominio>/widget/embed.js
 app.mount("/widget", StaticFiles(directory="widget"), name="widget")
 
+# Console operativa (admin UI) servita same-origin dal backend stesso, così le
+# chiamate ad /admin/* usano l'ADMIN_TOKEN senza problemi di CORS. Montata su
+# /panel (NON /admin, per non oscurare le rotte API /admin/*). Lo shell HTML non
+# contiene segreti: il token si inserisce nell'interfaccia e resta nel browser.
+# → https://<dominio>/panel/
+app.mount("/panel", StaticFiles(directory="panel", html=True), name="panel")
+
 
 @app.on_event("startup")
 def _startup_seed_tenants():
