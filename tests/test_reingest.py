@@ -23,3 +23,27 @@ def test_build_request_normalizza_slash():
 def test_main_senza_token_esce_2(monkeypatch):
     monkeypatch.delenv("ADMIN_TOKEN", raising=False)
     assert reingest.main() == 2
+
+
+# ── re-ingest INCREMENTALE: path dal dispatch vault-updated ────────────────────
+def test_load_paths_json_array():
+    assert reingest.load_paths('["a/b.md","c/d.md"]') == ["a/b.md", "c/d.md"]
+
+
+def test_load_paths_csv_e_vuoto():
+    assert reingest.load_paths("a/b.md, c/d.md") == ["a/b.md", "c/d.md"]
+    assert reingest.load_paths("") is None
+    assert reingest.load_paths("null") is None        # toJSON(null) dal workflow → completo
+    assert reingest.load_paths("[]") is None
+
+
+def test_build_request_con_paths_ha_body_incrementale():
+    req = reingest.build_request("https://ember.formahub.it", "TOK", ["forma/x.md"])
+    import json as _j
+    assert _j.loads(req.data.decode()) == {"paths": ["forma/x.md"]}
+    assert req.full_url.endswith("/ingest")
+
+
+def test_build_request_senza_paths_nessun_body():
+    req = reingest.build_request("https://ember.formahub.it", "TOK")
+    assert req.data is None                            # ingest completo, retro-compatibile
