@@ -1,4 +1,4 @@
-# Deploy di Ember su Railway
+# Deploy di Divina su Railway
 
 Servizio separato sullo stesso account Railway di FORMA. ~10 minuti.
 Richiede il tuo account Railway e l'inserimento delle chiavi (azione tua: le credenziali non passano da me).

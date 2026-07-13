@@ -1,4 +1,4 @@
-"""Configurazione del servizio Ember. Legge le variabili da .env."""
+"""Configurazione del servizio Divina. Legge le variabili da .env."""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     # col campo branding.lang; il client può passarla per richiesta.
     default_lang: str = "it"
 
-    # ricerca web (capability agente, OPT-IN, OFF di default). Ember può cercare su
+    # ricerca web (capability agente, OPT-IN, OFF di default). Divina può cercare su
     # internet via Tavily oltre a rispondere dal cervello. Gating: WEB_SEARCH globale
     # OPPURE branding.web_search del singolo tenant. INERTE finché TAVILY_API_KEY è vuota
     # (nessuna chiamata, nessun costo) — vedi app/websearch.py. Con capability OFF /chat
@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     web_search: bool = False
 
     # ── Ponte agenti Divina (ovy-orchestrator) — capability OPT-IN, OFF di default ──
-    # Quando la chat riceve un COMPITO (non semplice Q&A), Ember può instradarlo
+    # Quando la chat riceve un COMPITO (non semplice Q&A), Divina può instradarlo
     # all'agente Divina giusto (Dante/Virgilio/Beatrice) via POST {DIVINA_URL}/agents/route,
     # invece di rispondere col RAG. GATING (non negoziabile): il ponte opera SOLO se
     # AGENTS_BRIDGE=true E DIVINA_URL + DIVINA_ADMIN_TOKEN sono configurati. Con OFF o

@@ -1,4 +1,4 @@
-# OVYON / Ember — Runbook di provisioning (per Cowork)
+# OVYON / Divina — Runbook di provisioning (per Cowork)
 
 > Questo file è anche il **prompt da dare a Cowork**: la sezione qui sotto è
 > auto-contenuta. Cowork guida/esegue la parte manuale (account, credenziali, DNS,
@@ -8,10 +8,10 @@
 
 ## PROMPT PER COWORK (incolla da qui)
 
-Sei l'assistente operativo per portare in produzione **OVYON / Ember**. Contesto:
+Sei l'assistente operativo per portare in produzione **OVYON / Divina**. Contesto:
 
 - **OVY** = cervello (vault Obsidian), repo `formahub3d-cloud/ovy-cervello`.
-- **Ember** = chatbot multi-tenant integrato in OVYON, repo `formahub3d-cloud/chatbot-ember`.
+- **Divina** = chatbot multi-tenant integrato in OVYON, repo `formahub3d-cloud/chatbot-ember`.
 - Branch di lavoro in entrambi: `claude/ovyon-architecture-ip-puowot`.
 - Il codice dei passi 1–5 è già scritto e testato. **Serve solo la parte manuale**:
   creare i servizi esterni, raccogliere le credenziali, applicare lo schema SQL,
@@ -36,7 +36,7 @@ Esegui gli step in ordine; ad ogni step raccogli i **valori richiesti** e verifi
   (connection string Postgres), `service_role` key, `anon` key.
 - Applica lo schema: nel SQL editor esegui il contenuto di `db/ovyon_schema.sql`,
   poi (per un ambiente di prova) `db/seed.example.sql`.
-- Decisione RLS: per l'isolamento reale, Ember deve connettersi con un ruolo su cui
+- Decisione RLS: per l'isolamento reale, Divina deve connettersi con un ruolo su cui
   la RLS è attiva **oppure** impostare i GUC `ovyon.*` per richiesta (vedi `db/README.md`).
   Annota la scelta.
 
@@ -48,14 +48,14 @@ Esegui gli step in ordine; ad ogni step raccogli i **valori richiesti** e verifi
   (`allowed_tenants`, `allowed_orgs`, `allowed_sub_tenants`, `allowed_origins`).
 - Consegna in modo sicuro la chiave di **ATS** (pilota) e quella di FORMA interno.
 
-### Step 5 — Consegna del vault a Ember
-> **Decisione di architettura da confermare con l'utente.** Ember indicizza il vault
+### Step 5 — Consegna del vault a Divina
+> **Decisione di architettura da confermare con l'utente.** Divina indicizza il vault
 > dal path `VAULT_PATH`. Su Railway il vault non è presente: scegliere come fornirlo.
 - Opzione consigliata (MVP): al deploy, **clona `ovy-cervello`** (branch main) in una
   cartella e punta `VAULT_PATH` lì; re-indicizza a ogni aggiornamento del cervello.
 - Alternativa: sync periodico / volume. Annota la scelta e imposta `VAULT_PATH`.
 
-### Step 6 — Deploy di Ember su Railway
+### Step 6 — Deploy di Divina su Railway
 - Deploy del servizio dal repo `chatbot-ember` (Procfile già presente: uvicorn).
 - Imposta le variabili d'ambiente (come **secret**, non nel repo):
   `MISTRAL_API_KEY`, (`ANTHROPIC_API_KEY`), `QDRANT_URL`, `QDRANT_API_KEY`,

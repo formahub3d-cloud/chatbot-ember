@@ -1,9 +1,9 @@
 """Billing Stripe (opzionale): sessioni di Checkout a livelli (starter/pro/enterprise)
 e verifica del webhook. Inerte finché `STRIPE_SECRET_KEY` non è impostata — così il
-resto di Ember funziona senza Stripe. La libreria `stripe` è importata in modo pigro.
+resto di Divina funziona senza Stripe. La libreria `stripe` è importata in modo pigro.
 
 Nessun segreto è cablato nel codice: chiavi e price-id arrivano dalla config (env).
-Ember NON esegue pagamenti: crea solo la sessione di Checkout ospitata da Stripe.
+Divina NON esegue pagamenti: crea solo la sessione di Checkout ospitata da Stripe.
 """
 import logging
 

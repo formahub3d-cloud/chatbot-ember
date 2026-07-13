@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""backup.py — Backup/DR di Ember: snapshot Qdrant + export tabelle Supabase.
+"""backup.py — Backup/DR di Divina: snapshot Qdrant + export tabelle Supabase.
 
 Cosa fa (best-effort, ogni passo è indipendente):
   1. QDRANT   crea uno snapshot server-side della collection (ripristinabile

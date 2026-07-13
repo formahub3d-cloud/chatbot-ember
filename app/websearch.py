@@ -1,13 +1,13 @@
-"""Ricerca web via Tavily — capability agente OPT-IN per Ember.
+"""Ricerca web via Tavily — capability agente OPT-IN per Divina.
 
-Oltre a rispondere dal cervello (vault → Qdrant), Ember può cercare su internet e
+Oltre a rispondere dal cervello (vault → Qdrant), Divina può cercare su internet e
 sintetizzare, quando la capability è abilitata. Il pattern è quello di Divina
 (ovy-orchestrator/app/tavily.py) ma reso provider-agnostico e INERTE di default.
 
 Regole:
   - INERTE senza TAVILY_API_KEY: `search()` ritorna [] e NON fa alcuna chiamata di
     rete (nessun costo, comportamento storico). `enabled()` lo riflette.
-  - Nessuna dipendenza nuova: usa `httpx`, lo stesso client HTTP già in uso in Ember
+  - Nessuna dipendenza nuova: usa `httpx`, lo stesso client HTTP già in uso in Divina
     (providers.py / rag.py).
   - Il testo restituito è DATO NON FIDATO: chi lo consuma (rag) deve trattarlo come
     informazione da consultare, MAI come istruzioni — vedi security.sanitize_context

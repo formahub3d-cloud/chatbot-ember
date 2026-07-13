@@ -18,7 +18,7 @@ def main():
     model = settings.elevenlabs_model if settings.voice_provider == "elevenlabs" else settings.deepgram_tts_model
     print(f"Provider: {settings.voice_provider} · modello TTS: {model} · lingua: {settings.voice_lang}")
     try:
-        audio, ctype = voice.synthesize("Ciao, sono Ember. La voce funziona correttamente.")
+        audio, ctype = voice.synthesize("Ciao, sono Divina. La voce funziona correttamente.")
     except Exception as e:
         print(f"ERRORE dal provider: {e}")
         print("→ Controlla che la chiave sia valida e che il piano copra il TTS.")

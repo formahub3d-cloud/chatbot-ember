@@ -1,12 +1,20 @@
 # CLAUDE.md — Contesto progetto per Claude Code
 
-> Leggi questo file prima di lavorare. È il contesto del progetto **Ember** (ex "Jarvis": rebrand 2026-07; dominio pubblico `ember.formahub.it`; il dominio Railway `jarvis-production-e680.up.railway.app` resta attivo come alias).
+> Leggi questo file prima di lavorare. È il contesto del progetto **Divina** (ex «Ember», ex «Jarvis»; rebrand a Divina 2026-07; dominio pubblico `divina.formahub.it`; gli alias Railway `ember-*`/`jarvis-production-e680.up.railway.app` restano attivi come alias).
 
 ## Cos'è
 
-**Ember** è un chatbot AI **multi-tenant** che risponde attingendo al "cervello OVY"
+**Divina** è il prodotto AI di FORMA e ha **due facce sotto lo stesso brand**:
+- **questo repo (`chatbot-ember`) = il motore**: il **chatbot** RAG multi-tenant + il **cervello** (retrieval, ingest, admin);
+- **`ovy-orchestrator` = l'orchestratore**: i 3 agenti (Dante/Virgilio/Beatrice), che parlano con questo motore SOLO via API.
+
+La **console unica** (`/panel/`, servita da entrambi i servizi) unisce le due facce: Chat + analytics del cervello + controlli orchestratore.
+
+Il **motore Divina** è un chatbot AI **multi-tenant** che risponde attingendo al "cervello OVY"
 (un vault Obsidian di Andrea Aloia / FORMA). È un **prodotto FORMA**: FORMA lo usa
 internamente (tenant 0), **ATS** è il pilota, poi si vende ai clienti.
+
+> Nota rebrand: nel codice restano identificatori di basso livello col vecchio nome per non rompere la produzione — DB Mongo `MONGO_DB=ember`, prefisso chiavi tenant `ember_…` (chiavi già emesse), logger `ember`, e la variabile CI `EMBER_URL` (URL di questo servizio; da non confondere con `DIVINA_URL` che punta all'orchestratore).
 
 Regola d'oro del prodotto: **un solo motore, molte chiavi.** Ogni cliente è un *tenant*
 con una chiave che limita le **aree** del cervello che può leggere (separazione per settore).
@@ -44,10 +52,10 @@ identico ai valori storici. Mappatura e razionale: `ovyon/docs/doc-ovyon-ember-s
 - `app/extract.py` — estrazione campi (regex UniLav + LLM generico)
 - `app/writeback.py` — scrive la nota nel vault: contratti + `save_note` generico (conferma umana); Notion = TODO
 - `app/tenants.py` — chiavi→scope; store statico/Postgres/Mongo/**Supabase `api_keys`** + audit `log_access`
-- `app/rls.py` — GUC `ovyon.*` (`session_grants`) per la RLS Supabase lato Ember
+- `app/rls.py` — GUC `ovyon.*` (`session_grants`) per la RLS Supabase lato Divina
 - `app/docstore.py` — sync metadati nota → tabella Supabase `documents` (durante l'ingest)
 - `app/main.py` — API: `/health` `/ingest` `/chat` (con `{"stream": true}` SSE) `/upload`, e per il connettore MCP `/search` `/document` `/context` `/writeback`; admin: `/admin/learning` (task di apprendimento da gap+👎), quote per tenant `quota_day` E `quota_month` (mensile; su Supabase via chiave `quota_month` nel jsonb `branding`)
-- `mcp-connector/` — server MCP (5 tool) verso Ember · `db/` — schema Supabase OVYON · `scripts/verify_ingest.py` — collaudo post-ingest · `OVYON-SETUP.md` — runbook produzione
+- `mcp-connector/` — server MCP (5 tool) verso Divina · `db/` — schema Supabase OVYON · `scripts/verify_ingest.py` — collaudo post-ingest · `OVYON-SETUP.md` — runbook produzione
 
 ## Comandi
 

@@ -1,10 +1,10 @@
-// Proxy Ember come Cloudflare Worker — universale, per QUALSIASI sito cliente.
+// Proxy Divina come Cloudflare Worker — universale, per QUALSIASI sito cliente.
 // La CHIAVE TENANT resta un "secret" del Worker: non finisce mai nel browser.
 //
 // Deploy (dashboard Cloudflare → Workers):
 //   1. Crea un Worker, incolla questo codice.
 //   2. Settings → Variables: aggiungi
-//        EMBER_API        = https://ember.formahub.it   (Variable)
+//        EMBER_API        = https://divina.formahub.it   (Variable)
 //        EMBER_TENANT_KEY = CHIAVE_DEL_CLIENTE                              (Secret)
 //        ALLOW_ORIGIN      = https://www.sitodelcliente.it                   (Variable, opzionale)
 //   3. Punta il widget al Worker:  data-proxy="https://ember-hrh.tuosub.workers.dev"
@@ -35,7 +35,7 @@ export default {
     if (request.method !== "POST") return json({ answer: "Metodo non consentito." }, 405, cors);
 
     // Voce PRO: se il path finisce con /voice/stt o /voice/tts, inoltra così com'è
-    // (audio o JSON) aggiungendo la chiave lato server. Serve VOICE_PROVIDER su Ember.
+    // (audio o JSON) aggiungendo la chiave lato server. Serve VOICE_PROVIDER su Divina.
     const path = new URL(request.url).pathname;
     if (path.endsWith("/voice/stt") || path.endsWith("/voice/tts")) {
       const sub = path.endsWith("/voice/stt") ? "/voice/stt" : "/voice/tts";
@@ -80,7 +80,7 @@ export default {
         headers: { "Content-Type": "application/json", "X-Tenant-Key": TENANT_KEY },
         body: JSON.stringify({ message, stream, history }),
       });
-      // SSE pass-through: se Ember risponde in streaming, lo inoltriamo così com'è.
+      // SSE pass-through: se Divina risponde in streaming, lo inoltriamo così com'è.
       const ct = r.headers.get("content-type") || "";
       if (ct.includes("text/event-stream") && r.body) {
         return new Response(r.body, {

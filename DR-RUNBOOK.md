@@ -1,4 +1,4 @@
-# DR-RUNBOOK — Backup & ripristino di Ember
+# DR-RUNBOOK — Backup & ripristino di Divina
 
 > Cosa può rompersi, cosa perdi, come torni su. Backup con `python scripts/backup.py`
 > (snapshot Qdrant + export JSON delle tabelle Supabase in `backup/AAAA-MM-GG/`).

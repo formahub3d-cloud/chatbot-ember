@@ -51,7 +51,7 @@ updated: {today}
 
 # {title}
 
-> ✍️ Nota generata dal connettore OVYON (Ember). Da rivedere prima di consolidare.
+> ✍️ Nota generata dal connettore OVYON (Divina). Da rivedere prima di consolidare.
 
 {body}
 """

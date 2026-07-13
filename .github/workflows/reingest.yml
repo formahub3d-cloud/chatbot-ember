@@ -1,6 +1,6 @@
 name: Re-ingest cervello
 
-# Tiene il cervello di Ember sempre fresco ri-lanciando POST /ingest.
+# Tiene il cervello di Divina sempre fresco ri-lanciando POST /ingest.
 # Si attiva:
 #   - manualmente (Actions → Run workflow)
 #   - ogni notte alle 03:00 UTC (rete di sicurezza)
@@ -14,8 +14,8 @@ name: Re-ingest cervello
 #         -d '{"event_type":"vault-updated"}'
 #
 # Richiede due impostazioni nel repo (Settings → Secrets and variables → Actions):
-#   - Variabile  EMBER_URL     (es. https://ember.formahub.it)   [opzionale]
-#   - Segreto    ADMIN_TOKEN   (token admin di Ember)            [obbligatorio]
+#   - Variabile  EMBER_URL     (es. https://divina.formahub.it)   [opzionale]
+#   - Segreto    ADMIN_TOKEN   (token admin di Divina)            [obbligatorio]
 
 on:
   workflow_dispatch:

@@ -1,7 +1,7 @@
 # Ricognizione — Fase 0 del progetto "OVY Orchestrator"
 
 > Report tecnico preliminare (2026-07-08) per il potenziamento del sistema Cervello OVY
-> + Ember verso: orchestratore multi-agente, skill library, auto-miglioramento continuo,
+> + Divina verso: orchestratore multi-agente, skill library, auto-miglioramento continuo,
 > generazione documenti, connettori clienti. **Nessun codice applicativo è stato scritto.**
 > Da leggere e approvare prima della Fase 1 (schema dati).
 
@@ -29,7 +29,7 @@
   dal path (`forma/clienti/<x>/` → tenant `<x>`).
 - Generatori Python (`build_all.py`): llms.txt, canvas, bookmarks, cervello-vivo,
   `note-index.json`, quality gate (7 regole). Il **pannello** (`/pannello`) è una PWA statica
-  che parla con Ember via fetch (chiavi in localStorage, mai in pagina).
+  che parla con Divina via fetch (chiavi in localStorage, mai in pagina).
 - Auto-miglioramento già esistente (embrione): gap/👎 → `/admin/learning` → `learning_to_bozze.py`
   → bozze in `_bozze/` → revisione umana → ingest.
 
@@ -39,21 +39,21 @@
 - `access_logs` — audit trail (RLS: insert in sessione, read solo master).
 - `analytics_events` — chat/gap/feedback persistiti (domanda REDATTA a monte).
 - `key_usage` — quota per (key_hash, period).
-- `api_keys` — ponte Ember: hash, grant 3 livelli, origins, branding jsonb.
+- `api_keys` — ponte Divina: hash, grant 3 livelli, origins, branding jsonb.
 - RLS: funzioni `ovyon.grants()/is_master()/can_read()` sui GUC di sessione; `'*'` = master.
 - ⚠️ Limite ricognizione: ho letto il **DDL versionato**, non il DB live (nessuna credenziale
   in questa sessione) — eventuali derive schema live↔repo vanno verificate col primo accesso.
 
-## 2. Punti di estensione naturali (dove l'orchestrator si aggancia SENZA toccare Ember)
+## 2. Punti di estensione naturali (dove l'orchestrator si aggancia SENZA toccare Divina)
 
 1. **Stesso Supabase, tabelle nuove**: lo schema OVYON è già multi-tenant con RLS a funzioni
    riusabili (`ovyon.can_read`); le nuove tabelle (Fase 1) possono citare `tenant_id` uuid
    FK a `tenants` + code denormalizzato, e riusare le stesse policy-pattern.
-2. **API Ember già pronte per l'orchestrator** (nessuna modifica richiesta):
+2. **API Divina già pronte per l'orchestrator** (nessuna modifica richiesta):
    `/search` `/document` `/context` (lettura RAG con chiave tenant), `/writeback` (bozza con
    conferma), `/ingest` (re-index), `/admin/learning` (i gap da cui parte l'auto-miglioramento).
 3. **Il pannello** è statico e facilmente estendibile: nuova vista "Orchestrator" = fetch verso
-   il nuovo servizio (CORS da configurare sul servizio nuovo, non su Ember).
+   il nuovo servizio (CORS da configurare sul servizio nuovo, non su Divina).
 4. **Il ciclo bozze→conferma umana** esiste già ed è il precedente perfetto per la regola
    "le contraddizioni non si risolvono mai in automatico".
 
@@ -61,7 +61,7 @@
 
 | # | Rischio | Mitigazione proposta |
 |---|---|---|
-| R1 | **Toccare Ember in produzione** (clienti attivi) | Repo/servizio separato `ovy-orchestrator`; comunica via API Ember + Supabase; zero modifiche al codice Ember in Fase 1-2 |
+| R1 | **Toccare Divina in produzione** (clienti attivi) | Repo/servizio separato `ovy-orchestrator`; comunica via API Divina + Supabase; zero modifiche al codice Divina in Fase 1-2 |
 | R2 | **RLS incoerente sulle nuove tabelle** → leak cross-tenant | Ogni nuova tabella replica il pattern `ovyon.can_read` + test d'isolamento come `test_isolation.py` |
 | R3 | **Ruolo DB troppo largo per il nuovo servizio** | Creare un ruolo Postgres dedicato all'orchestrator con GRANT solo sulle sue tabelle (non su `api_keys`) |
 | R4 | **Costi ricerca web + LLM in loop schedulato** | Budget per run (max N gap/notte), quota per tenant, riuso alert costi esistente |
@@ -77,7 +77,7 @@
   solo tabelle NUOVE additive.
 - Il flusso di conferma umana (write-back, contraddizioni): mai bypassato.
 - Il branch `main` dei due repo: l'orchestrator nasce su repo dedicato; qualsiasi
-  modifica futura a Ember passa da branch + approvazione.
+  modifica futura a Divina passa da branch + approvazione.
 - La regola embeddings=Mistral e il filtro scope server-side su Qdrant.
 
 ## 5. Proposta di priorità (da confermare)

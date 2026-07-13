@@ -1,24 +1,24 @@
-/* Ember — widget di chat embeddable (vanilla JS, nessuna dipendenza).
+/* Divina — widget di chat embeddable (vanilla JS, nessuna dipendenza).
  * v2 · Shadow DOM (CSS isolati dal sito ospite) + voce (input & output) + markdown + chip-fonti.
  * Funziona su qualsiasi sito (FORMA, ATS, ...). Una bolla flottante apre il pannello.
  *
  * USO — due modalità:
  *
  * 1) PROXY (consigliato in produzione): la chiave NON sta nel browser. Il widget
- *    chiama un endpoint del tuo sito che aggiunge la chiave lato server e inoltra a Ember.
+ *    chiama un endpoint del tuo sito che aggiunge la chiave lato server e inoltra a Divina.
  *    <script src="https://.../embed.js"
- *            data-proxy="/api/ember"
+ *            data-proxy="/api/divina"
  *            data-title="Assistente FORMA"
  *            data-accent="#0ED4E4"></script>
  *
  * 2) DIRETTA (solo pilota/demo): la chiave è nell'HTML (sola lettura, limitata allo scope).
  *    <script src="https://.../embed.js"
- *            data-api="https://ember.formahub.it" data-key="CHIAVE_TENANT"
+ *            data-api="https://divina.formahub.it" data-key="CHIAVE_TENANT"
  *            data-title="Assistente FORMA" data-accent="#0ED4E4"></script>
  *
  * ATTRIBUTI (tutti opzionali, con default):
  *   data-proxy | data-api + data-key   endpoint
- *   data-title      "Ember · Assistente"     titolo pannello
+ *   data-title      "Divina · Assistente"     titolo pannello
  *   data-subtitle   "Assistente AI"           sottotitolo (disclosure)
  *   data-accent     "#0ED4E4"                 colore brand
  *   data-avatar     URL immagine avatar (altrimenti iniziale del titolo)
@@ -40,7 +40,7 @@
   var PROXY   = (CFG.proxy || d.proxy || "").replace(/\/$/, "");
   var API     = (CFG.api   || d.api   || "http://localhost:8000").replace(/\/$/, "");
   var KEY     = CFG.key    || d.key   || "CHIAVE_FORMA_INTERNO";
-  var TITLE   = CFG.title  || d.title || "Ember · Assistente";
+  var TITLE   = CFG.title  || d.title || "Divina · Assistente";
   var SUBT    = CFG.subtitle || d.subtitle || "Assistente AI";
   var ACC     = CFG.accent || d.accent || "#0ED4E4";
   var AVATAR  = CFG.avatar || d.avatar || "";
@@ -225,7 +225,7 @@
 
   // ── Host + Shadow DOM ──
   var host = document.createElement("div");
-  host.setAttribute("id", "ember-widget");
+  host.setAttribute("id", "divina-widget");
   var root = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
   var style = document.createElement("style"); style.textContent = css; root.appendChild(style);
 
@@ -579,5 +579,5 @@
   if (canSpeak && synth.onvoiceschanged !== undefined){ synth.onvoiceschanged = function(){}; }
 
   // API pubblica minima
-  window.Ember = window.Ember || { open:function(){toggle(true);}, close:function(){toggle(false);}, ask:function(t){toggle(true);ask(t);} };
+  window.Divina = window.Divina || { open:function(){toggle(true);}, close:function(){toggle(false);}, ask:function(t){toggle(true);ask(t);} };
 })();

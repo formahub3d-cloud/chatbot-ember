@@ -63,6 +63,6 @@ def test_metrics_prometheus(monkeypatch):
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/plain")
     body = r.text
-    assert "ember_chat_total 1" in body
-    assert 'ember_gap_by_scope_total{scope="ats"} 1' in body
+    assert "divina_chat_total 1" in body
+    assert 'divina_gap_by_scope_total{scope="ats"} 1' in body
     metrics.reset()

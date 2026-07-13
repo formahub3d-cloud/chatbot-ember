@@ -4,5 +4,5 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-# Il connettore MCP è un servizio a sé: non fa parte del deploy di Ember.
+# Il connettore MCP è un servizio a sé: non fa parte del deploy di Divina.
 mcp-connector/

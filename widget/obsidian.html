@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ember · Chat interna (Obsidian)</title>
+<title>Divina · Chat interna (Obsidian)</title>
 <style>
   html,body{height:100%}
   body{margin:0;background:
@@ -17,23 +17,23 @@
 </style>
 </head>
 <body>
-  <div class="hint"><span class="dot"></span><b>Ember</b> — assistente del cervello OVY.<br>
+  <div class="hint"><span class="dot"></span><b>Divina</b> — assistente del cervello OVY.<br>
   La chat si apre da sola. Chiedimi qualsiasi cosa su FORMA, clienti, progetti, processi.</div>
 
   <!-- Pannello interno FORMA (dogfood). Voce attiva; risponde solo sullo scope FORMA+Andrea. -->
-  <script src="https://ember.formahub.it/widget/embed.js"
-          data-api="https://ember.formahub.it"
+  <script src="https://divina.formahub.it/widget/embed.js"
+          data-api="https://divina.formahub.it"
           data-key="CHIAVE_FORMA_INTERNO"
-          data-title="Ember · Cervello OVY"
+          data-title="Divina · Cervello OVY"
           data-subtitle="Assistente interno · con fonti"
           data-accent="#0ED4E4"
           data-lang="it-IT"
           data-voice="true"
-          data-greeting="Ciao Andrea! Sono Ember. Chiedimi del cervello OVY: identità FORMA, clienti, progetti, OKR, processi. Rispondo con le fonti."></script>
+          data-greeting="Ciao Andrea! Sono Divina. Chiedimi del cervello OVY: identità FORMA, clienti, progetti, OKR, processi. Rispondo con le fonti."></script>
   <script>
     // Apre la chat automaticamente quando la pagina è pronta (pannello Obsidian).
-    function openEmber(){ if (window.Ember) { window.Ember.open(); } else { setTimeout(openEmber, 200); } }
-    window.addEventListener("load", function(){ setTimeout(openEmber, 300); });
+    function openDivina(){ if (window.Divina) { window.Divina.open(); } else { setTimeout(openDivina, 200); } }
+    window.addEventListener("load", function(){ setTimeout(openDivina, 300); });
   </script>
 </body>
 </html>

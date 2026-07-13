@@ -61,7 +61,7 @@ Se chiedi al tenant ATS qualcosa di FORMA → deve rispondere che non ha accesso
 ## 7) Rendi il progetto un repo PRIVATO (separato dal cervello)
 
 ```bash
-git init && git add -A && git commit -m "Ember Fase 0+2"
+git init && git add -A && git commit -m "Divina Fase 0+2"
 ```
 Poi crea un repo su GitHub **privato** e collegalo. (Il push/collegamento possiamo
 farlo insieme in Cowork.)
@@ -71,7 +71,7 @@ farlo insieme in Cowork.)
 ## Cosa faccio IO in Cowork (browser/collegamenti)
 
 - Repo del **cervello** privato + push + revoca token (rimasto aperto).
-- Aiuto con **Railway** (servizio separato per Ember) e il collegamento al repo.
+- Aiuto con **Railway** (servizio separato per Divina) e il collegamento al repo.
 - **Token Notion** per il write-back (Fase 2b).
 - Gestione contratti, Notion, Obsidian, ricerche.
 

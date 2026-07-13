@@ -4,110 +4,69 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
-<title>Ember · Console operativa</title>
+<title>Divina · Console</title>
 <style>
 /* ══════════════════════════════════════════════════════════════════
-   EMBER · Console operativa — design system FORMA (cyan/magenta/verde)
+   DIVINA · Console unica — chatbot + orchestratore del cervello OVY
    Single-file, zero dipendenze. Tema chiaro/scuro. WCAG AA · touch ≥44px.
+   Motore (chat + cervello) = servizio "engine"; Orchestratore = "orch".
    ══════════════════════════════════════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Montserrat:wght@400;500;600;700&display=swap');
-
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
 :root{
-  /* Brand FORMA */
   --cyan:#0ED4E4; --magenta:#DD24F2; --green:#89D41D; --orange:#F8693C;
-  /* Semantica */
-  --pos:#89D41D; --warn:#F8693C; --neg:#ef4444; --info:#0ED4E4; --accent:#0ED4E4;
-  /* Tema scuro (default) */
-  --bg:#050505; --bg-grad-1:rgba(14,212,228,.07); --bg-grad-2:rgba(221,36,242,.06);
+  --pos:#89D41D; --warn:#F8693C; --neg:#ef4444; --info:#0ED4E4; --accent:#DD24F2;
+  --bg:#050505; --bg-grad-1:rgba(221,36,242,.08); --bg-grad-2:rgba(14,212,228,.06);
   --surface:#0d0f13; --surface-2:#14171d; --surface-3:#1b1f27;
   --border:#232833; --border-strong:#333a48;
   --text:#eceff4; --text-2:#9aa1ad; --text-3:#5b6270;
-  --shadow:0 12px 34px -16px rgba(0,0,0,.7);
-  --shadow-sm:0 2px 8px -3px rgba(0,0,0,.5);
-  --radius:16px; --radius-sm:11px; --radius-xs:8px;
-  --nav-w:236px;
+  --shadow:0 12px 34px -16px rgba(0,0,0,.7); --shadow-sm:0 2px 8px -3px rgba(0,0,0,.5);
+  --radius:16px; --radius-sm:11px; --radius-xs:8px; --nav-w:238px;
   --pos-bg:rgba(137,212,29,.12); --warn-bg:rgba(248,105,60,.12);
-  --neg-bg:rgba(239,68,68,.12); --info-bg:rgba(14,212,228,.12);
+  --neg-bg:rgba(239,68,68,.12); --info-bg:rgba(14,212,228,.12); --accent-bg:rgba(221,36,242,.12);
 }
 [data-theme="light"]{
-  --bg:#f4f6f9; --bg-grad-1:rgba(14,212,228,.10); --bg-grad-2:rgba(221,36,242,.07);
-  --surface:#ffffff; --surface-2:#f3f5f8; --surface-3:#e9edf3;
-  --border:#e3e7ee; --border-strong:#cdd4de;
-  --text:#12151b; --text-2:#556070; --text-3:#8a93a2;
-  --shadow:0 14px 34px -18px rgba(20,30,50,.22);
-  --shadow-sm:0 2px 8px -3px rgba(20,30,50,.10);
+  --bg:#f5f4f9; --bg-grad-1:rgba(221,36,242,.10); --bg-grad-2:rgba(14,212,228,.07);
+  --surface:#ffffff; --surface-2:#f3f3f8; --surface-3:#e9e9f2;
+  --border:#e5e3ee; --border-strong:#d2cede;
+  --text:#141019; --text-2:#5c5568; --text-3:#8f889c;
+  --shadow:0 14px 34px -18px rgba(30,20,50,.22); --shadow-sm:0 2px 8px -3px rgba(30,20,50,.10);
   --pos-bg:rgba(137,212,29,.16); --warn-bg:rgba(248,105,60,.14);
-  --neg-bg:rgba(239,68,68,.12); --info-bg:rgba(14,212,228,.14);
+  --neg-bg:rgba(239,68,68,.12); --info-bg:rgba(14,212,228,.14); --accent-bg:rgba(221,36,242,.13);
 }
-@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 html,body{height:100%}
-body{
-  font-family:'Montserrat',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  background:var(--bg); color:var(--text); line-height:1.5;
-  background-image:
-    radial-gradient(1100px 520px at 100% -6%, var(--bg-grad-2), transparent 60%),
-    radial-gradient(1000px 500px at -6% 0%, var(--bg-grad-1), transparent 58%);
-  background-attachment:fixed;
-  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
-}
+body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;
+  background-image:radial-gradient(1100px 520px at 100% -6%,var(--bg-grad-2),transparent 60%),radial-gradient(1000px 500px at -6% 0%,var(--bg-grad-1),transparent 58%);
+  background-attachment:fixed;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 h1,h2,h3,.brand-name,.stat-val{font-family:'Orbitron','Montserrat',sans-serif}
 a{color:var(--accent);text-decoration:none}
 button{font-family:inherit}
-::selection{background:rgba(14,212,228,.28)}
-:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:4px}
-
-/* ── APP SHELL ─────────────────────────────────────── */
+::selection{background:rgba(221,36,242,.28)}
+:focus-visible{outline:2px solid var(--magenta);outline-offset:2px;border-radius:4px}
 .app{display:grid;grid-template-columns:var(--nav-w) 1fr;min-height:100vh}
-
-/* ── SIDEBAR ───────────────────────────────────────── */
-.side{
-  position:sticky;top:0;height:100vh;overflow-y:auto;
-  background:linear-gradient(180deg,var(--surface),var(--bg));
-  border-right:1px solid var(--border); padding:20px 14px;
-  display:flex;flex-direction:column;gap:6px;z-index:30;
-}
-.brand{display:flex;align-items:center;gap:11px;padding:6px 8px 18px}
-.brand-mark{
-  width:40px;height:40px;border-radius:12px;flex-shrink:0;display:grid;place-items:center;
-  font-family:'Orbitron';font-weight:800;font-size:15px;color:#04121a;
-  background:linear-gradient(140deg,var(--green),var(--cyan));
-  box-shadow:0 0 22px rgba(14,212,228,.32);
-}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;background:linear-gradient(180deg,var(--surface),var(--bg));border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;gap:5px;z-index:30}
+.brand{display:flex;align-items:center;gap:11px;padding:6px 8px 16px}
+.brand-mark{width:40px;height:40px;border-radius:12px;flex-shrink:0;display:grid;place-items:center;font-family:'Orbitron';font-weight:800;font-size:15px;color:#fff;background:linear-gradient(140deg,var(--magenta),var(--cyan));box-shadow:0 0 22px rgba(221,36,242,.32)}
 .brand-name{font-size:15px;font-weight:800;letter-spacing:.02em}
 .brand-sub{font-size:10.5px;color:var(--text-2);letter-spacing:.02em}
-.nav-label{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.11em;margin:16px 10px 6px}
-.nav-item{
-  display:flex;align-items:center;gap:11px;width:100%;
-  padding:10px 12px;border-radius:var(--radius-xs);border:1px solid transparent;
-  background:none;color:var(--text-2);font-size:13.5px;font-weight:600;cursor:pointer;
-  text-align:left;transition:background .15s,color .15s,border-color .15s;min-height:44px;
-}
+.nav-label{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.11em;margin:14px 10px 6px;display:flex;align-items:center;gap:7px}
+.nav-label .ld{width:6px;height:6px;border-radius:2px}
+.nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:var(--radius-xs);border:1px solid transparent;background:none;color:var(--text-2);font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;transition:background .15s,color .15s,border-color .15s;min-height:42px}
 .nav-item:hover{background:var(--surface-2);color:var(--text)}
-.nav-item.active{background:var(--info-bg);color:var(--text);border-color:rgba(14,212,228,.3)}
-.nav-item .ic{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-item.active{background:var(--accent-bg);color:var(--text);border-color:rgba(221,36,242,.32)}
+.nav-item .ic{font-size:15px;width:19px;text-align:center;flex-shrink:0}
 .nav-item .badge{margin-left:auto;font-size:10px;font-weight:800;padding:1px 7px;border-radius:20px;background:var(--surface-3);color:var(--text-2)}
-.nav-item.active .badge{background:rgba(14,212,228,.2);color:var(--cyan)}
+.nav-item.active .badge{background:rgba(221,36,242,.2);color:var(--magenta)}
 .side-foot{margin-top:auto;padding:14px 8px 4px;font-size:10.5px;color:var(--text-3);line-height:1.7}
-
-/* ── TOPBAR ────────────────────────────────────────── */
-.main{min-width:0;display:flex;flex-direction:column}
-.topbar{
-  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;
-  padding:14px 26px;background:color-mix(in srgb,var(--bg) 78%, transparent);
-  backdrop-filter:blur(14px);border-bottom:1px solid var(--border);
-}
+.main{min-width:0;display:flex;flex-direction:column;height:100vh}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:13px 26px;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);flex-shrink:0}
 .topbar .burger{display:none}
-.page-title{font-size:17px;font-weight:700;letter-spacing:-.2px}
+.page-title{font-size:16.5px;font-weight:700;letter-spacing:-.2px}
 .page-sub{font-size:12px;color:var(--text-2);margin-top:1px}
 .top-actions{margin-left:auto;display:flex;align-items:center;gap:9px}
-.conn-chip{
-  display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;
-  font-size:11.5px;font-weight:700;letter-spacing:.02em;cursor:pointer;
-  border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);min-height:38px;
-}
+.tenant-chip,.conn-chip{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);min-height:38px}
+.tenant-chip b{color:var(--magenta)}
 .conn-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--text-3)}
 .conn-chip.live{color:var(--green);border-color:rgba(137,212,29,.4);background:var(--pos-bg)}
 .conn-chip.live .dot{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
@@ -116,98 +75,58 @@ button{font-family:inherit}
 .conn-chip.err{color:var(--neg);border-color:rgba(239,68,68,.4);background:var(--neg-bg)}
 .conn-chip.err .dot{background:var(--neg)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.icon-btn{
-  width:38px;height:38px;border-radius:11px;border:1px solid var(--border-strong);
-  background:var(--surface-2);color:var(--text-2);cursor:pointer;display:grid;place-items:center;
-  font-size:16px;transition:color .15s,border-color .15s,background .15s;
-}
-.icon-btn:hover{color:var(--text);border-color:var(--cyan)}
-
-/* ── CONTENT ───────────────────────────────────────── */
-.content{padding:26px;max-width:1320px;width:100%}
+.icon-btn{width:38px;height:38px;border-radius:11px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:16px;transition:color .15s,border-color .15s}
+.icon-btn:hover{color:var(--text);border-color:var(--magenta)}
+.content{padding:26px;max-width:1320px;width:100%;overflow-y:auto;flex:1}
+.content.chatmode{padding:0;max-width:none;display:flex;flex-direction:column}
 .view{animation:fade .3s ease}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .sec{font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.11em;margin:28px 0 14px;display:flex;align-items:center;gap:11px}
 .sec:first-child{margin-top:0}
 .sec::after{content:'';flex:1;height:1px;background:var(--border)}
-
-/* ── CARDS & GRID ──────────────────────────────────── */
 .grid{display:grid;gap:14px}
-.g-stats{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-.g-2{grid-template-columns:1fr 1fr}
-.g-21{grid-template-columns:1.6fr 1fr}
-.card{
-  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-  padding:20px;box-shadow:var(--shadow-sm);
-}
+.g-stats{grid-template-columns:repeat(auto-fit,minmax(178px,1fr))}
+.g-2{grid-template-columns:1fr 1fr}.g-3{grid-template-columns:1fr 1fr 1fr}.g-21{grid-template-columns:1.6fr 1fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm)}
 .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:16px}
 .card-head h3{font-size:14px;font-weight:700;letter-spacing:-.2px}
 .card-head p{font-size:11.5px;color:var(--text-2);margin-top:3px}
-
-/* ── STAT TILE ─────────────────────────────────────── */
-.stat{
-  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-  padding:18px 18px 16px;position:relative;overflow:hidden;box-shadow:var(--shadow-sm);
-  transition:border-color .18s,transform .18s;
-}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 18px 16px;position:relative;overflow:hidden;box-shadow:var(--shadow-sm);transition:border-color .18s,transform .18s}
 .stat:hover{border-color:var(--border-strong);transform:translateY(-2px)}
 .stat .glow{position:absolute;inset:0 0 auto 0;height:3px}
 .stat .lbl{font-size:10.5px;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px;margin-bottom:11px}
-.stat .val{font-size:30px;font-weight:800;line-height:1;letter-spacing:-.6px}
+.stat .val{font-size:29px;font-weight:800;line-height:1;letter-spacing:-.6px}
 .stat .meta{font-size:11.5px;color:var(--text-2);margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.02em}
-.tag.pos{background:var(--pos-bg);color:var(--green)} .tag.warn{background:var(--warn-bg);color:var(--orange)}
-.tag.neg{background:var(--neg-bg);color:var(--neg)} .tag.info{background:var(--info-bg);color:var(--cyan)}
-.tag.mut{background:var(--surface-3);color:var(--text-2)}
-
-/* ── TABLE ─────────────────────────────────────────── */
+.tag.pos{background:var(--pos-bg);color:var(--green)}.tag.warn{background:var(--warn-bg);color:var(--orange)}
+.tag.neg{background:var(--neg-bg);color:var(--neg)}.tag.info{background:var(--info-bg);color:var(--cyan)}
+.tag.acc{background:var(--accent-bg);color:var(--magenta)}.tag.mut{background:var(--surface-3);color:var(--text-2)}
 .tbl-wrap{overflow-x:auto;border-radius:var(--radius-sm)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
 td{padding:11px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tbody tr{transition:background .12s}
-tbody tr:hover{background:var(--surface-2)}
+tbody tr{transition:background .12s}tbody tr:hover{background:var(--surface-2)}
 .mono{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12px}
 .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
-
-/* ── BARS ──────────────────────────────────────────── */
 .bar-track{height:7px;background:var(--surface-3);border-radius:5px;overflow:hidden;min-width:60px}
 .bar-fill{height:100%;border-radius:5px}
 .mini-bars{display:flex;flex-direction:column;gap:12px}
 .mini-row .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;font-size:12.5px}
-.mini-row .top b{font-weight:700}
-
-/* ── PILLS / SCOPE ─────────────────────────────────── */
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)}
 .scope-chip{font-family:"SF Mono",Menlo,monospace;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--info-bg);color:var(--cyan);border:1px solid rgba(14,212,228,.22)}
-
-/* ── BUTTONS / FORMS ───────────────────────────────── */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;
-  padding:0 18px;border-radius:11px;border:1px solid var(--border-strong);
-  background:var(--surface-2);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;
-  transition:transform .12s,border-color .15s,background .15s,box-shadow .15s;
-}
-.btn:hover{border-color:var(--cyan)}
-.btn:active{transform:translateY(1px)}
-.btn.primary{border:none;color:#04121a;background:linear-gradient(135deg,var(--green),var(--cyan));box-shadow:0 6px 18px -8px rgba(14,212,228,.6)}
-.btn.primary:hover{filter:brightness(1.06)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 18px;border-radius:11px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;transition:transform .12s,border-color .15s,filter .15s}
+.btn:hover{border-color:var(--magenta)}.btn:active{transform:translateY(1px)}
+.btn.primary{border:none;color:#fff;background:linear-gradient(135deg,var(--magenta),var(--cyan));box-shadow:0 6px 18px -8px rgba(221,36,242,.55)}
+.btn.primary:hover{filter:brightness(1.07)}
 .btn.danger{color:var(--neg);border-color:rgba(239,68,68,.4);background:var(--neg-bg)}
-.btn.ghost{background:none}
-.btn.sm{min-height:34px;padding:0 12px;font-size:12px;border-radius:9px}
-input,select,textarea{
-  width:100%;font-family:inherit;font-size:13.5px;color:var(--text);
-  background:var(--surface-2);border:1px solid var(--border-strong);border-radius:10px;
-  padding:11px 13px;transition:border-color .15s;min-height:44px;
-}
+.btn.ghost{background:none}.btn.sm{min-height:34px;padding:0 12px;font-size:12px;border-radius:9px}
+input,select,textarea{width:100%;font-family:inherit;font-size:13.5px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:10px;padding:11px 13px;transition:border-color .15s;min-height:44px}
 textarea{min-height:88px;resize:vertical;line-height:1.5}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--magenta)}
 input::placeholder,textarea::placeholder{color:var(--text-3)}
 label.fld{display:block;margin-bottom:12px}
 label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2);margin-bottom:6px}
-
-/* ── STATES: skeleton / empty / error ──────────────── */
 .skeleton{background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3) 50%,var(--surface-2) 75%);background-size:200% 100%;animation:shimmer 1.3s infinite;border-radius:8px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .sk-line{height:14px;margin:9px 0}
@@ -215,610 +134,489 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .empty .ic,.err-box .ic{font-size:34px;display:block;margin-bottom:10px;opacity:.7}
 .empty h4{font-size:15px;color:var(--text);margin-bottom:5px;font-family:'Orbitron'}
 .err-box{color:var(--neg)}
-
-/* ── MODAL ─────────────────────────────────────────── */
 .modal-back{position:fixed;inset:0;background:rgba(3,4,6,.68);backdrop-filter:blur(5px);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-back.open{display:flex;animation:fade .2s}
-.modal{background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);padding:26px;width:100%;max-width:460px;box-shadow:var(--shadow)}
+.modal{background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius);padding:26px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow)}
 .modal h3{font-size:17px;margin-bottom:5px}
-.modal .desc{font-size:12.5px;color:var(--text-2);margin-bottom:20px}
-.modal-foot{display:flex;gap:10px;margin-top:8px}
-.modal-foot .btn{flex:1}
-
-/* ── TOAST ─────────────────────────────────────────── */
+.modal .desc{font-size:12.5px;color:var(--text-2);margin-bottom:18px}
+.svc-block{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px}
+.svc-block .st{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.modal-foot{display:flex;gap:10px;margin-top:6px}.modal-foot .btn{flex:1}
 .toasts{position:fixed;right:20px;bottom:20px;z-index:200;display:flex;flex-direction:column;gap:10px;max-width:340px}
 .toast{padding:13px 16px;border-radius:12px;background:var(--surface);border:1px solid var(--border-strong);box-shadow:var(--shadow);font-size:13px;display:flex;gap:10px;align-items:flex-start;animation:slideIn .28s}
-.toast.ok{border-left:3px solid var(--green)} .toast.bad{border-left:3px solid var(--neg)} .toast.info{border-left:3px solid var(--cyan)}
+.toast.ok{border-left:3px solid var(--green)}.toast.bad{border-left:3px solid var(--neg)}.toast.info{border-left:3px solid var(--magenta)}
 @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
-
-/* ── HELPERS ───────────────────────────────────────── */
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.spacer{flex:1}
-.muted{color:var(--text-2)} .small{font-size:11.5px}
-.hide{display:none!important}
-.hbar{display:flex;align-items:center;gap:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.spacer{flex:1}
+.muted{color:var(--text-2)}.small{font-size:11.5px}.hide{display:none!important}.hbar{display:flex;align-items:center;gap:10px}
 .side-backdrop{display:none}
-
-/* ── RESPONSIVE ────────────────────────────────────── */
+/* agent cards */
+.agent-card{border:1px solid var(--border);border-radius:var(--radius);padding:20px;background:var(--surface);position:relative;overflow:hidden;box-shadow:var(--shadow-sm)}
+.agent-card .accent-top{position:absolute;inset:0 0 auto 0;height:4px}
+.agent-head{display:flex;align-items:center;gap:13px;margin-bottom:6px}
+.agent-avatar{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-family:'Orbitron';font-weight:800;font-size:18px;color:#fff;flex-shrink:0}
+.agent-name{font-size:17px;font-weight:800;font-family:'Orbitron'}
+.agent-arch{font-size:11px;color:var(--text-2);font-style:italic}
+.agent-tagline{font-size:12.5px;color:var(--text-2);margin:8px 0 14px;line-height:1.5}
+.dept-title{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 8px;display:flex;align-items:center;gap:8px}
+.dept-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.skill-item{display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);margin-bottom:6px;font-size:12.5px;cursor:pointer;transition:border-color .15s}
+.skill-item:hover{border-color:var(--accent)}
+.skill-role{font-weight:700}.skill-desc{color:var(--text-2);font-size:11px;margin-top:1px}
+/* CHAT */
+.chat{display:flex;flex-direction:column;flex:1;min-height:0}
+.chat-scroll{flex:1;overflow-y:auto;padding:26px 22px 10px}
+.chat-inner{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.msg{display:flex;gap:12px;animation:fade .25s}
+.msg .av{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;font-weight:800;font-size:13px;font-family:'Orbitron'}
+.msg.user{flex-direction:row-reverse}
+.msg.user .av{background:var(--surface-3);color:var(--text-2)}
+.msg.bot .av{background:linear-gradient(140deg,var(--magenta),var(--cyan));color:#fff}
+.bubble{max-width:78%;padding:13px 16px;border-radius:15px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word}
+.msg.user .bubble{background:var(--accent-bg);border:1px solid rgba(221,36,242,.3);border-bottom-right-radius:5px}
+.msg.bot .bubble{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:5px}
+.sources{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.src-pill{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)}
+.chat-hint{max-width:820px;margin:0 auto;text-align:center;color:var(--text-2);padding:40px 20px}
+.chat-hint .big{font-size:40px;margin-bottom:14px}
+.chat-hint h2{font-size:20px;margin-bottom:8px;background:linear-gradient(90deg,var(--magenta),var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.chip-suggest{display:inline-flex;margin:5px;padding:9px 14px;border-radius:20px;border:1px solid var(--border-strong);background:var(--surface);font-size:12.5px;cursor:pointer;color:var(--text);transition:border-color .15s}
+.chip-suggest:hover{border-color:var(--magenta)}
+.composer{border-top:1px solid var(--border);padding:14px 22px;background:color-mix(in srgb,var(--bg) 80%,transparent);flex-shrink:0}
+.composer-inner{max-width:820px;margin:0 auto;display:flex;gap:10px;align-items:flex-end}
+.composer textarea{min-height:48px;max-height:160px;border-radius:14px;resize:none}
+.typing{display:inline-flex;gap:4px;padding:4px 0}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--text-3);animation:blink 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,60%,100%{opacity:.3}30%{opacity:1}}
 @media(max-width:920px){
   .app{grid-template-columns:1fr}
   .side{position:fixed;left:0;top:0;width:270px;transform:translateX(-100%);transition:transform .25s;box-shadow:var(--shadow)}
   .side.open{transform:none}
   .topbar .burger{display:grid}
-  .g-2,.g-21{grid-template-columns:1fr}
+  .g-2,.g-3,.g-21{grid-template-columns:1fr}
   .content{padding:18px}
-  .side-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:25;display:none}
+  .side-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:25}
   .side-backdrop.open{display:block}
+  .tenant-chip .tlabel{display:none}
+  .bubble{max-width:86%}
 }
 </style>
 </head>
 <body>
 <div class="app">
-
-  <!-- ── SIDEBAR ─────────────────────────────────── -->
   <aside class="side" id="side">
     <div class="brand">
-      <div class="brand-mark">E</div>
-      <div>
-        <div class="brand-name">Ember</div>
-        <div class="brand-sub">Console operativa</div>
-      </div>
+      <div class="brand-mark">DV</div>
+      <div><div class="brand-name">Divina</div><div class="brand-sub">Chatbot &amp; Orchestratore</div></div>
     </div>
 
-    <div class="nav-label">Panoramica</div>
-    <button class="nav-item active" data-view="overview"><span class="ic">◎</span> Dashboard</button>
-    <button class="nav-item" data-view="scopes"><span class="ic">▤</span> Scope &amp; tenant</button>
+    <div class="nav-label"><span class="ld" style="background:linear-gradient(90deg,var(--magenta),var(--cyan))"></span> Conversa</div>
+    <button class="nav-item active" data-view="chat"><span class="ic">💬</span> Chat col cervello</button>
 
-    <div class="nav-label">Qualità del cervello</div>
-    <button class="nav-item" data-view="insights"><span class="ic">◈</span> Segnali (gap / 👎)</button>
+    <div class="nav-label"><span class="ld" style="background:var(--cyan)"></span> Cervello · motore</div>
+    <button class="nav-item" data-view="dashboard"><span class="ic">◎</span> Dashboard</button>
+    <button class="nav-item" data-view="scopes"><span class="ic">▤</span> Scope</button>
+    <button class="nav-item" data-view="insights"><span class="ic">◈</span> Segnali</button>
     <button class="nav-item" data-view="learning"><span class="ic">✦</span> Apprendimento <span class="badge" id="b-learning">0</span></button>
-
-    <div class="nav-label">Traffico &amp; costi</div>
-    <button class="nav-item" data-view="usage"><span class="ic">€</span> Uso &amp; spesa</button>
+    <button class="nav-item" data-view="usage"><span class="ic">€</span> Uso &amp; costi</button>
     <button class="nav-item" data-view="events"><span class="ic">≣</span> Eventi</button>
-    <button class="nav-item" data-view="logs"><span class="ic">☰</span> Audit trail</button>
+    <button class="nav-item" data-view="tenants"><span class="ic">⚿</span> Tenant</button>
 
-    <div class="nav-label">Amministrazione</div>
-    <button class="nav-item" data-view="tenants"><span class="ic">⚿</span> Chiavi tenant</button>
-    <button class="nav-item" data-view="system"><span class="ic">⚙</span> Sistema</button>
+    <div class="nav-label"><span class="ld" style="background:var(--magenta)"></span> Orchestra · agenti</div>
+    <button class="nav-item" data-view="agents"><span class="ic">✧</span> Agenti &amp; skill <span class="badge" id="b-agents">3</span></button>
+    <button class="nav-item" data-view="router"><span class="ic">⇄</span> Router / esegui</button>
+    <button class="nav-item" data-view="nodes"><span class="ic">◇</span> Nodi wiki</button>
+    <button class="nav-item" data-view="contradictions"><span class="ic">⚠</span> Contraddizioni <span class="badge" id="b-contra">0</span></button>
+    <button class="nav-item" data-view="docs"><span class="ic">▦</span> Documenti</button>
 
-    <div class="side-foot">
-      Ember · Cervello OVY<br>
-      <span id="foot-ver">v—</span> · FORMA Hub
-    </div>
+    <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
+    <button class="nav-item" data-view="system"><span class="ic">⚙</span> Stato &amp; audit</button>
+
+    <div class="side-foot">Divina · Cervello OVY<br><span id="foot-ver">motore — · orch —</span></div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
 
-  <!-- ── MAIN ────────────────────────────────────── -->
   <div class="main">
     <header class="topbar">
       <button class="icon-btn burger" id="burger" aria-label="Menu">☰</button>
-      <div>
-        <div class="page-title" id="pageTitle">Dashboard</div>
-        <div class="page-sub" id="pageSub">Colpo d'occhio operativo</div>
-      </div>
+      <div><div class="page-title" id="pageTitle">Chat col cervello</div><div class="page-sub" id="pageSub">Parla con Divina</div></div>
       <div class="top-actions">
-        <button class="conn-chip" id="connChip" title="Configura connessione"><span class="dot"></span><span id="connText">Non connesso</span></button>
+        <button class="tenant-chip" id="tenantChip" title="Cambia tenant"><span class="tlabel">tenant:</span> <b id="tenantText">forma</b></button>
+        <button class="conn-chip" id="connChip" title="Connessione"><span class="dot"></span><span id="connText">Non connesso</span></button>
         <button class="icon-btn" id="refreshBtn" title="Aggiorna" aria-label="Aggiorna">↻</button>
-        <button class="icon-btn" id="themeBtn" title="Tema chiaro/scuro" aria-label="Tema">☾</button>
+        <button class="icon-btn" id="themeBtn" title="Tema" aria-label="Tema">☾</button>
       </div>
     </header>
     <main class="content" id="content"></main>
   </div>
 </div>
 
-<!-- ── CONNECTION MODAL ──────────────────────────── -->
-<div class="modal-back" id="connModal">
-  <div class="modal">
-    <h3>Connessione</h3>
-    <p class="desc">La console parla con l'API Ember usando l'<b>ADMIN_TOKEN</b>. Il token resta solo nel tuo browser (localStorage), non viene mai loggato.</p>
-    <label class="fld"><span class="lt">URL base dell'API</span>
-      <input id="inBase" placeholder="(stesso dominio) — es. https://ember.formahub.it" autocomplete="off"></label>
-    <label class="fld"><span class="lt">Admin token</span>
-      <input id="inToken" type="password" placeholder="Bearer ADMIN_TOKEN" autocomplete="off"></label>
-    <label class="row small muted" style="margin:2px 0 16px;cursor:pointer">
-      <input type="checkbox" id="inDemo" style="width:auto;min-height:auto;margin-right:8px"> Modalità demo (dati d'esempio, nessuna chiamata)</label>
-    <div class="modal-foot">
-      <button class="btn ghost" id="connCancel">Annulla</button>
-      <button class="btn primary" id="connSave">Connetti</button>
-    </div>
-  </div>
-</div>
+<div class="modal-back" id="connModal"><div class="modal">
+  <h3>Connessione a Divina</h3>
+  <p class="desc">Divina è composta da due servizi. Inserisci gli URL e i token: restano solo nel browser. <b>URL vuoto = stesso dominio</b> (usa il campo vuoto per il servizio che serve questa pagina).</p>
 
+  <div class="svc-block">
+    <div class="st" style="color:var(--cyan)"><span>◆</span> Motore (chat + cervello)</div>
+    <label class="fld"><span class="lt">URL motore</span><input id="inEngBase" placeholder="(stesso dominio) — es. https://divina.formahub.it" autocomplete="off"></label>
+    <label class="fld"><span class="lt">Admin token (ADMIN_TOKEN)</span><input id="inEngTok" type="password" placeholder="per dashboard/analytics/tenant" autocomplete="off"></label>
+    <label class="fld" style="margin-bottom:0"><span class="lt">Chiave tenant (X-Tenant-Key) — per la Chat</span><input id="inTenantKey" type="password" placeholder="chiave del tenant per chattare" autocomplete="off"></label>
+  </div>
+
+  <div class="svc-block">
+    <div class="st" style="color:var(--magenta)"><span>✧</span> Orchestratore (agenti)</div>
+    <label class="fld"><span class="lt">URL orchestratore</span><input id="inOrchBase" placeholder="es. https://divina-orchestra.formahub.it" autocomplete="off"></label>
+    <label class="fld"><span class="lt">Admin token (DIVINA_ADMIN_TOKEN)</span><input id="inOrchTok" type="password" placeholder="per agenti/router/contraddizioni" autocomplete="off"></label>
+    <label class="fld" style="margin-bottom:0"><span class="lt">Tenant code (RLS)</span><input id="inTenant" placeholder="forma" autocomplete="off"></label>
+  </div>
+
+  <label class="row small muted" style="margin:2px 0 16px;cursor:pointer"><input type="checkbox" id="inDemo" style="width:auto;min-height:auto;margin-right:8px"> Modalità demo (dati d'esempio, nessuna chiamata)</label>
+  <div class="modal-foot"><button class="btn ghost" id="connCancel">Annulla</button><button class="btn primary" id="connSave">Connetti</button></div>
+</div></div>
 <div class="toasts" id="toasts"></div>
 
 <script>
-/* ══════════════════════════════════════════════════════════════════
-   STATO & CONFIG
-   ══════════════════════════════════════════════════════════════════ */
-const LS = {base:'ember_base', token:'ember_token', demo:'ember_demo', theme:'ember_theme'};
-const state = {
-  base: localStorage.getItem(LS.base) || '',
-  token: localStorage.getItem(LS.token) || '',
-  demo: localStorage.getItem(LS.demo) === '1',
-  view: 'overview',
-  connected: false,
+/* ══════════ STATO ══════════ */
+const LS={engBase:'dv_eng_base',engTok:'dv_eng_tok',tenantKey:'dv_tenant_key',orchBase:'dv_orch_base',orchTok:'dv_orch_tok',tenant:'dv_tenant',demo:'dv_demo',theme:'dv_theme'};
+const state={
+  engBase:localStorage.getItem(LS.engBase)||'', engTok:localStorage.getItem(LS.engTok)||'', tenantKey:localStorage.getItem(LS.tenantKey)||'',
+  orchBase:localStorage.getItem(LS.orchBase)||'', orchTok:localStorage.getItem(LS.orchTok)||'', tenant:localStorage.getItem(LS.tenant)||'forma',
+  demo:localStorage.getItem(LS.demo)==='1', view:'chat', engOk:false, orchOk:false, chat:[],
 };
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fmtN = n => (n==null?'—':Number(n).toLocaleString('it-IT'));
-const pct = (a,b) => b>0 ? Math.round(a/b*100) : 0;
-const timeAgo = ts => {
-  if(!ts) return '—';
-  const s = Math.floor(Date.now()/1000) - Number(ts);
-  if(s<60) return s+'s fa'; if(s<3600) return Math.floor(s/60)+'m fa';
-  if(s<86400) return Math.floor(s/3600)+'h fa'; return Math.floor(s/86400)+'g fa';
-};
-const uptime = s => {
-  if(s==null) return '—'; const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
-  return d?`${d}g ${h}h`: h?`${h}h ${m}m`: `${m}m`;
-};
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtN=n=>(n==null?'—':Number(n).toLocaleString('it-IT'));
+const pct=(a,b)=>b>0?Math.round(a/b*100):0;
+const timeAgoTs=ts=>{if(!ts)return '—';const s=Math.floor(Date.now()/1000)-Number(ts);if(s<60)return s+'s fa';if(s<3600)return Math.floor(s/60)+'m fa';if(s<86400)return Math.floor(s/3600)+'h fa';return Math.floor(s/86400)+'g fa';};
+const timeAgoIso=iso=>{if(!iso)return '—';const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);if(isNaN(s))return esc(iso);if(s<60)return s+'s fa';if(s<3600)return Math.floor(s/60)+'m fa';if(s<86400)return Math.floor(s/3600)+'h fa';return Math.floor(s/86400)+'g fa';};
+const uptime=s=>{if(s==null)return '—';const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return d?`${d}g ${h}h`:h?`${h}h ${m}m`:`${m}m`;};
+const q=o=>Object.entries(o).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
 
-/* ══════════════════════════════════════════════════════════════════
-   API — fetch con Authorization, oppure dati demo
-   ══════════════════════════════════════════════════════════════════ */
-async function api(path, opts={}){
-  if(state.demo) return demoData(path, opts);
-  const url = (state.base||'').replace(/\/$/,'') + path;
-  const res = await fetch(url, {
-    method: opts.method||'GET',
-    headers:{'Authorization':'Bearer '+state.token, ...(opts.body?{'Content-Type':'application/json'}:{})},
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-  if(res.status===401) throw new Error('401 · Token admin non valido');
-  if(!res.ok) throw new Error(res.status+' · '+(await res.text()).slice(0,140));
-  const ct = res.headers.get('content-type')||'';
-  return ct.includes('json') ? res.json() : res.text();
+/* ══════════ API (service = engine|orch) ══════════ */
+async function api(service, path, opts={}){
+  if(state.demo) return demoData(service, path, opts);
+  const base=(service==='engine'?state.engBase:state.orchBase)||'';
+  const token=service==='engine'?state.engTok:state.orchTok;
+  const url=base.replace(/\/$/,'')+path;
+  const headers={};
+  if(opts.auth!==false && token) headers['Authorization']='Bearer '+token;
+  if(opts.tenantKey && state.tenantKey) headers['X-Tenant-Key']=state.tenantKey;
+  if(opts.body) headers['Content-Type']='application/json';
+  const res=await fetch(url,{method:opts.method||'GET',headers,body:opts.body?JSON.stringify(opts.body):undefined});
+  if(res.status===401) throw new Error('401 · token non valido');
+  if(!res.ok) throw new Error(res.status+' · '+(await res.text()).slice(0,160));
+  const ct=res.headers.get('content-type')||'';
+  return ct.includes('json')?res.json():res.text();
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   DATI DEMO — coerenti con le shape reali dell'API
-   ══════════════════════════════════════════════════════════════════ */
-function demoData(path){
-  const now = Math.floor(Date.now()/1000);
-  const D = {
-    '/version': {name:'Ember',version:'0.3.0',commit:'demo00abc123'},
-    '/health': {status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
-    '/admin/status': {grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it'},
-    '/admin/analytics': {uptime_s:186420, totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},
-      per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
-    '/admin/insights': {gaps:[
-      {scope:'ats',q:'Quali sono gli orari del servizio a domicilio nel weekend?',at:now-620},
-      {scope:'forma-core',q:'Costo esatto stampa 3D SLA per pezzo sotto i 5cm?',at:now-2400},
-      {scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600},
-      {scope:'andrea',q:'Agenda disponibilità marzo 2026?',at:now-15200}],
-      negative_feedback:[
-        {scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},
-        {scope:'forma-core',q:'Prezzo indicato diverso dal sito',at:now-9000}]},
-    '/admin/learning': {generated_at:new Date().toISOString(), tasks:[
-      {kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del servizio a domicilio nel weekend, poi rilancia l\'ingest.'},
-      {kind:'gap',scope:'forma-core',question:'costo stampa 3D SLA piccoli pezzi',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},
-      {kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta 👎: rivedi la nota resi e chiarisci i passaggi.'}]},
-    '/admin/usage': {'ats':{count:412,cost_eur:2.06,alert:false},'forma-core':{count:198,cost_eur:0.99,alert:false},'andrea':{count:640,cost_eur:3.20,alert:true},'ovyon':{count:54,cost_eur:0.27,alert:false}},
-    '/admin/events': {persist:true, events:[
-      {at:new Date(now*1000-30000).toISOString(),kind:'chat',scope:'ats',question:'orari apertura sede Benevento'},
-      {at:new Date(now*1000-120000).toISOString(),kind:'feedback_up',scope:'forma-core',question:'ottima risposta sui materiali'},
-      {at:new Date(now*1000-260000).toISOString(),kind:'gap',scope:'ats',question:'spedizione internazionale possibile?'},
-      {at:new Date(now*1000-420000).toISOString(),kind:'chat',scope:'andrea',question:'sintesi ultimo meeting'}]},
-    '/admin/access-logs': {logs:[
-      {at:new Date(now*1000-15000).toISOString(),action:'search',tenant:'ats',org:'forma',detail:'q=resi'},
-      {at:new Date(now*1000-95000).toISOString(),action:'create',tenant:'forma-core',org:'forma',detail:'forma/docs/nota-prezzi.md'},
-      {at:new Date(now*1000-190000).toISOString(),action:'update',tenant:'ats',org:'forma',detail:'forma/clienti/ats/faq.md'}]},
-    '/admin/tenants': {tenants:[
-      {name:'ATS · Al Tuo Servizio',active:true,orgs:['forma'],tenants:['ats'],quota_day:2000,created_at:'2026-02-11'},
-      {name:'FORMA (interno)',active:true,orgs:['forma'],tenants:['forma-core'],quota_day:null,created_at:'2026-01-04'},
-      {name:'Andrea Aloia',active:true,orgs:['personal'],tenants:['andrea'],quota_day:500,created_at:'2026-01-04'},
-      {name:'Cliente demo (revocato)',active:false,orgs:['forma'],tenants:['demo'],quota_day:100,created_at:'2026-03-20'}]},
-  };
-  return Promise.resolve(D[path] ?? {});
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   TOAST + MODAL + TEMA
-   ══════════════════════════════════════════════════════════════════ */
-function toast(msg, kind='info'){
-  const t = document.createElement('div');
-  t.className = 'toast '+kind;
-  t.innerHTML = `<span>${kind==='ok'?'✓':kind==='bad'?'✕':'ℹ'}</span><span>${esc(msg)}</span>`;
-  $('#toasts').appendChild(t);
-  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(20px)';setTimeout(()=>t.remove(),300)},3600);
-}
-function setTheme(t){ document.documentElement.dataset.theme=t; localStorage.setItem(LS.theme,t); $('#themeBtn').textContent = t==='dark'?'☾':'☀'; }
-$('#themeBtn').onclick = ()=> setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
-
-function openConn(){ $('#inBase').value=state.base; $('#inToken').value=state.token; $('#inDemo').checked=state.demo; $('#connModal').classList.add('open'); }
-function closeConn(){ $('#connModal').classList.remove('open'); }
-$('#connChip').onclick = openConn; $('#connCancel').onclick = closeConn;
-$('#connModal').onclick = e => { if(e.target===$('#connModal')) closeConn(); };
-$('#connSave').onclick = ()=>{
-  state.base = $('#inBase').value.trim(); state.token = $('#inToken').value.trim(); state.demo = $('#inDemo').checked;
-  localStorage.setItem(LS.base,state.base); localStorage.setItem(LS.token,state.token); localStorage.setItem(LS.demo,state.demo?'1':'0');
-  closeConn(); checkConn().then(()=>route(state.view));
-};
-
-async function checkConn(){
-  const chip = $('#connChip');
-  if(state.demo){ chip.className='conn-chip demo'; $('#connText').textContent='Modalità demo'; state.connected=true; return; }
-  if(!state.token){ chip.className='conn-chip'; $('#connText').textContent='Non connesso'; state.connected=false; return; }
-  try{
-    const v = await api('/version');
-    chip.className='conn-chip live'; $('#connText').textContent='Connesso';
-    $('#foot-ver').textContent = 'v'+(v.version||'?')+(v.commit?' · '+v.commit.slice(0,7):'');
-    state.connected=true;
-  }catch(e){
-    chip.className='conn-chip err'; $('#connText').textContent='Errore auth'; state.connected=false;
-    toast(e.message,'bad');
+/* ══════════ DEMO ══════════ */
+const SCOPE_COLORS={'ats':'var(--cyan)','forma-core':'var(--green)','andrea':'var(--magenta)','ovyon':'var(--orange)','forma':'var(--green)'};
+const scopeColor=s=>SCOPE_COLORS[s]||'var(--text-2)';
+const AG_COLORS={dante:'var(--orange)',virgilio:'var(--cyan)',beatrice:'var(--magenta)'};
+const AG_INIT={dante:'DA',virgilio:'VI',beatrice:'BE'};
+function demoData(service, path, opts){
+  const now=Math.floor(Date.now()/1000), nowIso=n=>new Date(Date.now()-n).toISOString();
+  if(service==='engine'){
+    if(path.startsWith('/chat')){
+      const msg=(opts.body&&opts.body.message||'').toLowerCase();
+      let a='(DEMO) In base al cervello OVY, FORMA Hub offre stampa 3D (FDM/SLA da €15/pz), modellazione 3D su preventivo, servizi digitali da €600 e AI custom da €350. Posso approfondire un servizio specifico?';
+      if(msg.includes('orari')||msg.includes('apert')) a='(DEMO) La sede di Benevento è aperta lun–ven 9:00–18:00. Il servizio a domicilio ATS copre anche il weekend su prenotazione.';
+      if(msg.includes('prezzo')||msg.includes('costo')||msg.includes('stampa')) a='(DEMO) La stampa 3D FDM parte da €15/pezzo; la SLA è su preventivo in base a volume e finitura. Vuoi una stima per un modello specifico?';
+      return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats']});
+    }
+    const D={
+      '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123'},
+      '/health':{status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
+      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it'},
+      '/admin/analytics':{uptime_s:186420,totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
+      '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
+      '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta 👎: rivedi la nota resi e chiarisci i passaggi.'}]},
+      '/admin/usage':{'ats':{count:412,cost_eur:2.06,alert:false},'forma-core':{count:198,cost_eur:0.99,alert:false},'andrea':{count:640,cost_eur:3.20,alert:true},'ovyon':{count:54,cost_eur:0.27,alert:false}},
+      '/admin/events':{persist:true,events:[{at:nowIso(30000),kind:'chat',scope:'ats',question:'orari apertura sede Benevento'},{at:nowIso(120000),kind:'feedback_up',scope:'forma-core',question:'ottima risposta sui materiali'},{at:nowIso(260000),kind:'gap',scope:'ats',question:'spedizione internazionale?'}]},
+      '/admin/tenants':{tenants:[{name:'ATS · Al Tuo Servizio',active:true,orgs:['forma'],tenants:['ats'],quota_day:2000,created_at:'2026-02-11'},{name:'FORMA (interno)',active:true,orgs:['forma'],tenants:['forma-core'],quota_day:null,created_at:'2026-01-04'},{name:'Andrea Aloia',active:true,orgs:['personal'],tenants:['andrea'],quota_day:500,created_at:'2026-01-04'}]},
+    };
+    return Promise.resolve(D[path.split('?')[0]]??{});
   }
+  // orch
+  if(path.startsWith('/agents/route')) return Promise.resolve({routed:true,agent:'dante',skill:'invoice-chase',role:'Debt Chaser',department:'Small Business',confidence:0.86,output:'(DEMO) 3 fatture scadute per €4.200. Bozza di sollecito pronta per ciascun cliente, scadenza 7 giorni. Nessun invio effettuato: rivedi e conferma.',cervello_sources:[{title:'Scheda cliente ATS',slug:'scheda-ats'}]});
+  if(path.startsWith('/agents/run')) return Promise.resolve({agent:'virgilio',skill:'ui-ux-pro-max',role:'Design Lead',department:'Designers',output:'(DEMO) Analisi UI/UX: gerarchia coerente, contrasto AA ok. Aumenta i touch target del menu mobile e gli stati di focus.'});
+  if(path.startsWith('/docs/generate')) return Promise.resolve({template:'Preventivo servizi',content:'# Preventivo servizi\n\n(DEMO) Documento dai nodi pertinenti.\n\n- Voce 1 — €600\n- Voce 2 — €350\n\n**Totale:** €950 + IVA',warnings:[]});
+  if(path.startsWith('/maintenance/run')) return Promise.resolve({archived_duplicates:2,orphans:['nodo-senza-fonte'],note:'2 duplicati archiviati (mai delete), 1 orfano segnalato.'});
+  if(path.startsWith('/contradictions/resolve')) return Promise.resolve({resolved:true,status:opts.body?.status||'risolto'});
+  if(path.startsWith('/nodes/promote')) return Promise.resolve({ok:false,reason:'token vault non configurato (demo)'});
+  const D={
+    '/version':{name:'Divina',version:'0.4.0'},'/health':{status:'ok',service:'divina',version:'0.4.0'},'/ready':{status:'ready',db:true},
+    '/agents':{agents:[
+      {id:'dante',name:'Dante',archetype:"l'operativo (BIZ)",tagline:'Run the day-to-day money side on autopilot',skills:[
+        {id:'cash-flow-snapshot',role:'Cash Watcher',desc:'fotografa la cassa',department:'Small Business'},{id:'invoice-chase',role:'Debt Chaser',desc:'sollecita fatture',department:'Small Business'},{id:'plan-payroll',role:'Payroll Planner',desc:'buste paga',department:'Small Business'},{id:'margin-analyzer',role:'Margin Analyst',desc:'analizza i margini',department:'Small Business'},{id:'tax-prep',role:'Tax Prepper',desc:'prepara le tasse',department:'Small Business'},{id:'run-campaign',role:'Campaign Runner',desc:'lancia una campagna',department:'Small Business'}]},
+      {id:'virgilio',name:'Virgilio',archetype:'il costruttore/custode',tagline:'Build, design and safeguard what you ship',skills:[
+        {id:'superpowers',role:'Skill Forge',desc:'pacchetto 14 skill',department:'Developers'},{id:'mcp-builder',role:'Tool Wright',desc:'server MCP',department:'Developers'},{id:'webapp-testing',role:'QA Engineer',desc:'test browser',department:'Developers'},{id:'ui-ux-pro-max',role:'Design Lead',desc:'sistema UI/UX',department:'Designers'},{id:'brand-guidelines',role:'Brand Keeper',desc:'brand kit',department:'Designers'},{id:'review-contract',role:'Contract Reviewer',desc:'revisiona contratti',department:'Legal'},{id:'triage-nda',role:'NDA Triage',desc:'review NDA',department:'Legal'}]},
+      {id:'beatrice',name:'Beatrice',archetype:'la guida/visione',tagline:'Chart the strategy and tell the story',skills:[
+        {id:'market-scan',role:'Market Scout',desc:'scansione mercato',department:'Strategy'},{id:'okr-planner',role:'OKR Planner',desc:'imposta OKR',department:'Strategy'},{id:'content-plan',role:'Content Planner',desc:'piano editoriale',department:'Growth'},{id:'seo-audit',role:'SEO Auditor',desc:'audit SEO',department:'Growth'},{id:'case-study',role:'Story Weaver',desc:'case study',department:'Growth'}]}]},
+    '/contradictions':{contradictions:[{id:'c1',description:'Il prezzo SLA differisce tra "listino-2026" e "faq-prezzi": €18 vs €22.',status:'irrisolto',created_at:nowIso(3600e3),node_a:'listino-2026',node_b:'faq-prezzi'},{id:'c2',description:'Orari discordanti tra scheda cliente ATS e pagina contatti.',status:'irrisolto',created_at:nowIso(26*3600e3),node_a:'scheda-ats',node_b:'contatti'}]},
+    '/nodes/recent':{nodes:[{node_id:'n1',slug:'processo-onboarding-cliente',title:'Processo di onboarding cliente',kind:'processo',status:'bozza',summary:'Flusso in 5 step.',confidence:0.82,updated_at:nowIso(1200e3)},{node_id:'n2',slug:'listino-stampa-3d-2026',title:'Listino stampa 3D 2026',kind:'documento',status:'promosso',summary:'Prezzi FDM/SLA giugno 2026.',confidence:0.95,updated_at:nowIso(8*3600e3)},{node_id:'n3',slug:'faq-resi-rimborsi',title:'FAQ resi e rimborsi',kind:'faq',status:'bozza',summary:'Reso entro 14 giorni.',confidence:0.7,updated_at:nowIso(30*3600e3)}]},
+    '/templates':{templates:[{name:'Preventivo servizi',business_area:'Sales',min_tier:'starter',format:'markdown',system:true},{name:'Contratto quadro',business_area:'Legal',min_tier:'enterprise',format:'docx',system:true},{name:'Report CO₂ B2B',business_area:'Sostenibilità',min_tier:'pro',format:'markdown',system:true}]},
+    '/connectors/sync':{synced:[],errors:[],connectors:0},
+  };
+  return Promise.resolve(D[path.split('?')[0]]??{});
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   VIEW HELPERS
-   ══════════════════════════════════════════════════════════════════ */
-const C = $('#content');
-const skeleton = (rows=3) => `<div class="card">${'<div class="skeleton sk-line" style="width:'+'"></div>'}${Array.from({length:rows},(_,i)=>`<div class="skeleton sk-line" style="width:${90-i*12}%"></div>`).join('')}</div>`;
-function needConn(){
-  if(state.connected) return false;
-  C.innerHTML = `<div class="card"><div class="empty"><span class="ic">🔌</span><h4>Nessuna connessione</h4><p>Imposta URL e admin token per iniziare, oppure attiva la <b>modalità demo</b> per esplorare l'interfaccia.</p><div class="row" style="justify-content:center;margin-top:16px"><button class="btn primary" onclick="openConn()">Configura connessione</button></div></div></div>`;
+/* ══════════ TOAST / MODAL / TEMA ══════════ */
+function toast(msg,kind='info'){const t=document.createElement('div');t.className='toast '+kind;t.innerHTML=`<span>${kind==='ok'?'✓':kind==='bad'?'✕':'ℹ'}</span><span>${esc(msg)}</span>`;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(20px)';setTimeout(()=>t.remove(),300)},4200);}
+function setTheme(t){document.documentElement.dataset.theme=t;localStorage.setItem(LS.theme,t);$('#themeBtn').textContent=t==='dark'?'☾':'☀';}
+$('#themeBtn').onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+function openConn(){$('#inEngBase').value=state.engBase;$('#inEngTok').value=state.engTok;$('#inTenantKey').value=state.tenantKey;$('#inOrchBase').value=state.orchBase;$('#inOrchTok').value=state.orchTok;$('#inTenant').value=state.tenant;$('#inDemo').checked=state.demo;$('#connModal').classList.add('open');}
+function closeConn(){$('#connModal').classList.remove('open');}
+$('#connChip').onclick=openConn;$('#tenantChip').onclick=openConn;$('#connCancel').onclick=closeConn;
+$('#connModal').onclick=e=>{if(e.target===$('#connModal'))closeConn();};
+$('#connSave').onclick=()=>{
+  state.engBase=$('#inEngBase').value.trim();state.engTok=$('#inEngTok').value.trim();state.tenantKey=$('#inTenantKey').value.trim();
+  state.orchBase=$('#inOrchBase').value.trim();state.orchTok=$('#inOrchTok').value.trim();state.tenant=$('#inTenant').value.trim()||'forma';state.demo=$('#inDemo').checked;
+  localStorage.setItem(LS.engBase,state.engBase);localStorage.setItem(LS.engTok,state.engTok);localStorage.setItem(LS.tenantKey,state.tenantKey);
+  localStorage.setItem(LS.orchBase,state.orchBase);localStorage.setItem(LS.orchTok,state.orchTok);localStorage.setItem(LS.tenant,state.tenant);localStorage.setItem(LS.demo,state.demo?'1':'0');
+  $('#tenantText').textContent=state.tenant;closeConn();checkConn().then(()=>route(state.view));
+};
+async function checkConn(){
+  const chip=$('#connChip');$('#tenantText').textContent=state.tenant;
+  if(state.demo){chip.className='conn-chip demo';$('#connText').textContent='Modalità demo';state.engOk=state.orchOk=true;$('#foot-ver').textContent='demo';return;}
+  let ev='—',ov='—';
+  state.engOk=false;state.orchOk=false;
+  if(state.engTok||state.tenantKey){try{const v=await api('engine','/version');state.engOk=true;ev='v'+(v.version||'?');}catch(_){}}
+  if(state.orchTok){try{const v=await api('orch','/version');state.orchOk=true;ov='v'+(v.version||'?');}catch(_){}}
+  $('#foot-ver').textContent=`motore ${ev} · orch ${ov}`;
+  const any=state.engOk||state.orchOk;
+  if(any && (state.engOk===!!(state.engTok||state.tenantKey)) ){chip.className='conn-chip live';$('#connText').textContent='Connesso';}
+  else if(any){chip.className='conn-chip live';$('#connText').textContent='Connesso (parziale)';}
+  else if(state.engTok||state.orchTok||state.tenantKey){chip.className='conn-chip err';$('#connText').textContent='Errore auth';}
+  else{chip.className='conn-chip';$('#connText').textContent='Non connesso';}
+}
+
+const C=$('#content');
+const skeleton=(r=3)=>`<div class="card">${Array.from({length:r},(_,i)=>`<div class="skeleton sk-line" style="width:${90-i*12}%"></div>`).join('')}</div>`;
+const errBox=e=>`<div class="card"><div class="err-box"><span class="ic">⚠️</span><div><b>Errore di caricamento</b></div><p class="mono small" style="margin-top:6px">${esc(e.message)}</p></div></div>`;
+const emptyBox=(i,t,s)=>`<div class="empty"><span class="ic">${i}</span><h4>${t}</h4><p>${s||''}</p></div>`;
+function needSvc(svc){
+  const ok=svc==='engine'?state.engOk:state.orchOk;
+  if(ok)return false;
+  const label=svc==='engine'?'il Motore (chat + cervello)':'l\'Orchestratore (agenti)';
+  C.innerHTML=`<div class="card"><div class="empty"><span class="ic">🔌</span><h4>${svc==='engine'?'Motore':'Orchestratore'} non connesso</h4><p>Configura ${label} (URL + token), oppure attiva la <b>modalità demo</b>.</p><div class="row" style="justify-content:center;margin-top:16px"><button class="btn primary" onclick="openConn()">Configura connessione</button></div></div></div>`;
   return true;
 }
-const errBox = (e) => `<div class="card"><div class="err-box"><span class="ic">⚠️</span><div><b>Errore di caricamento</b></div><p class="mono small" style="margin-top:6px">${esc(e.message)}</p></div></div>`;
-const emptyBox = (icon,title,sub) => `<div class="empty"><span class="ic">${icon}</span><h4>${title}</h4><p>${sub||''}</p></div>`;
 
-const SCOPE_COLORS = {'ats':'var(--cyan)','forma-core':'var(--green)','andrea':'var(--magenta)','ovyon':'var(--orange)'};
-const scopeColor = s => SCOPE_COLORS[s] || 'var(--text-2)';
+/* ══════════ VIEWS ══════════ */
+const VIEWS={
 
-/* ══════════════════════════════════════════════════════════════════
-   VIEWS
-   ══════════════════════════════════════════════════════════════════ */
-const VIEWS = {
+  /* ---------- CHAT ---------- */
+  async chat(){
+    C.classList.add('chatmode');
+    C.innerHTML=`<div class="chat"><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
+      <div class="composer"><div class="composer-inner">
+        <textarea id="chatMsg" placeholder="Scrivi al cervello OVY… (Invio per inviare, Shift+Invio a capo)" rows="1"></textarea>
+        <button class="btn primary" id="chatSend" style="min-width:52px">➤</button></div></div></div>`;
+    renderChat();
+    const ta=$('#chatMsg');
+    ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(160,ta.scrollHeight)+'px';});
+    ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
+    $('#chatSend').onclick=sendChat;ta.focus();
+  },
 
-  /* ---- OVERVIEW ---- */
-  async overview(){
-    C.innerHTML = skeleton(4);
+  /* ---------- DASHBOARD (engine) ---------- */
+  async dashboard(){
+    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
     try{
-      const [a,st,h] = await Promise.all([api('/admin/analytics'),api('/admin/status'),api('/health')]);
-      const t = a.totals||{}; const fbTot = (t.feedback_up||0)+(t.feedback_down||0);
-      const help = fbTot? Math.round(t.feedback_up/fbTot*100) : null;
-      const answered = (t.chat||0), gaps=(t.gap||0);
-      const cover = (answered+gaps)? Math.round(answered/(answered+gaps)*100) : null;
-      const scopes = Object.entries(a.per_scope||{}).sort((x,y)=>(y[1].chat||0)-(x[1].chat||0));
-      const maxChat = Math.max(1,...scopes.map(s=>s[1].chat||0));
-
-      C.innerHTML = `
-      <div class="grid g-stats">
-        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div>
-          <div class="lbl">💬 Chat con risposta</div><div class="val" style="color:var(--cyan)">${fmtN(t.chat)}</div>
-          <div class="meta"><span class="tag info">${cover??'—'}% coperto</span> dal boot</div></div>
-        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div>
-          <div class="lbl">🕳 Gap (senza risposta)</div><div class="val" style="color:var(--orange)">${fmtN(t.gap)}</div>
-          <div class="meta">domande da colmare</div></div>
-        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div>
-          <div class="lbl">👍 Utilità percepita</div><div class="val" style="color:var(--green)">${help==null?'—':help+'%'}</div>
-          <div class="meta">${fmtN(t.feedback_up)} 👍 · ${fmtN(t.feedback_down)} 👎</div></div>
-        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div>
-          <div class="lbl">⏱ Uptime processo</div><div class="val" style="color:var(--magenta)">${uptime(a.uptime_s)}</div>
-          <div class="meta">metriche in-memory</div></div>
+      const [a,st,h]=await Promise.all([api('engine','/admin/analytics'),api('engine','/admin/status'),api('engine','/health')]);
+      const t=a.totals||{},fbTot=(t.feedback_up||0)+(t.feedback_down||0),help=fbTot?Math.round(t.feedback_up/fbTot*100):null;
+      const cover=(t.chat+t.gap)?Math.round(t.chat/(t.chat+t.gap)*100):null;
+      const scopes=Object.entries(a.per_scope||{}).sort((x,y)=>(y[1].chat||0)-(x[1].chat||0));const maxChat=Math.max(1,...scopes.map(s=>s[1].chat||0));
+      C.innerHTML=`<div class="grid g-stats">
+        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">💬 Chat con risposta</div><div class="val" style="color:var(--cyan)">${fmtN(t.chat)}</div><div class="meta"><span class="tag info">${cover??'—'}% coperto</span></div></div>
+        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">🕳 Gap</div><div class="val" style="color:var(--orange)">${fmtN(t.gap)}</div><div class="meta">senza risposta</div></div>
+        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">👍 Utilità</div><div class="val" style="color:var(--green)">${help==null?'—':help+'%'}</div><div class="meta">${fmtN(t.feedback_up)} 👍 · ${fmtN(t.feedback_down)} 👎</div></div>
+        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div><div class="lbl">⏱ Uptime</div><div class="val" style="color:var(--magenta)">${uptime(a.uptime_s)}</div><div class="meta">in-memory</div></div>
       </div>
-
       <div class="sec">Attività per scope</div>
       <div class="grid g-21">
-        <div class="card">
-          <div class="card-head"><div><h3>Volume chat per tenant</h3><p>Distribuzione delle conversazioni per area del cervello</p></div></div>
-          ${scopes.length? `<div class="mini-bars">${scopes.map(([s,d])=>`
-            <div class="mini-row"><div class="top"><span class="hbar"><span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span></span>
-            <b>${fmtN(d.chat)} <span class="muted small" style="font-weight:500">chat</span></b></div>
-            <div class="bar-track"><div class="bar-fill" style="width:${pct(d.chat,maxChat)}%;background:${scopeColor(s)}"></div></div></div>`).join('')}</div>`
-            : emptyBox('📭','Nessun dato','Le metriche si popolano con le prime chat')}
-        </div>
-        <div class="card">
-          <div class="card-head"><div><h3>Salute del servizio</h3><p>Provider e funzioni attive</p></div></div>
-          <table><tbody>
-            <tr><td class="muted">LLM</td><td class="num"><span class="pill">${esc(h.llm||'—')}</span></td></tr>
-            <tr><td class="muted">Embeddings</td><td class="num"><span class="pill">${esc(h.embed||'—')}</span></td></tr>
-            <tr><td class="muted">Voce</td><td class="num"><span class="pill">${esc(h.voice||'—')}</span></td></tr>
-            <tr><td class="muted">Grants backend</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr>
-            <tr><td class="muted">Persistenza analytics</td><td class="num">${st.analytics_persist?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr>
-            <tr><td class="muted">Cifratura contenuti</td><td class="num">${st.content_encryption?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr>
-          </tbody></table>
-        </div>
+        <div class="card"><div class="card-head"><div><h3>Volume chat per tenant</h3><p>Conversazioni per area del cervello</p></div></div>
+          ${scopes.length?`<div class="mini-bars">${scopes.map(([s,d])=>`<div class="mini-row"><div class="top"><span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span><b>${fmtN(d.chat)}</b></div><div class="bar-track"><div class="bar-fill" style="width:${pct(d.chat,maxChat)}%;background:${scopeColor(s)}"></div></div></div>`).join('')}</div>`:emptyBox('📭','Nessun dato','')}</div>
+        <div class="card"><div class="card-head"><div><h3>Salute motore</h3><p>Provider &amp; funzioni</p></div></div>
+          <table><tbody><tr><td class="muted">LLM</td><td class="num"><span class="pill">${esc(h.llm||'—')}</span></td></tr><tr><td class="muted">Embeddings</td><td class="num"><span class="pill">${esc(h.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr><tr><td class="muted">Analytics persist</td><td class="num">${st.analytics_persist?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Cifratura</td><td class="num">${st.content_encryption?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr></tbody></table></div>
       </div>`;
-    }catch(e){ C.innerHTML = errBox(e); }
+    }catch(e){C.innerHTML=errBox(e);}
   },
 
-  /* ---- SCOPES ---- */
   async scopes(){
-    C.innerHTML = skeleton(5);
-    try{
-      const a = await api('/admin/analytics');
-      const rows = Object.entries(a.per_scope||{}).sort((x,y)=>(y[1].chat||0)-(x[1].chat||0));
-      C.innerHTML = `
-        <div class="card">
-          <div class="card-head"><div><h3>Metriche per scope</h3><p>Ogni scope è un'area del cervello (separazione per tenant/settore)</p></div>
-            <span class="pill">${rows.length} scope</span></div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th>Scope</th><th class="num">Chat</th><th class="num">Gap</th><th class="num">👍</th><th class="num">👎</th><th class="num">Utilità</th></tr></thead>
-            <tbody>${rows.length? rows.map(([s,d])=>{const fb=(d.feedback_up||0)+(d.feedback_down||0);const h=fb?Math.round(d.feedback_up/fb*100):null;return `
-              <tr><td><span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span></td>
-              <td class="num">${fmtN(d.chat)}</td><td class="num">${d.gap?`<span style="color:var(--orange)">${fmtN(d.gap)}</span>`:'0'}</td>
-              <td class="num" style="color:var(--green)">${fmtN(d.feedback_up)}</td><td class="num" style="color:var(--neg)">${fmtN(d.feedback_down)}</td>
-              <td class="num">${h==null?'—':`<span class="tag ${h>=80?'pos':h>=50?'warn':'neg'}">${h}%</span>`}</td></tr>`}).join('')
-              : `<tr><td colspan="6">${emptyBox('📭','Nessuno scope attivo','')}</td></tr>`}</tbody>
-          </table></div>
-        </div>`;
-    }catch(e){ C.innerHTML = errBox(e); }
+    if(needSvc('engine'))return; C.innerHTML=skeleton(5);
+    try{const a=await api('engine','/admin/analytics');const rows=Object.entries(a.per_scope||{}).sort((x,y)=>(y[1].chat||0)-(x[1].chat||0));
+      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Metriche per scope</h3><p>Ogni scope è un'area del cervello</p></div><span class="pill">${rows.length} scope</span></div><div class="tbl-wrap"><table><thead><tr><th>Scope</th><th class="num">Chat</th><th class="num">Gap</th><th class="num">👍</th><th class="num">👎</th><th class="num">Utilità</th></tr></thead><tbody>${rows.length?rows.map(([s,d])=>{const fb=(d.feedback_up||0)+(d.feedback_down||0),h=fb?Math.round(d.feedback_up/fb*100):null;return `<tr><td><span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span></td><td class="num">${fmtN(d.chat)}</td><td class="num">${d.gap?`<span style="color:var(--orange)">${fmtN(d.gap)}</span>`:'0'}</td><td class="num" style="color:var(--green)">${fmtN(d.feedback_up)}</td><td class="num" style="color:var(--neg)">${fmtN(d.feedback_down)}</td><td class="num">${h==null?'—':`<span class="tag ${h>=80?'pos':h>=50?'warn':'neg'}">${h}%</span>`}</td></tr>`}).join(''):`<tr><td colspan="6">${emptyBox('📭','Nessuno scope','')}</td></tr>`}</tbody></table></div></div>`;
+    }catch(e){C.innerHTML=errBox(e);}
   },
 
-  /* ---- INSIGHTS ---- */
   async insights(){
-    C.innerHTML = skeleton(4);
-    try{
-      const d = await api('/admin/insights');
-      const gaps = d.gaps||[], negs = d.negative_feedback||[];
-      const listCard = (title,sub,items,accent,render) => `
-        <div class="card"><div class="card-head"><div><h3>${title}</h3><p>${sub}</p></div><span class="pill">${items.length}</span></div>
-        ${items.length? `<div style="display:flex;flex-direction:column;gap:10px">${items.map(render).join('')}</div>`
-          : emptyBox('✨','Tutto pulito','Nessun segnale recente')}</div>`;
-      C.innerHTML = `<div class="grid g-2">
-        ${listCard('🕳 Domande senza risposta','Cosa il cervello non sa ancora — priorità di ingest',gaps,'orange',it=>`
-          <div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:10px">
-            <div style="font-size:13px;margin-bottom:5px">${esc(it.q)}</div>
-            <div class="row small muted"><span class="scope-chip" style="background:${scopeColor(it.scope)}22;color:${scopeColor(it.scope)};border-color:${scopeColor(it.scope)}44">${esc(it.scope)}</span><span>${timeAgo(it.at)}</span></div></div>`)}
-        ${listCard('👎 Feedback negativi','Risposte da rivedere',negs,'neg',it=>`
-          <div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--neg);border-radius:10px">
-            <div style="font-size:13px;margin-bottom:5px">${esc(it.q)}</div>
-            <div class="row small muted"><span class="scope-chip" style="background:${scopeColor(it.scope)}22;color:${scopeColor(it.scope)};border-color:${scopeColor(it.scope)}44">${esc(it.scope)}</span><span>${timeAgo(it.at)}</span></div></div>`)}
-      </div>`;
-    }catch(e){ C.innerHTML = errBox(e); }
+    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+    try{const d=await api('engine','/admin/insights');const gaps=d.gaps||[],negs=d.negative_feedback||[];
+      const lc=(title,sub,items,accent,render)=>`<div class="card"><div class="card-head"><div><h3>${title}</h3><p>${sub}</p></div><span class="pill">${items.length}</span></div>${items.length?`<div style="display:flex;flex-direction:column;gap:10px">${items.map(render).join('')}</div>`:emptyBox('✨','Tutto pulito','')}</div>`;
+      C.innerHTML=`<div class="grid g-2">${lc('🕳 Domande senza risposta','Priorità di ingest',gaps,'orange',it=>`<div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:10px"><div style="font-size:13px;margin-bottom:5px">${esc(it.q)}</div><div class="row small muted"><span class="scope-chip" style="background:${scopeColor(it.scope)}22;color:${scopeColor(it.scope)};border-color:${scopeColor(it.scope)}44">${esc(it.scope)}</span><span>${timeAgoTs(it.at)}</span></div></div>`)}${lc('👎 Feedback negativi','Risposte da rivedere',negs,'neg',it=>`<div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--neg);border-radius:10px"><div style="font-size:13px;margin-bottom:5px">${esc(it.q)}</div><div class="row small muted"><span class="scope-chip" style="background:${scopeColor(it.scope)}22;color:${scopeColor(it.scope)};border-color:${scopeColor(it.scope)}44">${esc(it.scope)}</span><span>${timeAgoTs(it.at)}</span></div></div>`)}</div>`;
+    }catch(e){C.innerHTML=errBox(e);}
   },
 
-  /* ---- LEARNING ---- */
   async learning(){
-    C.innerHTML = skeleton(4);
-    try{
-      const d = await api('/admin/learning'); const tasks = d.tasks||[];
-      $('#b-learning').textContent = tasks.length;
-      C.innerHTML = `
-        <div class="card">
-          <div class="card-head"><div><h3>✦ Task di apprendimento</h3><p>Azioni concrete generate da gap e feedback 👎 — ordinate per frequenza. Generato: ${esc((d.generated_at||'').replace('T',' ').replace('Z',''))}</p></div>
-            <span class="pill">${tasks.length} task</span></div>
-          ${tasks.length? `<div style="display:flex;flex-direction:column;gap:12px">${tasks.map(t=>`
-            <div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px">
-              <div class="row" style="justify-content:space-between;margin-bottom:8px">
-                <div class="row">
-                  <span class="tag ${t.kind==='gap'?'warn':'neg'}">${t.kind==='gap'?'GAP':'👎 FEEDBACK'}</span>
-                  <span class="scope-chip" style="background:${scopeColor(t.scope)}22;color:${scopeColor(t.scope)};border-color:${scopeColor(t.scope)}44">${esc(t.scope)}</span>
-                </div>
-                <span class="pill" title="ricorrenze">×${t.count} · ${timeAgo(t.last_at)}</span>
-              </div>
-              <div style="font-size:13.5px;font-weight:600;margin-bottom:7px">"${esc(t.question)}"</div>
-              <div class="small muted" style="line-height:1.6">💡 ${esc(t.suggestion)}</div>
-            </div>`).join('')}</div>`
-            : emptyBox('🎯','Nessun task pendente','Il cervello sta rispondendo bene')}
-        </div>`;
-    }catch(e){ C.innerHTML = errBox(e); }
+    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+    try{const d=await api('engine','/admin/learning');const tasks=d.tasks||[];$('#b-learning').textContent=tasks.length;
+      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>✦ Task di apprendimento</h3><p>Azioni da gap e feedback 👎, per frequenza</p></div><span class="pill">${tasks.length} task</span></div>${tasks.length?`<div style="display:flex;flex-direction:column;gap:12px">${tasks.map(t=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px"><div class="row"><span class="tag ${t.kind==='gap'?'warn':'neg'}">${t.kind==='gap'?'GAP':'👎'}</span><span class="scope-chip" style="background:${scopeColor(t.scope)}22;color:${scopeColor(t.scope)};border-color:${scopeColor(t.scope)}44">${esc(t.scope)}</span></div><span class="pill">×${t.count} · ${timeAgoTs(t.last_at)}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:7px">"${esc(t.question)}"</div><div class="small muted" style="line-height:1.6">💡 ${esc(t.suggestion)}</div></div>`).join('')}</div>`:emptyBox('🎯','Nessun task','Il cervello risponde bene')}</div>`;
+    }catch(e){C.innerHTML=errBox(e);}
   },
 
-  /* ---- USAGE ---- */
   async usage(){
-    C.innerHTML = skeleton(4);
-    try{
-      const d = await api('/admin/usage');
-      const rows = Object.entries(d).filter(([k])=>typeof d[k]==='object');
-      const totReq = rows.reduce((a,[,v])=>a+(v.count||0),0);
-      const totCost = rows.reduce((a,[,v])=>a+(v.cost_eur||0),0);
-      const alerts = rows.filter(([,v])=>v.alert).length;
-      const maxReq = Math.max(1,...rows.map(([,v])=>v.count||0));
-      C.innerHTML = `
-        <div class="grid g-stats">
-          <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">📊 Richieste oggi</div><div class="val" style="color:var(--cyan)">${fmtN(totReq)}</div><div class="meta">${rows.length} tenant attivi</div></div>
-          <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">€ Spesa stimata</div><div class="val" style="color:var(--green)">€${totCost.toFixed(2)}</div><div class="meta">giorno corrente</div></div>
-          <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">⚠️ Alert soglia</div><div class="val" style="color:${alerts?'var(--orange)':'var(--text)'}">${alerts}</div><div class="meta">tenant oltre soglia</div></div>
-        </div>
-        <div class="sec">Dettaglio per tenant</div>
-        <div class="card"><div class="tbl-wrap"><table>
-          <thead><tr><th>Tenant</th><th>Volume</th><th class="num">Richieste</th><th class="num">Spesa</th><th class="num">Stato</th></tr></thead>
-          <tbody>${rows.length? rows.sort((a,b)=>(b[1].count||0)-(a[1].count||0)).map(([k,v])=>`
-            <tr><td><span class="scope-chip" style="background:${scopeColor(k)}22;color:${scopeColor(k)};border-color:${scopeColor(k)}44">${esc(k)}</span></td>
-            <td style="width:34%"><div class="bar-track"><div class="bar-fill" style="width:${pct(v.count,maxReq)}%;background:${v.alert?'var(--orange)':scopeColor(k)}"></div></div></td>
-            <td class="num">${fmtN(v.count)}</td><td class="num">${v.cost_eur!=null?'€'+Number(v.cost_eur).toFixed(2):'—'}</td>
-            <td class="num">${v.alert?'<span class="tag warn">SOGLIA</span>':'<span class="tag pos">ok</span>'}</td></tr>`).join('')
-            : `<tr><td colspan="5">${emptyBox('📭','Quote non attive','La tabella key_usage si popola coi tenant a quota')}</td></tr>`}</tbody>
-        </table></div></div>`;
-    }catch(e){ C.innerHTML = errBox(e); }
+    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+    try{const d=await api('engine','/admin/usage');const rows=Object.entries(d).filter(([k])=>typeof d[k]==='object');
+      const totReq=rows.reduce((a,[,v])=>a+(v.count||0),0),totCost=rows.reduce((a,[,v])=>a+(v.cost_eur||0),0),alerts=rows.filter(([,v])=>v.alert).length,maxReq=Math.max(1,...rows.map(([,v])=>v.count||0));
+      C.innerHTML=`<div class="grid g-stats"><div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">📊 Richieste oggi</div><div class="val" style="color:var(--cyan)">${fmtN(totReq)}</div><div class="meta">${rows.length} tenant</div></div><div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">€ Spesa stimata</div><div class="val" style="color:var(--green)">€${totCost.toFixed(2)}</div><div class="meta">oggi</div></div><div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">⚠️ Alert</div><div class="val" style="color:${alerts?'var(--orange)':'var(--text)'}">${alerts}</div><div class="meta">oltre soglia</div></div></div>
+        <div class="sec">Dettaglio per tenant</div><div class="card"><div class="tbl-wrap"><table><thead><tr><th>Tenant</th><th>Volume</th><th class="num">Richieste</th><th class="num">Spesa</th><th class="num">Stato</th></tr></thead><tbody>${rows.length?rows.sort((a,b)=>(b[1].count||0)-(a[1].count||0)).map(([k,v])=>`<tr><td><span class="scope-chip" style="background:${scopeColor(k)}22;color:${scopeColor(k)};border-color:${scopeColor(k)}44">${esc(k)}</span></td><td style="width:34%"><div class="bar-track"><div class="bar-fill" style="width:${pct(v.count,maxReq)}%;background:${v.alert?'var(--orange)':scopeColor(k)}"></div></div></td><td class="num">${fmtN(v.count)}</td><td class="num">${v.cost_eur!=null?'€'+Number(v.cost_eur).toFixed(2):'—'}</td><td class="num">${v.alert?'<span class="tag warn">SOGLIA</span>':'<span class="tag pos">ok</span>'}</td></tr>`).join(''):`<tr><td colspan="5">${emptyBox('📭','Quote non attive','')}</td></tr>`}</tbody></table></div></div>`;
+    }catch(e){C.innerHTML=errBox(e);}
   },
 
-  /* ---- EVENTS ---- */
   async events(){
-    C.innerHTML = skeleton(5);
-    try{
-      const d = await api('/admin/events?limit=100'); const ev = d.events||[];
-      const kindTag = k => k==='chat'?'<span class="tag info">chat</span>': k&&k.includes('up')?'<span class="tag pos">👍</span>': k&&k.includes('down')?'<span class="tag neg">👎</span>':'<span class="tag warn">gap</span>';
-      C.innerHTML = `
-        <div class="card"><div class="card-head"><div><h3>≣ Eventi conversazione</h3><p>Storico da Supabase, più recenti prima · persistenza: ${d.persist?'<b style="color:var(--green)">attiva</b>':'<b style="color:var(--orange)">off</b>'}</p></div>
-          <a class="btn sm" href="${(state.base||'')}/admin/events.csv" target="_blank" rel="noopener">⬇ CSV</a></div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th>Quando</th><th>Tipo</th><th>Scope</th><th>Domanda</th></tr></thead>
-            <tbody>${ev.length? ev.map(e=>`<tr>
-              <td class="mono small muted" style="white-space:nowrap">${esc((e.at||'').replace('T',' ').slice(0,19))}</td>
-              <td>${kindTag(e.kind)}</td>
-              <td><span class="scope-chip" style="background:${scopeColor(e.scope)}22;color:${scopeColor(e.scope)};border-color:${scopeColor(e.scope)}44">${esc(e.scope||'∅')}</span></td>
-              <td>${esc(e.question||'—')}</td></tr>`).join('')
-              : `<tr><td colspan="4">${emptyBox('📭','Nessun evento','Attiva ANALYTICS_PERSIST per lo storico')}</td></tr>`}</tbody>
-          </table></div>
-        </div>`;
-    }catch(e){ C.innerHTML = errBox(e); }
+    if(needSvc('engine'))return; C.innerHTML=skeleton(5);
+    try{const d=await api('engine','/admin/events?limit=100');const ev=d.events||[];
+      const kt=k=>k==='chat'?'<span class="tag info">chat</span>':k&&k.includes('up')?'<span class="tag pos">👍</span>':k&&k.includes('down')?'<span class="tag neg">👎</span>':'<span class="tag warn">gap</span>';
+      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>≣ Eventi conversazione</h3><p>Da Supabase · persistenza ${d.persist?'<b style="color:var(--green)">attiva</b>':'<b style="color:var(--orange)">off</b>'}</p></div><a class="btn sm" href="${(state.engBase||'')}/admin/events.csv" target="_blank" rel="noopener">⬇ CSV</a></div><div class="tbl-wrap"><table><thead><tr><th>Quando</th><th>Tipo</th><th>Scope</th><th>Domanda</th></tr></thead><tbody>${ev.length?ev.map(e=>`<tr><td class="mono small muted" style="white-space:nowrap">${esc((e.at||'').replace('T',' ').slice(0,19))}</td><td>${kt(e.kind)}</td><td><span class="scope-chip" style="background:${scopeColor(e.scope)}22;color:${scopeColor(e.scope)};border-color:${scopeColor(e.scope)}44">${esc(e.scope||'∅')}</span></td><td>${esc(e.question||'—')}</td></tr>`).join(''):`<tr><td colspan="4">${emptyBox('📭','Nessun evento','')}</td></tr>`}</tbody></table></div></div>`;
+    }catch(e){C.innerHTML=errBox(e);}
   },
 
-  /* ---- LOGS ---- */
-  async logs(){
-    C.innerHTML = skeleton(5);
-    try{
-      const d = await api('/admin/access-logs?limit=100'); const logs = d.logs||[];
-      const actTag = a => a==='create'?'pos': a==='update'?'info': a==='delete'?'neg':'mut';
-      C.innerHTML = `
-        <div class="card"><div class="card-head"><div><h3>☰ Audit trail</h3><p>Chi legge/scrive cosa nel cervello (access_logs)</p></div>
-          <a class="btn sm" href="${(state.base||'')}/admin/access-logs.csv" target="_blank" rel="noopener">⬇ CSV</a></div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th>Quando</th><th>Azione</th><th>Tenant</th><th>Org</th><th>Dettaglio</th></tr></thead>
-            <tbody>${logs.length? logs.map(l=>`<tr>
-              <td class="mono small muted" style="white-space:nowrap">${esc((l.at||'').replace('T',' ').slice(0,19))}</td>
-              <td><span class="tag ${actTag(l.action)}">${esc(l.action||'?')}</span></td>
-              <td><span class="scope-chip" style="background:${scopeColor(l.tenant)}22;color:${scopeColor(l.tenant)};border-color:${scopeColor(l.tenant)}44">${esc(l.tenant||'—')}</span></td>
-              <td class="muted small">${esc(l.org||'—')}</td>
-              <td class="mono small">${esc(l.detail||'—')}</td></tr>`).join('')
-              : `<tr><td colspan="5">${emptyBox('📭','Nessuna voce','')}</td></tr>`}</tbody>
-          </table></div>
-        </div>`;
-    }catch(e){ C.innerHTML = errBox(e); }
-  },
-
-  /* ---- TENANTS ---- */
   async tenants(){
-    C.innerHTML = skeleton(4);
-    try{
-      const d = await api('/admin/tenants'); const ts = d.tenants||[];
-      C.innerHTML = `
-        <div class="row" style="justify-content:space-between;margin-bottom:16px">
-          <div><h3 style="font-size:16px">Chiavi tenant</h3><p class="small muted">Onboarding, quote e revoca · backend Supabase api_keys</p></div>
-          <button class="btn primary" id="newTenant">＋ Nuovo tenant</button>
-        </div>
-        <div class="card"><div class="tbl-wrap"><table>
-          <thead><tr><th>Nome</th><th>Org / scope</th><th class="num">Quota/gg</th><th>Creato</th><th class="num">Stato</th><th></th></tr></thead>
-          <tbody>${ts.length? ts.map(t=>`<tr>
-            <td><b>${esc(t.name)}</b></td>
-            <td>${(t.tenants||[]).map(s=>`<span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span>`).join(' ')||'—'}</td>
-            <td class="num">${t.quota_day??'∞'}</td>
-            <td class="muted small">${esc((t.created_at||'').slice(0,10))}</td>
-            <td class="num">${t.active?'<span class="tag pos">attivo</span>':'<span class="tag mut">revocato</span>'}</td>
-            <td class="num">${t.active?`<button class="btn sm danger" data-revoke="${esc(t.name)}">Revoca</button>`:''}</td></tr>`).join('')
-            : `<tr><td colspan="6">${emptyBox('⚿','Nessun tenant','Crea la prima chiave')}</td></tr>`}</tbody>
-        </table></div></div>`;
-      $('#newTenant').onclick = newTenantForm;
-      $$('[data-revoke]').forEach(b=>b.onclick=()=>revokeTenant(b.dataset.revoke));
-    }catch(e){ C.innerHTML = errBox(e); }
+    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+    try{const d=await api('engine','/admin/tenants');const ts=d.tenants||[];
+      C.innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:16px"><div><h3 style="font-size:16px">Chiavi tenant</h3><p class="small muted">Onboarding, quote e revoca</p></div><button class="btn primary" id="newTenant">＋ Nuovo</button></div><div class="card"><div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>Scope</th><th class="num">Quota/gg</th><th>Creato</th><th class="num">Stato</th><th></th></tr></thead><tbody>${ts.length?ts.map(t=>`<tr><td><b>${esc(t.name)}</b></td><td>${(t.tenants||[]).map(s=>`<span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span>`).join(' ')||'—'}</td><td class="num">${t.quota_day??'∞'}</td><td class="muted small">${esc((t.created_at||'').slice(0,10))}</td><td class="num">${t.active?'<span class="tag pos">attivo</span>':'<span class="tag mut">revocato</span>'}</td><td class="num">${t.active?`<button class="btn sm danger" data-revoke="${esc(t.name)}">Revoca</button>`:''}</td></tr>`).join(''):`<tr><td colspan="6">${emptyBox('⚿','Nessun tenant','')}</td></tr>`}</tbody></table></div></div>`;
+      $('#newTenant').onclick=newTenantForm;$$('[data-revoke]').forEach(b=>b.onclick=()=>revokeTenant(b.dataset.revoke));
+    }catch(e){C.innerHTML=errBox(e);}
   },
 
-  /* ---- SYSTEM ---- */
+  /* ---------- ORCHESTRATORE ---------- */
+  async agents(){
+    if(needSvc('orch'))return; C.innerHTML=skeleton(5);
+    try{const ag=await api('orch','/agents');const agents=ag.agents||[];$('#b-agents').textContent=agents.length;
+      C.innerHTML=`<div class="grid g-3" style="align-items:start">${agents.map(a=>{const col=AG_COLORS[a.id]||'var(--magenta)';const byDept={};(a.skills||[]).forEach(s=>{(byDept[s.department]=byDept[s.department]||[]).push(s);});return `<div class="agent-card"><div class="accent-top" style="background:${col}"></div><div class="agent-head"><div class="agent-avatar" style="background:${col}">${AG_INIT[a.id]||'AG'}</div><div><div class="agent-name">${esc(a.name)}</div><div class="agent-arch">${esc(a.archetype)}</div></div></div><div class="agent-tagline">${esc(a.tagline||'')}</div>${Object.entries(byDept).map(([d,sk])=>`<div class="dept-title">${esc(d)}</div>${sk.map(s=>`<div class="skill-item" onclick="quickRun('${esc(a.id)}','${esc(s.id)}')"><span style="color:${col};font-size:14px">▸</span><div><div class="skill-role">${esc(s.role||s.id)}</div><div class="skill-desc">${esc(s.desc||'')}</div></div></div>`).join('')}`).join('')}</div>`;}).join('')}</div>`;
+    }catch(e){C.innerHTML=errBox(e);}
+  },
+
+  async router(){
+    if(needSvc('orch'))return;
+    C.innerHTML=`<div class="card"><div class="card-head"><div><h3>⇄ Router conversazionale</h3><p>Divina smista la richiesta all'agente+skill più adatti (e la esegue se sicura). Tenant <b>${esc(state.tenant)}</b></p></div></div><label class="fld"><span class="lt">Richiesta</span><textarea id="rInput" placeholder="Es. Prepara i solleciti per le fatture scadute del cliente ATS"></textarea></label><div class="row"><button class="btn primary" id="rGo">Instrada &amp; esegui</button><label class="row small muted" style="cursor:pointer"><input type="checkbox" id="rEmber" style="width:auto;min-height:auto;margin-right:6px" ${state.tenantKey?'checked':''}> aggancia il cervello</label></div><div id="rOut" style="margin-top:18px"></div></div>`;
+    $('#rGo').onclick=async()=>{const input=$('#rInput').value.trim();if(!input){toast('Scrivi una richiesta','bad');return;}const out=$('#rOut');out.innerHTML=skeleton(3);try{const r=await api('orch','/agents/route',{method:'POST',tenantKey:$('#rEmber').checked,body:{tenant:state.tenant,input,history:[]}});out.innerHTML=renderAgentOut(r);}catch(e){out.innerHTML=errBox(e);}};
+  },
+
+  async nodes(){
+    if(needSvc('orch'))return; C.innerHTML=skeleton(5);
+    try{const d=await api('orch','/nodes/recent?'+q({tenant:state.tenant,limit:30}));const nodes=d.nodes||[];const stt=s=>s==='promosso'?'pos':s==='bozza'?'warn':s==='archiviato'?'mut':'info';
+      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>◇ Nodi wiki recenti</h3><p>Tenant <b>${esc(state.tenant)}</b> · promozione bozza→vault = PR (merge umano)</p></div><span class="pill">${nodes.length} nodi</span></div><div class="tbl-wrap"><table><thead><tr><th>Titolo</th><th>Tipo</th><th class="num">Conf.</th><th>Stato</th><th>Aggiornato</th><th></th></tr></thead><tbody>${nodes.length?nodes.map(n=>`<tr><td><b>${esc(n.title||n.slug)}</b><div class="small muted">${esc(n.summary||'')}</div></td><td><span class="pill">${esc(n.kind||'—')}</span></td><td class="num">${n.confidence!=null?Math.round(n.confidence*100)+'%':'—'}</td><td><span class="tag ${stt(n.status)}">${esc(n.status||'—')}</span></td><td class="muted small" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</td><td class="num">${n.status==='bozza'?`<button class="btn sm" data-promote="${esc(n.node_id)}" data-slug="${esc(n.slug)}">Promuovi</button>`:''}</td></tr>`).join(''):`<tr><td colspan="6">${emptyBox('◇','Nessun nodo','')}</td></tr>`}</tbody></table></div></div>`;
+      $$('[data-promote]').forEach(b=>b.onclick=()=>promoteNode(b.dataset.promote,b.dataset.slug));
+    }catch(e){C.innerHTML=errBox(e);}
+  },
+
+  async contradictions(){
+    if(needSvc('orch'))return; C.innerHTML=skeleton(4);
+    try{const d=await api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'}));const cs=d.contradictions||[];$('#b-contra').textContent=cs.length;
+      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>⚠ Coda di revisione umana</h3><p>Le contraddizioni le chiude SOLO un umano (resolved_by). Tenant <b>${esc(state.tenant)}</b></p></div><span class="pill">${cs.length} aperte</span></div>${cs.length?`<div style="display:flex;flex-direction:column;gap:12px">${cs.map(c=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="mono small muted">${esc(c.node_a||'?')} ↔ ${esc(c.node_b||'?')}</span><span class="small muted">${timeAgoIso(c.created_at)}</span></div><div style="font-size:13.5px;margin-bottom:12px">${esc(c.description)}</div><div class="row"><input placeholder="Chi decide (nome)" id="rb-${esc(c.id)}" style="max-width:200px"><input placeholder="Risoluzione / nota" id="rr-${esc(c.id)}" style="flex:1;min-width:160px"><button class="btn sm primary" data-resolve="${esc(c.id)}" data-st="risolto">Risolvi</button><button class="btn sm" data-resolve="${esc(c.id)}" data-st="ignorato">Ignora</button></div></div>`).join('')}</div>`:emptyBox('✅','Tutto coerente','')}</div>`;
+      $$('[data-resolve]').forEach(b=>b.onclick=()=>resolveContra(b.dataset.resolve,b.dataset.st));
+    }catch(e){C.innerHTML=errBox(e);}
+  },
+
+  async docs(){
+    if(needSvc('orch'))return; C.innerHTML=skeleton(4);
+    try{const d=await api('orch','/templates');const ts=d.templates||[];
+      C.innerHTML=`<div class="grid g-21" style="align-items:start"><div class="card"><div class="card-head"><div><h3>▦ Genera documento</h3><p>Template + nodi pertinenti · tenant <b>${esc(state.tenant)}</b></p></div></div><label class="fld"><span class="lt">Template</span><select id="dTpl">${ts.map(t=>`<option value="${esc(t.name)}">${esc(t.name)} · ${esc(t.business_area)}</option>`).join('')}</select></label><label class="fld"><span class="lt">Tier</span><select id="dTier"><option value="starter">starter</option><option value="pro">pro</option><option value="enterprise" selected>enterprise</option></select></label><div class="row"><button class="btn primary" id="dGo">Genera</button></div><div id="dOut" style="margin-top:16px"></div></div><div class="card"><div class="card-head"><div><h3>Catalogo template</h3><p>${ts.length} disponibili</p></div></div><div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>Area</th><th>Tier</th></tr></thead><tbody>${ts.map(t=>`<tr><td><b>${esc(t.name)}</b> ${t.system?'<span class="tag mut">sys</span>':''}</td><td class="muted small">${esc(t.business_area)}</td><td><span class="pill">${esc(t.min_tier)}</span></td></tr>`).join('')}</tbody></table></div><div class="sec" style="margin-top:18px">Manutenzione</div><div class="row"><button class="btn sm" id="mRun">Manutentore</button><button class="btn sm" id="cSync">Sync connettori</button></div></div></div>`;
+      $('#dGo').onclick=async()=>{const out=$('#dOut');out.innerHTML=skeleton(2);try{const r=await api('orch','/docs/generate',{method:'POST',body:{tenant:state.tenant,template:$('#dTpl').value,tier:$('#dTier').value,data:{},format:'markdown',lang:'it'}});out.innerHTML=`<div style="padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b class="small">${esc(r.template||'documento')}</b>${(r.warnings||[]).length?`<span class="tag warn">${r.warnings.length} warning</span>`:'<span class="tag pos">ok</span>'}</div><pre class="mono small" style="white-space:pre-wrap;color:var(--text)">${esc(r.content||'')}</pre></div>`;}catch(e){out.innerHTML=errBox(e);}};
+      $('#mRun').onclick=async()=>{try{const r=await api('orch','/maintenance/run',{method:'POST',body:{tenant:state.tenant}});toast(r.note||'Manutenzione eseguita','ok');}catch(e){toast(e.message,'bad');}};
+      $('#cSync').onclick=async()=>{try{const r=await api('orch','/connectors/sync',{method:'POST',body:{}});toast(`Connettori: ${r.connectors||0}`,'info');}catch(e){toast(e.message,'bad');}};
+    }catch(e){C.innerHTML=errBox(e);}
+  },
+
+  /* ---------- SISTEMA (both) ---------- */
   async system(){
-    C.innerHTML = skeleton(4);
-    try{
-      const [st,v] = await Promise.all([api('/admin/status'),api('/version')]);
-      const flag = (k,label,onGood=true) => {const on=!!st[k];return `<tr><td class="muted">${label}</td><td class="num">${on?(onGood?'<span class="tag pos">attivo</span>':'<span class="tag info">on</span>'):'<span class="tag mut">off</span>'}</td></tr>`};
-      C.innerHTML = `
-        <div class="grid g-2">
-          <div class="card"><div class="card-head"><div><h3>⚙ Configurazione attiva</h3><p>Snapshot booleano — nessun segreto</p></div></div>
-            <table><tbody>
-              <tr><td class="muted">Grants backend</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr>
-              ${flag('supabase','Supabase')}${flag('mongo','Mongo')}${flag('redis','Redis')}
-              ${flag('sentry','Sentry')}${flag('stripe','Stripe')}${flag('analytics_persist','Persistenza analytics')}
-              ${flag('content_encryption','Cifratura contenuti')}
-              <tr><td class="muted">Voice provider</td><td class="num"><span class="pill">${esc(st.voice_provider||'browser')}</span></td></tr>
-              <tr><td class="muted">Lingua default</td><td class="num"><span class="pill">${esc(st.default_lang||'it')}</span></td></tr>
-              <tr><td class="muted">Retention</td><td class="num">${st.retention_days} giorni</td></tr>
-            </tbody></table>
-          </div>
-          <div class="card"><div class="card-head"><div><h3>ℹ️ Build &amp; azioni</h3><p>Versione e manutenzione</p></div></div>
-            <table><tbody>
-              <tr><td class="muted">Servizio</td><td class="num"><b>${esc(v.name||'Ember')}</b></td></tr>
-              <tr><td class="muted">Versione</td><td class="num mono">${esc(v.version||'—')}</td></tr>
-              <tr><td class="muted">Commit</td><td class="num mono">${esc((v.commit||'—').slice(0,12))}</td></tr>
-            </tbody></table>
-            <div class="sec" style="margin-top:20px">Manutenzione GDPR</div>
-            <div class="row">
-              <button class="btn sm" id="retDry">Anteprima retention</button>
-              <a class="btn sm" href="${(state.base||'')}/metrics" target="_blank" rel="noopener">Metriche Prometheus</a>
-            </div>
-            <p class="small muted" style="margin-top:10px">L'anteprima retention conta quante righe verrebbero eliminate (dry-run, non cancella).</p>
-          </div>
-        </div>`;
-      $('#retDry').onclick = async ()=>{
-        try{ const r = await api('/admin/retention/run?dry_run=true',{method:'POST'});
-          toast(`Retention: eliminerebbe ${fmtN(r.would_delete)} righe (soglia ${r.retention_days}gg)`,'info'); }
-        catch(e){ toast(e.message,'bad'); }
-      };
-    }catch(e){ C.innerHTML = errBox(e); }
+    C.innerHTML=skeleton(3);
+    const eng=await Promise.all([api('engine','/health').catch(()=>({})),api('engine','/version').catch(()=>({})),api('engine','/admin/status').catch(()=>({}))]).catch(()=>[{},{},{}]);
+    const orch=await Promise.all([api('orch','/health').catch(()=>({})),api('orch','/version').catch(()=>({})),api('orch','/ready').catch(()=>({db:false}))]).catch(()=>[{},{},{db:false}]);
+    const [eh,ev,est]=eng,[oh,ov,ordy]=orch;
+    C.innerHTML=`<div class="grid g-2">
+      <div class="card"><div class="card-head"><div><h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--cyan)">◆</span> Motore (chat + cervello)</h3><p>Il motore Divina</p></div>${state.engOk?'<span class="tag pos">connesso</span>':'<span class="tag mut">n/d</span>'}</div>
+        <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ev.name||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${eh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ev.version||'—')}</td></tr><tr><td class="muted">LLM / embed</td><td class="num"><span class="pill">${esc(eh.llm||'—')}</span> <span class="pill">${esc(eh.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(est.grants_backend||'—')}</span></td></tr></tbody></table>
+        <div class="row" style="margin-top:14px"><a class="btn sm" href="${(state.engBase||'')}/metrics" target="_blank" rel="noopener">Metriche</a><a class="btn sm" href="${(state.engBase||'')}/admin/access-logs.csv" target="_blank" rel="noopener">Audit CSV</a></div></div>
+      <div class="card"><div class="card-head"><div><h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--magenta)">✧</span> Orchestratore (agenti)</h3><p>Servizio Divina</p></div>${state.orchOk?'<span class="tag pos">connesso</span>':'<span class="tag mut">n/d</span>'}</div>
+        <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ov.name||oh.service||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${oh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Database (RLS)</td><td class="num">${ordy.db?'<span class="tag pos">ok</span>':'<span class="tag neg">giù</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ov.version||'—')}</td></tr><tr><td class="muted">Tenant</td><td class="num"><span class="tag acc">${esc(state.tenant)}</span></td></tr></tbody></table>
+        <div style="margin-top:14px;font-size:12px;color:var(--text-2);line-height:1.9"><div>✓ RLS per tenant · ✓ contraddizioni mai auto-risolte</div><div>✓ nessun DELETE (archivio) · ✓ ogni azione → audit</div></div></div>
+    </div>`;
   },
 };
 
-/* ---- Tenant actions ---- */
+/* ---- CHAT logic ---- */
+function renderChat(){
+  const inner=$('#chatInner');if(!inner)return;
+  if(!state.chat.length){
+    inner.innerHTML=`<div class="chat-hint"><div class="big">🔥</div><h2>Ciao, sono Divina</h2><p>Rispondo attingendo al cervello OVY, nel rispetto dello scope del tuo tenant.</p><div style="margin-top:18px">${['Quali servizi offre FORMA?','Prezzi della stampa 3D?','Orari e sede'].map(s=>`<span class="chip-suggest" data-s="${esc(s)}">${esc(s)}</span>`).join('')}</div>${!state.tenantKey&&!state.demo?'<p class="small" style="margin-top:20px;color:var(--orange)">⚠ Per chattare serve una <b>chiave tenant</b> (X-Tenant-Key) nelle impostazioni di connessione.</p>':''}</div>`;
+    inner.querySelectorAll('.chip-suggest').forEach(c=>c.onclick=()=>{$('#chatMsg').value=c.dataset.s;sendChat();});
+    return;
+  }
+  inner.innerHTML=state.chat.map(m=>{
+    if(m.role==='user') return `<div class="msg user"><div class="av">Tu</div><div class="bubble">${esc(m.text)}</div></div>`;
+    if(m.role==='typing') return `<div class="msg bot"><div class="av">DV</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
+    const src=(m.sources||[]).map(s=>`<span class="src-pill">🧠 ${esc(s.title||s.slug||'nota')}${s.scope?` · ${esc(s.scope)}`:''}</span>`).join('');
+    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${esc(m.text)}</div>${src?`<div class="sources">${src}</div>`:''}</div></div>`;
+  }).join('');
+  const sc=$('#chatScroll');if(sc)sc.scrollTop=sc.scrollHeight;
+}
+async function sendChat(){
+  const ta=$('#chatMsg');if(!ta)return;const text=ta.value.trim();if(!text)return;
+  if(!state.demo&&!state.tenantKey){toast('Configura una chiave tenant (X-Tenant-Key) per chattare','bad');openConn();return;}
+  ta.value='';ta.style.height='auto';
+  const history=state.chat.filter(m=>m.role==='user'||m.role==='bot').map(m=>({role:m.role==='bot'?'assistant':'user',content:m.text}));
+  state.chat.push({role:'user',text});state.chat.push({role:'typing'});renderChat();
+  try{
+    const r=await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:{message:text,history}});
+    state.chat.pop();
+    const answer=r.answer||r.text||r.message||(typeof r==='string'?r:'(nessuna risposta)');
+    state.chat.push({role:'bot',text:answer,sources:r.sources||[]});
+  }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'⚠ '+e.message,sources:[]});}
+  renderChat();
+}
+
+/* ---- shared actions ---- */
+function renderAgentOut(r){
+  if(r.routed===false)return `<div style="padding:15px;background:var(--warn-bg);border:1px solid rgba(248,105,60,.3);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:6px"><b>Non instradato</b><span class="tag warn">conf. ${Math.round((r.confidence||0)*100)}%</span></div><div class="small muted">${esc(r.suggestion||'')}</div></div>`;
+  const col=AG_COLORS[r.agent]||'var(--magenta)';
+  const cerv=(r.cervello_sources||[]).map(s=>`<span class="pill">🧠 ${esc(s.title||s.slug)}</span>`).join(' ');
+  const web=(r.web_sources||[]).map(s=>`<a class="pill" href="${esc(s.url)}" target="_blank" rel="noopener">🔗 ${esc(s.title||s.url)}</a>`).join(' ');
+  return `<div style="border:1px solid ${col}55;border-radius:12px;overflow:hidden"><div style="padding:12px 15px;background:${col}18;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div class="agent-avatar" style="width:34px;height:34px;font-size:13px;background:${col}">${AG_INIT[r.agent]||'AG'}</div><div><b>${esc(r.agent)}</b> · <span class="muted">${esc(r.role||r.skill)}</span><div class="small muted">${esc(r.department||'')}</div></div>${r.confidence!=null?`<span class="tag acc" style="margin-left:auto">conf. ${Math.round(r.confidence*100)}%</span>`:''}</div><div style="padding:15px"><pre class="mono small" style="white-space:pre-wrap;color:var(--text)">${esc(r.output||'')}</pre>${(cerv||web)?`<div class="row" style="margin-top:12px">${cerv}${web}</div>`:''}</div></div>`;
+}
+async function quickRun(agentId,skillId){route('router');await new Promise(r=>setTimeout(r,50));const ta=$('#rInput');if(ta){ta.value=`Esegui la skill "${skillId}" dell'agente ${agentId}: `;ta.focus();}toast(`Skill ${skillId} pronta`,'info');}
+async function promoteNode(id,slug){if(!confirm(`Promuovere "${slug}"? Verrà aperta una PR sul vault.`))return;try{const r=await api('orch','/nodes/promote',{method:'POST',body:{tenant:state.tenant,node_id:id}});if(r.ok)toast('PR aperta sul vault ✓','ok');else toast('Inerte: '+(r.reason||'token vault assente'),'info');route('nodes');}catch(e){toast(e.message,'bad');}}
+async function resolveContra(id,status){const by=($('#rb-'+id)||{}).value?.trim()||'';const res=($('#rr-'+id)||{}).value?.trim()||'';if(!by){toast('Indica chi decide','bad');return;}try{await api('orch','/contradictions/resolve',{method:'POST',body:{contradiction_id:id,resolved_by:by,resolution:res,status}});toast('Contraddizione '+status,'ok');route('contradictions');}catch(e){toast(e.message,'bad');}}
 function newTenantForm(){
-  C.insertAdjacentHTML('afterbegin', `<div class="card" id="ntCard" style="border-color:var(--cyan)">
-    <div class="card-head"><div><h3>＋ Nuovo tenant</h3><p>La chiave viene mostrata UNA sola volta (nel DB solo l'hash)</p></div></div>
-    <div class="grid g-2">
-      <label class="fld"><span class="lt">Nome</span><input id="ntName" placeholder="Es. Cliente ACME"></label>
-      <label class="fld"><span class="lt">Scope (tenant) — separati da virgola</span><input id="ntScopes" placeholder="ats, forma-core"></label>
-      <label class="fld"><span class="lt">Org (opzionale)</span><input id="ntOrgs" placeholder="forma"></label>
-      <label class="fld"><span class="lt">Quota giornaliera (opzionale)</span><input id="ntQuota" type="number" placeholder="2000"></label>
-    </div>
-    <div class="row"><button class="btn primary" id="ntSave">Crea chiave</button><button class="btn ghost" id="ntCancel">Annulla</button></div>
-  </div>`);
-  $('#ntCancel').onclick = ()=> $('#ntCard').remove();
-  $('#ntSave').onclick = async ()=>{
-    const body = {
-      name: $('#ntName').value.trim(),
-      tenants: $('#ntScopes').value.split(',').map(s=>s.trim()).filter(Boolean),
-      orgs: $('#ntOrgs').value.split(',').map(s=>s.trim()).filter(Boolean),
-      subs: [], origins: [],
-      quota: $('#ntQuota').value? Number($('#ntQuota').value):null, branding:{},
-    };
-    if(!body.name){ toast('Nome obbligatorio','bad'); return; }
-    try{
-      const r = await api('/admin/tenants',{method:'POST',body});
-      $('#ntCard').innerHTML = `<div class="card-head"><h3 style="color:var(--green)">✓ Tenant creato</h3></div>
-        <p class="small muted" style="margin-bottom:8px">Copia la chiave ora — non sarà più mostrata:</p>
-        <div class="mono" style="padding:12px;background:var(--surface-2);border:1px solid var(--cyan);border-radius:10px;word-break:break-all;user-select:all">${esc(r.key||'—')}</div>
-        <div class="row" style="margin-top:12px"><button class="btn" onclick="navigator.clipboard.writeText('${esc(r.key||'')}').then(()=>toast('Chiave copiata','ok'))">Copia</button><button class="btn ghost" onclick="route('tenants')">Chiudi</button></div>`;
-      toast('Tenant creato','ok');
-    }catch(e){ toast(e.message,'bad'); }
-  };
+  C.insertAdjacentHTML('afterbegin',`<div class="card" id="ntCard" style="border-color:var(--cyan)"><div class="card-head"><div><h3>＋ Nuovo tenant</h3><p>La chiave è mostrata UNA sola volta</p></div></div><div class="grid g-2"><label class="fld"><span class="lt">Nome</span><input id="ntName" placeholder="Cliente ACME"></label><label class="fld"><span class="lt">Scope (virgola)</span><input id="ntScopes" placeholder="ats"></label><label class="fld"><span class="lt">Org</span><input id="ntOrgs" placeholder="forma"></label><label class="fld"><span class="lt">Quota/gg</span><input id="ntQuota" type="number" placeholder="2000"></label></div><div class="row"><button class="btn primary" id="ntSave">Crea chiave</button><button class="btn ghost" id="ntCancel">Annulla</button></div></div>`);
+  $('#ntCancel').onclick=()=>$('#ntCard').remove();
+  $('#ntSave').onclick=async()=>{const body={name:$('#ntName').value.trim(),tenants:$('#ntScopes').value.split(',').map(s=>s.trim()).filter(Boolean),orgs:$('#ntOrgs').value.split(',').map(s=>s.trim()).filter(Boolean),subs:[],origins:[],quota:$('#ntQuota').value?Number($('#ntQuota').value):null,branding:{}};if(!body.name){toast('Nome obbligatorio','bad');return;}try{const r=await api('engine','/admin/tenants',{method:'POST',body});$('#ntCard').innerHTML=`<div class="card-head"><h3 style="color:var(--green)">✓ Tenant creato</h3></div><p class="small muted" style="margin-bottom:8px">Copia la chiave ora:</p><div class="mono" style="padding:12px;background:var(--surface-2);border:1px solid var(--cyan);border-radius:10px;word-break:break-all;user-select:all">${esc(r.key||'—')}</div><div class="row" style="margin-top:12px"><button class="btn" onclick="navigator.clipboard.writeText('${esc(r.key||'')}').then(()=>toast('Copiata','ok'))">Copia</button><button class="btn ghost" onclick="route('tenants')">Chiudi</button></div>`;toast('Tenant creato','ok');}catch(e){toast(e.message,'bad');}};
 }
-async function revokeTenant(name){
-  if(!confirm(`Revocare tutte le chiavi di "${name}"?`)) return;
-  try{ const r = await api('/admin/tenants/revoke',{method:'POST',body:{name}});
-    toast(`Revocate ${r.revoked??0} chiavi`,'ok'); route('tenants'); }
-  catch(e){ toast(e.message,'bad'); }
-}
+async function revokeTenant(name){if(!confirm(`Revocare le chiavi di "${name}"?`))return;try{const r=await api('engine','/admin/tenants/revoke',{method:'POST',body:{name}});toast(`Revocate ${r.revoked??0} chiavi`,'ok');route('tenants');}catch(e){toast(e.message,'bad');}}
 
-/* ══════════════════════════════════════════════════════════════════
-   ROUTER
-   ══════════════════════════════════════════════════════════════════ */
-const TITLES = {
-  overview:['Dashboard',"Colpo d'occhio operativo"],
-  scopes:['Scope & tenant','Metriche per area del cervello'],
-  insights:['Segnali',"Cosa manca e cosa migliorare"],
-  learning:['Apprendimento','Task azionabili per arricchire il cervello'],
-  usage:['Uso & spesa','Traffico e costi per tenant'],
-  events:['Eventi','Storico conversazioni'],
-  logs:['Audit trail','Chi legge e scrive nel cervello'],
-  tenants:['Chiavi tenant','Onboarding e gestione accessi'],
-  system:['Sistema','Configurazione, build e manutenzione'],
-};
+/* ══════════ ROUTER ══════════ */
+const TITLES={chat:['Chat col cervello','Parla con Divina'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 function route(view){
-  state.view = view;
-  $$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
-  const [t,s] = TITLES[view]||['',''];
-  $('#pageTitle').textContent = t; $('#pageSub').textContent = s;
-  $('#side').classList.remove('open'); $('#sideBackdrop').classList.remove('open');
-  if(needConn() && view!=='overview') { /* overview mostra comunque il prompt */ }
-  if(needConn()) return;
-  (VIEWS[view]||VIEWS.overview)();
+  state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
+  const [t,s]=TITLES[view]||['',''];$('#pageTitle').textContent=t;$('#pageSub').textContent=s;
+  $('#side').classList.remove('open');$('#sideBackdrop').classList.remove('open');
+  C.classList.toggle('chatmode',view==='chat');
+  (VIEWS[view]||VIEWS.chat)();
 }
-$$('.nav-item').forEach(n=> n.onclick = ()=> route(n.dataset.view));
-$('#refreshBtn').onclick = ()=> route(state.view);
-$('#burger').onclick = ()=>{ $('#side').classList.toggle('open'); $('#sideBackdrop').classList.toggle('open'); };
-$('#sideBackdrop').onclick = ()=>{ $('#side').classList.remove('open'); $('#sideBackdrop').classList.remove('open'); };
+$$('.nav-item').forEach(n=>n.onclick=()=>route(n.dataset.view));
+$('#refreshBtn').onclick=()=>route(state.view);
+$('#burger').onclick=()=>{$('#side').classList.toggle('open');$('#sideBackdrop').classList.toggle('open');};
+$('#sideBackdrop').onclick=()=>{$('#side').classList.remove('open');$('#sideBackdrop').classList.remove('open');};
 
-/* ══════════════════════════════════════════════════════════════════
-   BOOT
-   ══════════════════════════════════════════════════════════════════ */
 (async function init(){
-  setTheme(localStorage.getItem(LS.theme) || 'dark');
+  setTheme(localStorage.getItem(LS.theme)||'dark');$('#tenantText').textContent=state.tenant;
   await checkConn();
-  // aggiorna badge apprendimento in background (best-effort)
-  if(state.connected){ try{ const l = await api('/admin/learning'); $('#b-learning').textContent = (l.tasks||[]).length; }catch(_){}}
-  if(!state.connected && !state.demo) openConn();
-  route('overview');
+  if(state.engOk){try{const l=await api('engine','/admin/learning');$('#b-learning').textContent=(l.tasks||[]).length;}catch(_){}}
+  if(state.orchOk){try{const a=await api('orch','/agents');$('#b-agents').textContent=(a.agents||[]).length;const c=await api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'}));$('#b-contra').textContent=(c.contradictions||[]).length;}catch(_){}}
+  if(!state.engOk&&!state.orchOk&&!state.demo)openConn();
+  route('chat');
 })();
 </script>
 </body>

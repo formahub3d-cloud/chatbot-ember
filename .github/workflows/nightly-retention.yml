@@ -1,7 +1,7 @@
 name: Nightly retention (GDPR)
 
 # Applica la retention GDPR degli eventi analytics chiamando
-# POST /admin/retention/run su Ember (vedi app/main.py::retention_run).
+# POST /admin/retention/run su Divina (vedi app/main.py::retention_run).
 #
 # NON DISTRUTTIVO DI DEFAULT: sia lo scheduling notturno sia il dispatch manuale
 # partono con dry_run=true → solo ANTEPRIMA di quante righe verrebbero eliminate,
@@ -10,8 +10,8 @@ name: Nightly retention (GDPR)
 # Così nessun dato viene mai cancellato automaticamente da un cron.
 #
 # Richiede (Settings → Secrets and variables → Actions) — gli stessi del re-ingest:
-#   - Segreto    ADMIN_TOKEN   (token admin di Ember, Bearer)   [obbligatorio]
-#   - Variabile  EMBER_URL     (es. https://ember.formahub.it)  [opzionale]
+#   - Segreto    ADMIN_TOKEN   (token admin di Divina, Bearer)   [obbligatorio]
+#   - Variabile  EMBER_URL     (es. https://divina.formahub.it)  [opzionale]
 #
 # Solo curl (preinstallato su ubuntu-latest): nessuna dipendenza da installare.
 
@@ -44,7 +44,7 @@ jobs:
             echo "::error::ADMIN_TOKEN mancante: impostalo come GitHub secret."
             exit 1
           fi
-          BASE="${EMBER_URL:-https://ember.formahub.it}"
+          BASE="${EMBER_URL:-https://divina.formahub.it}"
           BASE="${BASE%/}"
           DRY="${DRY_RUN:-true}"
           if [ "$DRY" = "false" ]; then

@@ -2,7 +2,7 @@
 
 > Stato: **in revisione — NON applicato**. Questi file sono la consegna della Fase 1
 > del progetto OVY Orchestrator ("Divina"). Vivranno nel repo `ovy-orchestrator`
-> appena esiste; nel frattempo sono versionati qui (solo file, zero impatto su Ember).
+> appena esiste; nel frattempo sono versionati qui (solo file, zero impatto su Divina).
 
 ## File
 
@@ -16,7 +16,7 @@ alle tabelle esistenti dello schema OVYON.
 
 ## Decisioni di design (dalle risposte dell'11/07)
 
-1. **Stesso pattern RLS di Ember**: ogni tabella-dati porta `org_code`/`tenant_code`
+1. **Stesso pattern RLS di Divina**: ogni tabella-dati porta `org_code`/`tenant_code`
    e usa `ovyon.can_read()` sui GUC di sessione → isolamento identico, testabile
    con gli stessi test di `test_isolation.py`.
 2. **Regola ferrea Divina**: i campi `min_tier`/`archetype` esistono SOLO sulle

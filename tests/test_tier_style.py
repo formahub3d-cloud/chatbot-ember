@@ -1,4 +1,4 @@
-"""Blocco J — "fronting tier cliente" (lato Ember).
+"""Blocco J — "fronting tier cliente" (lato Divina).
 
 Il tier/archetipo OVYON (dante/virgilio/beatrice) del tenant modula SOLO lo STILE
 della risposta (funzione pura `rag.style_directive` iniettata nel system prompt).

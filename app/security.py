@@ -1,4 +1,4 @@
-"""Guard-rail di sicurezza per Ember.
+"""Guard-rail di sicurezza per Divina.
 
 Funzioni pure, senza stato, riusabili da main.py e rag.py:
   - redazione PII (codice fiscale, email, telefono, IBAN) prima di loggare;

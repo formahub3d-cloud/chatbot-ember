@@ -5,9 +5,9 @@
 -- (SQL editor) SOLO dopo revisione, insieme a 002_divina_role.sql.
 --
 -- Principi (dalla ricognizione approvata + decisioni 2026-07-11):
---   · SOLO ADDITIVO: nessuna modifica alle tabelle esistenti di Ember.
+--   · SOLO ADDITIVO: nessuna modifica alle tabelle esistenti di Divina.
 --   · Ogni tabella-dati porta org_code/tenant_code e riusa il pattern RLS
---     esistente (ovyon.can_read + GUC di sessione) → isolamento identico a Ember.
+--     esistente (ovyon.can_read + GUC di sessione) → isolamento identico a Divina.
 --   · REGOLA FERREA DIVINA: il tier (Dante/Virgilio/Beatrice) NON amplia mai lo
 --     scope dei DATI. I campi tier esistono SOLO sulle tabelle di capability
 --     (skills, doc_templates), MAI sulle tabelle di contenuto (raw_sources,

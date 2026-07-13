@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""reingest.py — ri-indicizza il cervello su Ember chiamando POST /ingest.
+"""reingest.py — ri-indicizza il cervello su Divina chiamando POST /ingest.
 
 Tiene il cervello fresco dopo che le note cambiano, senza re-deploy. Pensato per
 essere lanciato:
@@ -8,8 +8,8 @@ essere lanciato:
     o via repository_dispatch quando il repo del vault viene aggiornato.
 
 Legge la configurazione dall'ambiente (nessun segreto nel codice):
-  EMBER_URL     base URL del servizio (default https://ember.formahub.it)
-  ADMIN_TOKEN   token admin di Ember (Bearer) — obbligatorio
+  EMBER_URL     base URL del servizio (default https://divina.formahub.it)
+  ADMIN_TOKEN   token admin di Divina (Bearer) — obbligatorio
 
 Solo libreria standard (urllib): nessuna dipendenza da installare in CI.
 Exit code: 0 = ingest ok · 1 = errore HTTP/token · 2 = configurazione mancante.
@@ -20,7 +20,7 @@ import sys
 import urllib.error
 import urllib.request
 
-DEFAULT_URL = "https://ember.formahub.it"
+DEFAULT_URL = "https://divina.formahub.it"
 
 
 def load_paths(raw: str | None) -> list[str] | None:

@@ -1,6 +1,6 @@
-"""Ponte Ember → agenti Divina (ovy-orchestrator) — capability OPT-IN.
+"""Ponte Divina → agenti Divina (ovy-orchestrator) — capability OPT-IN.
 
-Quando la chat Ember riceve un COMPITO (non semplice Q&A), può instradarlo all'agente
+Quando la chat Divina riceve un COMPITO (non semplice Q&A), può instradarlo all'agente
 Divina giusto (Dante/Virgilio/Beatrice) invece di rispondere col RAG sul cervello.
 Divina (servizio separato) espone `POST {DIVINA_URL}/agents/route` (Bearer admin) e
 ritorna `{routed, agent, skill, output, confidence, web_sources?}` oppure, se non
@@ -14,7 +14,7 @@ Regole (non negoziabili):
     sua RLS. Il ponte NON tocca i grant né il filtro Qdrant del RAG (scope invariato).
   - Fallback pulito: rete irraggiungibile/errore → `route()` ritorna None e il chiamante
     ripiega sul RAG. Con `routed:false` il chiamante ripiega ugualmente. Mai un errore secco.
-  - Nessuna dipendenza nuova: usa `httpx`, lo stesso client HTTP già in Ember.
+  - Nessuna dipendenza nuova: usa `httpx`, lo stesso client HTTP già in Divina.
   - Nessun segreto nei log; niente contenuti sensibili loggati (GDPR).
 
 Se un giorno cambia l'orchestratore, cambia SOLO questo file (provider-agnostico).

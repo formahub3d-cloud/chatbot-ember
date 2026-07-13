@@ -1,12 +1,12 @@
-# Ember — Widget di chat embeddable
+# Divina — Widget di chat embeddable
 
-Widget di chat che si collega al servizio Ember (`/chat`) con isolamento per **tenant/scope**.
+Widget di chat che si collega al servizio Divina (`/chat`) con isolamento per **tenant/scope**.
 Due versioni incluse, stessa UI (palette FORMA, bolla flottante):
 
 | File | Per chi | Come si usa |
 |---|---|---|
 | `embed.js` | Qualsiasi sito (ATS, landing, WordPress…) | un solo tag `<script>` |
-| `EmberWidget.jsx` | App **Next.js / React** (FORMA v4) | componente client |
+| `DivinaWidget.jsx` | App **Next.js / React** (FORMA v4) | componente client |
 | `demo.html` | Test locale | apri nel browser col servizio attivo |
 
 ## 1) Test in locale (30 secondi)
@@ -33,14 +33,14 @@ Incolla **un** tag prima di `</body>`:
 
 ## 3) FORMA (Next.js) — componente
 
-Copia `EmberWidget.jsx` in `components/` e montalo nel layout:
+Copia `DivinaWidget.jsx` in `components/` e montalo nel layout:
 
 ```jsx
-import EmberWidget from "@/components/EmberWidget";
+import DivinaWidget from "@/components/DivinaWidget";
 
 export default function Layout({ children }) {
   return (<>{children}
-    <EmberWidget
+    <DivinaWidget
       api="https://ember.tuodominio.it"
       tenantKey="CHIAVE_FORMA_INTERNO"
       title="Assistente FORMA" />
@@ -55,7 +55,7 @@ Tutti opzionali, con default. Si passano come `data-*` sul tag o via `window.EMB
 | Attributo | Default | Cosa fa |
 |---|---|---|
 | `data-proxy` / `data-api`+`data-key` | — | endpoint (proxy consigliato in produzione) |
-| `data-title` | `Ember · Assistente` | titolo del pannello |
+| `data-title` | `Divina · Assistente` | titolo del pannello |
 | `data-subtitle` | `Assistente AI` | sottotitolo (disclosure) |
 | `data-accent` | `#0ED4E4` | colore brand |
 | `data-avatar` / `data-logo` | — | URL immagine avatar / logo |

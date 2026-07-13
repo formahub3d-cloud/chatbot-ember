@@ -1,4 +1,4 @@
-"""Ponte Ember → agenti Divina (ovy-orchestrator): capability OPT-IN, OFF di default.
+"""Ponte Divina → agenti Divina (ovy-orchestrator): capability OPT-IN, OFF di default.
 
 Tutto offline: httpx (verso Divina) e il retrieval Qdrant/LLM del RAG sono mockati.
 Verifica i requisiti non negoziabili:

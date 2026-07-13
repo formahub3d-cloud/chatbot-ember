@@ -12,7 +12,7 @@ insert into organizations (code, name) values
     ('ovyon',    'OVYON')
 on conflict (code) do nothing;
 
--- ── Tenant (code = scope Ember) ────────────────────────────────────────────
+-- ── Tenant (code = scope Divina) ────────────────────────────────────────────
 insert into tenants (org_id, code, name)
 select o.org_id, v.code, v.name
 from (values

@@ -1,7 +1,7 @@
 """Firma elettronica semplice (SES) — in casa, senza provider a pagamento.
 
 Un SES (*Simple Electronic Signature*, eIDAS art. 25) è sufficiente per i contratti
-SaaS B2B in UE: il cliente CONFERMA l'accordo e Ember registra un record verificabile
+SaaS B2B in UE: il cliente CONFERMA l'accordo e Divina registra un record verificabile
 che lega quattro cose al documento esatto:
 
   - CHI   ha firmato   → nome, ragione sociale, email e/o IP (identificativo)
