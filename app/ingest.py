@@ -26,7 +26,8 @@ import uuid
 from pathlib import Path
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct, PayloadSchemaType
+from qdrant_client.models import (Distance, VectorParams, PointStruct, PayloadSchemaType,
+                                  Filter, FieldCondition, MatchValue)
 
 from .config import settings
 from .providers import embed, EMBED_DIM
@@ -290,6 +291,94 @@ def run() -> dict:
         logging.getLogger("ember.ingest").exception("sync documents Supabase fallito (ignorato)")
 
     return {"notes": n_notes, "chunks": len(points), "documents_synced": synced}
+
+
+# ── Re-ingest INCREMENTALE (una o poche note) ─────────────────────────────────
+# Fase 5 / connettore realtime: quando arriva/cambia contenuto, si re-indicizzano
+# SOLO le note toccate invece dell'intero vault. Niente azzeramento della
+# collection: per ogni nota si cancellano i suoi punti (filtro per `path`) e si
+# ricaricano i chunk aggiornati. Path sparito/fuori-scope → sola rimozione.
+def _is_note(rel: Path) -> bool:
+    if any(p in SKIP_DIRS or p.startswith(".") for p in rel.parts):
+        return False
+    return rel.suffix == ".md" and rel.stem != "_index"
+
+
+def _points_for_note(md: Path, rel: Path):
+    """(points, note_meta) per UNA nota; None se la nota è vuota. Rete solo in embed()."""
+    meta, body = _parse_note(md)
+    body = body.strip()
+    if not body:
+        return [], None
+    seg = segments_for(rel)
+    title = meta.get("title", md.stem)
+    tags = meta.get("tags", "")
+    note_meta = {
+        "org": seg["org"], "tenant": seg["tenant"], "sub_tenant": seg["sub_tenant"],
+        "slug": md.stem, "title": title, "path": str(rel), "tags": tags, "content": body,
+    }
+    chunks = chunk(body)
+    vectors = embed(chunks)
+    points = [
+        PointStruct(
+            id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"{rel}::{ci}")), vector=v,
+            payload={"scope": seg["tenant"], "org": seg["org"], "tenant": seg["tenant"],
+                     "sub_tenant": seg["sub_tenant"], "slug": md.stem, "title": title,
+                     "path": str(rel), "tags": tags, "chunk": ci, "text": ch},
+        )
+        for ci, (ch, v) in enumerate(zip(chunks, vectors))
+    ]
+    return points, note_meta
+
+
+def _delete_by_path(c: QdrantClient, rel: Path) -> None:
+    c.delete(
+        settings.qdrant_collection,
+        points_selector=Filter(must=[FieldCondition(key="path", match=MatchValue(value=str(rel)))]),
+        wait=True,
+    )
+
+
+def reindex_paths(paths, sync: bool = True) -> dict:
+    """Re-ingest incrementale di note specifiche (path relativi al vault). NON azzera
+    la collection: cancella+ricarica solo le note indicate; il resto resta intatto.
+    `sync=False` salta il git pull (usalo subito dopo una scrittura locale, es. writeback,
+    per non rischiare di sovrascrivere la nota appena creata)."""
+    if not settings.vault_path:
+        raise RuntimeError("VAULT_PATH non impostato nel .env")
+    if sync:
+        sync_vault(settings.vault_path, settings.vault_git_url, settings.vault_git_token)
+    vault = Path(settings.vault_path)
+    c = client()
+    ensure_collection(c, fresh=False)          # crea se manca, MAI azzera
+    indexed = removed = n_chunks = 0
+    notes_meta = []
+    for path in (paths or []):
+        rel = Path(str(path))
+        if rel.is_absolute() or ".." in rel.parts:   # sicurezza: mai fuori dal vault
+            continue
+        _delete_by_path(c, rel)                 # rimuove i punti vecchi (update/shrink/delete)
+        md = vault / rel
+        if not (md.exists() and _is_note(rel)):
+            removed += 1
+            continue
+        points, note_meta = _points_for_note(md, rel)
+        if not points:
+            removed += 1
+            continue
+        c.upsert(settings.qdrant_collection, points=points, wait=True)
+        indexed += 1
+        n_chunks += len(points)
+        notes_meta.append(note_meta)
+    synced = 0
+    if notes_meta:
+        try:
+            from . import docstore
+            synced = docstore.sync_notes(notes_meta)
+        except Exception:
+            log.exception("sync documents Supabase fallito (ignorato)")
+    return {"mode": "incremental", "indexed": indexed, "removed": removed,
+            "chunks": n_chunks, "documents_synced": synced}
 
 
 if __name__ == "__main__":

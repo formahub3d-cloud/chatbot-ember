@@ -164,6 +164,13 @@ class SearchIn(BaseModel):
     k: int = 6
 
 
+class IngestIn(BaseModel):
+    # Re-ingest INCREMENTALE: se valorizzato, re-indicizza SOLO queste note (path
+    # relativi al vault, es. "forma/clienti/ats/kb-ats.md"). Vuoto/assente → ingest
+    # completo (comportamento storico, retro-compatibile col dispatch vault-updated).
+    paths: list[str] | None = None
+
+
 class WritebackIn(BaseModel):
     scope: str                 # tenant/scope di destinazione (deve essere concesso)
     title: str
@@ -303,10 +310,15 @@ def do_tts(body: TTSIn, x_tenant_key: str = Header(default=""), origin: str = He
 
 
 @app.post("/ingest")
-def do_ingest(authorization: str = Header(default="")):
+def do_ingest(body: IngestIn | None = None, authorization: str = Header(default="")):
+    """Indicizza il cervello. Body vuoto → ingest COMPLETO (storico). Con
+    {"paths": [...]} → re-ingest INCREMENTALE solo di quelle note (realtime:
+    aggiorna il cervello man mano senza reindicizzare tutto)."""
     if authorization != f"Bearer {settings.admin_token}":
         raise HTTPException(401, "Token admin non valido")
     try:
+        if body and body.paths:
+            return ingest.reindex_paths(body.paths)
         return ingest.run()
     except HTTPException:
         raise
@@ -712,6 +724,13 @@ def do_writeback(body: WritebackIn, x_tenant_key: str = Header(default=""), orig
     if res.get("created"):
         tenants.log_access(tenant.get("key_hash"), "update" if body.overwrite else "create",
                            tenant_code=body.scope, detail=res.get("path"))
+        # Realtime (opt-in): re-indicizza SUBITO la nota appena scritta, così il cervello
+        # la riflette man mano. Best-effort: un errore qui non deve far fallire il write-back.
+        if settings.auto_reingest and res.get("path"):
+            try:
+                res["reingest"] = ingest.reindex_paths([res["path"]], sync=False)
+            except Exception:
+                log.exception("auto-reingest post write-back fallito (ignorato)")
     return {"consolidato": res.get("created", False), **res}
 
 
