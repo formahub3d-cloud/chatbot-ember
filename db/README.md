@@ -25,11 +25,11 @@ Su Supabase: incolla `ovyon_schema.sql` nel SQL editor ed esegui.
 
 - `organizations > tenants > sub_tenants > documents` (1:N a ogni livello).
 - Ogni riga di `documents` porta i **code denormalizzati** `org_code/tenant_code/
-  sub_code`: coincidono con lo `scope`/segmento di Ember (`ingest.segments_for`),
+  sub_code`: coincidono con lo `scope`/segmento di Divina (`ingest.segments_for`),
   così i permessi combaciano senza traduzioni.
 - `api_keys`: chiavi-tenant **hashate** (mai in chiaro) con i grant a tre livelli
   (`allowed_orgs/allowed_tenants/allowed_sub_tenants`, code testuali; `*` = master)
-  — è l'equivalente Postgres di `tenants.json`/Mongo già usati da Ember.
+  — è l'equivalente Postgres di `tenants.json`/Mongo già usati da Divina.
 - `access_logs`: audit trail append-only (Sezione 9).
 
 ## Come la RLS ottiene lo scope
@@ -54,7 +54,7 @@ copre i suoi tenant); `'*'` in un qualunque array = master.
 > `ovyon.*` per ogni richiesta tenant. Difesa in profondità: la RLS protegge i
 > metadati/log, il filtro Qdrant (`rag.build_filter`) protegge il contenuto.
 
-## Integrazione con Ember
+## Integrazione con Divina
 
 Con `GRANTS_BACKEND=supabase` + `DATABASE_URL`:
 

@@ -1,4 +1,4 @@
-"""API del servizio Ember.
+"""API del servizio Divina.
 
 Endpoint:
   GET  /health            stato e provider attivi
@@ -54,7 +54,7 @@ from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, me
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
-app = FastAPI(title="Ember — Cervello OVY", version="0.3.0")
+app = FastAPI(title="Divina — Cervello OVY", version="0.3.0")
 
 # CORS: consente al widget di chat (browser) di chiamare l'API.
 # I domini autorizzati arrivano da settings.cors_origins (vedi config.py):
@@ -89,6 +89,13 @@ async def _security_headers(request: Request, call_next):
 # Widget servito dal backend stesso: un solo file da mantenere, stesso dominio
 # dell'API, aggiornato a ogni deploy. → https://<dominio>/widget/embed.js
 app.mount("/widget", StaticFiles(directory="widget"), name="widget")
+
+# Console operativa (admin UI) servita same-origin dal backend stesso, così le
+# chiamate ad /admin/* usano l'ADMIN_TOKEN senza problemi di CORS. Montata su
+# /panel (NON /admin, per non oscurare le rotte API /admin/*). Lo shell HTML non
+# contiene segreti: il token si inserisce nell'interfaccia e resta nel browser.
+# → https://<dominio>/panel/
+app.mount("/panel", StaticFiles(directory="panel", html=True), name="panel")
 
 
 @app.on_event("startup")
@@ -259,7 +266,7 @@ def config(x_tenant_key: str = Header(default="")):
     tenant = tenant_or_401(x_tenant_key)
     brand = tenant.get("branding", {}) or {}
     out = {
-        "title": brand.get("title", tenant.get("name", "Ember · Assistente")),
+        "title": brand.get("title", tenant.get("name", "Divina · Assistente")),
         "subtitle": brand.get("subtitle", "Assistente AI"),
         "accent": brand.get("accent", "#0ED4E4"),
         "lang": brand.get("lang", settings.default_lang),   # lingua risposte (it|en)
@@ -570,7 +577,7 @@ def admin_status(authorization: str = Header(default="")):
 @app.get("/version")
 def version():
     """Build info pubbliche: versione app + commit. Utile per sapere cosa è in prod."""
-    return {"name": "Ember", "version": settings.app_version, "commit": settings.git_sha[:12]}
+    return {"name": "Divina", "version": settings.app_version, "commit": settings.git_sha[:12]}
 
 
 def _to_csv(rows: list, fields: list) -> str:

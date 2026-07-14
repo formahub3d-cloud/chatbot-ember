@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ember Widget — Demo</title>
+<title>Divina Widget — Demo</title>
 <style>
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
        background:#f6f7f9;color:#15151a}
@@ -16,12 +16,12 @@
 </head>
 <body>
   <div class="hero">
-    <h1>Demo — Widget Ember</h1>
+    <h1>Demo — Widget Divina</h1>
     <p>Questa pagina simula un sito FORMA o ATS. In basso a destra trovi la bolla di chat 💬.
-       Il widget chiama <code>POST /chat</code> del servizio Ember usando la chiave del tenant.</p>
+       Il widget chiama <code>POST /chat</code> del servizio Divina usando la chiave del tenant.</p>
     <div class="note">
       <b>Pronto all'uso:</b> il widget punta al servizio <b>live in cloud</b>
-      (<code>ember.formahub.it</code>). Apri questo file nel browser e prova la chat.
+      (<code>divina.formahub.it</code>). Apri questo file nel browser e prova la chat.
       Per testare lo scope, cambia <code>data-key</code> qui sotto in
       <code>CHIAVE_ATS</code> e verifica che non risponda sulle domande interne FORMA.
       <br><br>
@@ -34,7 +34,7 @@
   <!-- Tenant FORMA (dogfood). Cambia data-key in CHIAVE_ATS per il pilota ATS.
        Nuovi attributi opzionali: data-voice, data-voice-auto, data-lang, data-position, data-avatar, data-logo. -->
   <script src="./embed.js"
-          data-api="https://ember.formahub.it"
+          data-api="https://divina.formahub.it"
           data-key="CHIAVE_FORMA_INTERNO"
           data-title="Assistente FORMA"
           data-subtitle="Assistente AI · risponde con fonti"

@@ -25,7 +25,7 @@ def test_version(monkeypatch):
     monkeypatch.setattr(settings, "app_version", "1.2.3")
     monkeypatch.setattr(settings, "git_sha", "abcdef1234567890")
     b = client.get("/version").json()
-    assert b["version"] == "1.2.3" and b["commit"] == "abcdef123456" and b["name"] == "Ember"
+    assert b["version"] == "1.2.3" and b["commit"] == "abcdef123456" and b["name"] == "Divina"
 
 
 # ── M3 · export CSV ───────────────────────────────────────────────────────────

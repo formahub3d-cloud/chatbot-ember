@@ -2,12 +2,12 @@
 
 Espone a Claude i 5 tool del cervello OVY (ovy_search, ovy_get_document,
 ovy_create_document, ovy_update_document, ovy_list_context). È un ADATTATORE
-SOTTILE: ogni tool chiama gli endpoint HTTP di Ember (il chatbot integrato in
+SOTTILE: ogni tool chiama gli endpoint HTTP di Divina (il chatbot integrato in
 OVYON), che applica server-side lo stesso filtro per grant. Il connettore non
-contiene logica di permessi: l'isolamento resta in Ember/Qdrant.
+contiene logica di permessi: l'isolamento resta in Divina/Qdrant.
 
 Config via ambiente (vedi .env.example):
-  EMBER_API_URL     base URL di Ember (es. https://ember.formahub.it)
+  EMBER_API_URL     base URL di Divina (es. https://divina.formahub.it)
   EMBER_TENANT_KEY  chiave-tenant che definisce lo scope visibile
 
 Avvio (stdio, per Claude Desktop / Claude Code):

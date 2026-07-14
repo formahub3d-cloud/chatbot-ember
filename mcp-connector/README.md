@@ -3,12 +3,12 @@
 Connettore **MCP** che espone a Claude il cervello OVY, come da Sezione 5 del
 documento di architettura OVYON (`ovyon/docs/doc-ovyon-connettore-claude` nel
 cervello). È un **adattatore sottile**: ogni tool chiama gli endpoint HTTP di
-**Ember** (il chatbot integrato in OVYON), che applica server-side il filtro per
+**Divina** (il chatbot integrato in OVYON), che applica server-side il filtro per
 grant. Il connettore **non** contiene logica di permessi.
 
 ## I 5 tool
 
-| Tool MCP | Endpoint Ember | Cosa fa |
+| Tool MCP | Endpoint Divina | Cosa fa |
 |---|---|---|
 | `ovy_search` | `POST /search` | cerca contenuti rilevanti (prima di generare) |
 | `ovy_get_document` | `GET /document?slug=` | recupera una nota completa per slug |
@@ -41,7 +41,7 @@ Aggiungi il server alla configurazione MCP del client, es.:
       "command": "python",
       "args": ["/percorso/assoluto/mcp-connector/server.py"],
       "env": {
-        "EMBER_API_URL": "https://ember.formahub.it",
+        "EMBER_API_URL": "https://divina.formahub.it",
         "EMBER_TENANT_KEY": "<chiave-tenant>"
       }
     }
@@ -55,6 +55,6 @@ Claude Project dedicato a un cliente, preconfigura la chiave del relativo tenant
 
 ## Note
 
-- Il connettore è disaccoppiato da Ember via HTTP: resta usabile con qualunque
+- Il connettore è disaccoppiato da Divina via HTTP: resta usabile con qualunque
   client compatibile MCP (mitigazione del rischio "dipendenza da Claude", Sez. 11).
 - Nessun segreto nel codice: la chiave-tenant arriva dall'ambiente.

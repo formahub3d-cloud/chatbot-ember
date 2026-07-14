@@ -76,7 +76,7 @@ def cmd_rotate(args):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="manage_tenants", description="Gestione tenant Ember su MongoDB")
+    p = argparse.ArgumentParser(prog="manage_tenants", description="Gestione tenant Divina su MongoDB")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("seed").set_defaults(func=cmd_seed)
     a = sub.add_parser("add"); a.set_defaults(func=cmd_add)

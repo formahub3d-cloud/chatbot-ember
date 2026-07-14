@@ -1,18 +1,18 @@
-// Proxy Ember per siti Next.js (App Router) — chat + voce PRO.
-// Posiziona questo file in:  app/api/ember/[[...path]]/route.js
-//   (catch-all: gestisce /api/ember  →  chat  e  /api/ember/voice/stt|tts  →  voce)
+// Proxy Divina per siti Next.js (App Router) — chat + voce PRO.
+// Posiziona questo file in:  app/api/divina/[[...path]]/route.js
+//   (catch-all: gestisce /api/divina  →  chat  e  /api/divina/voice/stt|tts  →  voce)
 //
 // Tiene la CHIAVE TENANT lato server (variabile d'ambiente), così NON finisce mai
-// nell'HTML/browser. Il widget chiama "/api/ember" (stesso dominio), questo route
-// aggiunge la chiave e inoltra a Ember.
+// nell'HTML/browser. Il widget chiama "/api/divina" (stesso dominio), questo route
+// aggiunge la chiave e inoltra a Divina.
 //
 // Variabili d'ambiente da impostare sul sito (es. su Vercel/Railway):
-//   EMBER_API         = https://ember.formahub.it
+//   EMBER_API         = https://divina.formahub.it
 //   EMBER_TENANT_KEY  = CHIAVE_DEL_CLIENTE   (es. CHIAVE_HRH)
 
 export const runtime = "edge"; // veloce ed economico; rimuovi se preferisci Node
 
-// GET /api/ember/config → branding + capacità voce (per l'auto-config del widget).
+// GET /api/divina/config → branding + capacità voce (per l'auto-config del widget).
 export async function GET(req) {
   const api = process.env.EMBER_API || process.env.JARVIS_API;
   const key = process.env.EMBER_TENANT_KEY || process.env.JARVIS_TENANT_KEY;
@@ -35,7 +35,7 @@ export async function POST(req) {
   const base = api.replace(/\/$/, "");
   const path = new URL(req.url).pathname;
 
-  // ── Voce PRO: inoltra audio↔testo a /voice/* (serve VOICE_PROVIDER su Ember) ──
+  // ── Voce PRO: inoltra audio↔testo a /voice/* (serve VOICE_PROVIDER su Divina) ──
   if (path.endsWith("/voice/stt") || path.endsWith("/voice/tts")) {
     const sub = path.endsWith("/voice/stt") ? "/voice/stt" : "/voice/tts";
     try {
@@ -90,7 +90,7 @@ export async function POST(req) {
       headers: { "Content-Type": "application/json", "X-Tenant-Key": key },
       body: JSON.stringify({ message, stream, history }),
     });
-    // SSE pass-through: se Ember risponde in streaming, lo inoltriamo così com'è.
+    // SSE pass-through: se Divina risponde in streaming, lo inoltriamo così com'è.
     const ct = r.headers.get("content-type") || "";
     if (ct.includes("text/event-stream") && r.body) {
       return new Response(r.body, {

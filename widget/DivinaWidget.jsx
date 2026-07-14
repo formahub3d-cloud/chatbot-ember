@@ -1,20 +1,20 @@
 "use client";
-/* Ember — widget di chat per Next.js / React (App Router).
+/* Divina — widget di chat per Next.js / React (App Router).
  *
  * DUE MODALITÀ:
  *   1) PROXY (consigliato): la chiave resta sul server, NON nel browser.
- *      <EmberWidget proxy="/api/ember" title="Assistente HRH" />
- *      (vedi widget/proxy/nextjs-route.js → app/api/ember/route.js)
+ *      <DivinaWidget proxy="/api/divina" title="Assistente HRH" />
+ *      (vedi widget/proxy/nextjs-route.js → app/api/divina/route.js)
  *   2) DIRETTA (solo pilota): chiave nell'HTML.
- *      <EmberWidget api="https://ember...railway.app" tenantKey="CHIAVE_HRH" />
+ *      <DivinaWidget api="https://ember...railway.app" tenantKey="CHIAVE_HRH" />
  */
 import { useState, useRef, useEffect } from "react";
 
-export default function EmberWidget({
+export default function DivinaWidget({
   proxy = "",
   api = "http://localhost:8000",
   tenantKey = "CHIAVE_FORMA_INTERNO",
-  title = "Ember · Assistente",
+  title = "Divina · Assistente",
   accent = "#0ED4E4",
 }) {
   const base = api.replace(/\/$/, "");

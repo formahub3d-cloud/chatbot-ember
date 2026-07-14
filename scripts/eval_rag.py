@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """eval_rag.py — Collaudo automatico della QUALITÀ delle risposte (eval RAG).
 
-Esegue il set di domande di eval/eval_set.json contro un Ember vivo e assegna
+Esegue il set di domande di eval/eval_set.json contro un Divina vivo e assegna
 un punteggio: ogni caso passa se la risposta contiene le keyword attese
 (min_hit tra quelle elencate) oppure — per i casi expect_gap — se il motore
 ammette correttamente di non sapere (i "gap marker"). Copre anche l'isolamento
@@ -9,7 +9,7 @@ cross-tenant (una chiave ATS non deve leggere il core FORMA).
 
 Uso:
   EVAL_KEY_FORMA=<chiave forma> EVAL_KEY_ATS=<chiave ats> \
-  python scripts/eval_rag.py [--base https://ember.formahub.it] [--min 0.8]
+  python scripts/eval_rag.py [--base https://divina.formahub.it] [--min 0.8]
 
 I casi la cui chiave (key_env) non è nell'ambiente vengono SALTATI, così si può
 lanciare anche con una sola chiave. Exit code 0 se score >= --min, altrimenti 1
@@ -54,7 +54,7 @@ def judge(case: dict, answer: str, gap_markers: list) -> tuple[bool, str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--base", default=os.environ.get("EVAL_BASE", "https://ember.formahub.it"))
+    ap.add_argument("--base", default=os.environ.get("EVAL_BASE", "https://divina.formahub.it"))
     ap.add_argument("--min", type=float, default=0.8, help="score minimo per passare (0-1)")
     args = ap.parse_args()
 

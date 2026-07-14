@@ -2,7 +2,7 @@
 
 Imposta i grant del richiedente come **GUC di sessione** `ovyon.*`, così la RLS di
 Supabase (`db/ovyon_schema.sql`) filtra automaticamente le tabelle protette
-(`documents`, `access_logs`) quando Ember le interroga con un ruolo non privilegiato.
+(`documents`, `access_logs`) quando Divina le interroga con un ruolo non privilegiato.
 
 Uso tipico::
 

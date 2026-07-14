@@ -36,7 +36,7 @@ def _decrypt(cell):
 
 
 def export_tenant(tenant: str) -> dict:
-    """Tutti i dati che Ember detiene per `tenant`: documenti (corpo decifrato) ed
+    """Tutti i dati che Divina detiene per `tenant`: documenti (corpo decifrato) ed
     eventi analytics. Richiede il backend Supabase attivo."""
     if not docstore.enabled():
         return {"tenant": tenant, "error": "backend Supabase non attivo",

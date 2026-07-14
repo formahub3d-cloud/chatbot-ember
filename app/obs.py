@@ -2,7 +2,7 @@
 
 Inerte finché `SENTRY_DSN` è vuota; con la DSN cattura le eccezioni non gestite
 (integrazione FastAPI/Starlette automatica di sentry-sdk). La libreria è importata
-in modo pigro, così Ember gira anche senza. Privacy: `send_default_pii=False`.
+in modo pigro, così Divina gira anche senza. Privacy: `send_default_pii=False`.
 """
 import logging
 

@@ -150,26 +150,26 @@ def prometheus() -> str:
     s = snapshot()
     t = s["totals"]
     out = [
-        "# HELP ember_uptime_seconds Secondi dal boot del processo.",
-        "# TYPE ember_uptime_seconds gauge",
-        f"ember_uptime_seconds {s['uptime_s']}",
-        "# HELP ember_chat_total Chat con risposta.",
-        "# TYPE ember_chat_total counter",
-        f"ember_chat_total {t['chat']}",
-        "# HELP ember_gap_total Domande senza risposta (gap del cervello).",
-        "# TYPE ember_gap_total counter",
-        f"ember_gap_total {t['gap']}",
-        "# HELP ember_feedback_total Feedback ricevuti, per esito.",
-        "# TYPE ember_feedback_total counter",
-        f'ember_feedback_total{{kind="up"}} {t["feedback_up"]}',
-        f'ember_feedback_total{{kind="down"}} {t["feedback_down"]}',
+        "# HELP divina_uptime_seconds Secondi dal boot del processo.",
+        "# TYPE divina_uptime_seconds gauge",
+        f"divina_uptime_seconds {s['uptime_s']}",
+        "# HELP divina_chat_total Chat con risposta.",
+        "# TYPE divina_chat_total counter",
+        f"divina_chat_total {t['chat']}",
+        "# HELP divina_gap_total Domande senza risposta (gap del cervello).",
+        "# TYPE divina_gap_total counter",
+        f"divina_gap_total {t['gap']}",
+        "# HELP divina_feedback_total Feedback ricevuti, per esito.",
+        "# TYPE divina_feedback_total counter",
+        f'divina_feedback_total{{kind="up"}} {t["feedback_up"]}',
+        f'divina_feedback_total{{kind="down"}} {t["feedback_down"]}',
     ]
     for scope, d in s["per_scope"].items():
         lbl = _esc(scope)
-        out.append(f'ember_chat_by_scope_total{{scope="{lbl}"}} {d["chat"]}')
-        out.append(f'ember_gap_by_scope_total{{scope="{lbl}"}} {d["gap"]}')
-        out.append(f'ember_feedback_by_scope_total{{scope="{lbl}",kind="up"}} {d["feedback_up"]}')
-        out.append(f'ember_feedback_by_scope_total{{scope="{lbl}",kind="down"}} {d["feedback_down"]}')
+        out.append(f'divina_chat_by_scope_total{{scope="{lbl}"}} {d["chat"]}')
+        out.append(f'divina_gap_by_scope_total{{scope="{lbl}"}} {d["gap"]}')
+        out.append(f'divina_feedback_by_scope_total{{scope="{lbl}",kind="up"}} {d["feedback_up"]}')
+        out.append(f'divina_feedback_by_scope_total{{scope="{lbl}",kind="down"}} {d["feedback_down"]}')
     return "\n".join(out) + "\n"
 
 

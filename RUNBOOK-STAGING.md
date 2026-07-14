@@ -1,4 +1,4 @@
-# RUNBOOK — Ambiente di STAGING per Ember
+# RUNBOOK — Ambiente di STAGING per Divina
 
 > Obiettivo: provare le modifiche in un ambiente identico alla produzione ma
 > **isolato** (dati e chiavi separati), prima del merge su `main`.

@@ -73,7 +73,7 @@ def check_and_alert(usage: list[dict]) -> dict:
     if over:
         detail = ", ".join(f"{o['name']}=€{o['cost_eur']}" for o in over)
         log.warning("COST SPIKE (soglia €%.2f/giorno): %s", threshold, detail)
-        obs.capture_message(f"Ember cost spike (soglia €{threshold}/giorno): {detail}")
+        obs.capture_message(f"Divina cost spike (soglia €{threshold}/giorno): {detail}")
     data["cost_alert_daily_eur"] = threshold
     data["alerts"] = over
     return data

@@ -9,9 +9,9 @@
 --   · accesso SOLO alle 8 tabelle nuove + INSERT sull'audit (access_logs)
 --   · lettura anagrafica (organizations/tenants/sub_tenants) per risolvere i code
 --   · NESSUN accesso a: api_keys, documents, key_usage, analytics_events
---     (i gap si leggono via API Ember /admin/learning, non dal DB)
+--     (i gap si leggono via API Divina /admin/learning, non dal DB)
 --   · niente DELETE da nessuna parte: si archivia (status), non si cancella
---   · il ruolo NON bypassa la RLS: come Ember, imposta i GUC ovyon.* per ogni
+--   · il ruolo NON bypassa la RLS: come Divina, imposta i GUC ovyon.* per ogni
 --     transazione (SET LOCAL ovyon.allowed_orgs/... ) → isolamento identico.
 -- ═══════════════════════════════════════════════════════════════════════════
 
@@ -37,7 +37,7 @@ grant select, insert, update on raw_sources, wiki_nodes, node_links,
 grant select on agents, skills to divina;
 grant select, insert, update on doc_templates to divina;
 
--- audit: append-only (mai select — l'audit si legge da Ember /admin/access-logs)
+-- audit: append-only (mai select — l'audit si legge da Divina /admin/access-logs)
 grant insert on access_logs to divina;
 
 -- ── Verifiche post-applicazione (da eseguire e conservare l'esito) ───────────

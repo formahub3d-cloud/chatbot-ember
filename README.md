@@ -1,4 +1,4 @@
-# Ember — Chatbot sul Cervello OVY
+# Divina — Chatbot sul Cervello OVY
 
 Motore RAG **multi-tenant** che risponde attingendo al cervello OVY (vault Obsidian),
 con **accessi per settore**: ogni tenant (FORMA, ATS, HRH…) vede solo le aree consentite
@@ -23,7 +23,7 @@ solo i propri scope: fuori area risponde "Non ho questa informazione".
 
 ## Integrazione OVYON (modello a tre livelli)
 
-Ember è **il chatbot integrato in OVYON**. Lo `scope` mappa sul livello **`tenant`** del
+Divina è **il chatbot integrato in OVYON**. Lo `scope` mappa sul livello **`tenant`** del
 modello OVYON (org > tenant > sotto-tenant): `ingest.segments_for` deriva dal path anche
 `org` e `sub_tenant` in modo additivo, e `rag.build_filter` accetta grant a tre livelli
 (retro-compatibile con `allowed_scopes`). Dettagli: `ovyon/docs/doc-ovyon-ember-scope` nel cervello.

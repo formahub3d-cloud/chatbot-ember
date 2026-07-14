@@ -3,8 +3,8 @@
 -- Sezione 4.1 (ER) + Sezione 9 (RLS multi-livello) del documento di architettura.
 -- Modello a tre livelli: organizations > tenants > sub_tenants > documents.
 --
--- Bridge con Ember: ogni riga porta anche il CODE testuale (org_code/tenant_code/
--- sub_code) = lo `scope`/segmento usato da Ember (es. 'forma','ats','docs'), così i
+-- Bridge con Divina: ogni riga porta anche il CODE testuale (org_code/tenant_code/
+-- sub_code) = lo `scope`/segmento usato da Divina (es. 'forma','ats','docs'), così i
 -- filtri per grant combaciano senza traduzioni. Vedi ovyon/docs/doc-ovyon-ember-scope.
 --
 -- Applicazione:  psql "$DATABASE_URL" -f db/ovyon_schema.sql
@@ -49,7 +49,7 @@ create table if not exists documents (
     sub_tenant_id uuid references sub_tenants(sub_tenant_id) on delete set null,
     tenant_id    uuid not null references tenants(tenant_id) on delete cascade,
     org_id       uuid not null references organizations(org_id) on delete cascade,
-    -- code denormalizzati (velocità RLS + bridge Ember): coincidono con lo scope Qdrant
+    -- code denormalizzati (velocità RLS + bridge Divina): coincidono con lo scope Qdrant
     org_code     text not null,
     tenant_code  text not null,
     sub_code     text,
@@ -77,8 +77,8 @@ create table if not exists access_logs (
 
 -- ── Analytics storiche (opzionale) ──────────────────────────────────────────
 -- Eventi conversazione persistiti per lo storico (oltre ai contatori in memoria
--- di Ember). Popolata solo se ANALYTICS_PERSIST=true. La `question` è REDATTA
--- (PII rimosse) a monte da Ember; niente contenuto sensibile in chiaro qui.
+-- di Divina). Popolata solo se ANALYTICS_PERSIST=true. La `question` è REDATTA
+-- (PII rimosse) a monte da Divina; niente contenuto sensibile in chiaro qui.
 create table if not exists analytics_events (
     event_id     bigserial primary key,
     kind         text not null,                  -- chat | gap | feedback_up | feedback_down
@@ -97,9 +97,9 @@ create table if not exists key_usage (
     primary key (key_hash, period)
 );
 
--- ── Ponte con Ember: chiavi-tenant (hashate) e grant a tre livelli ──────────
+-- ── Ponte con Divina: chiavi-tenant (hashate) e grant a tre livelli ──────────
 -- Le liste di grant sono per CODE testuale = allowed_scopes/orgs/sub_tenants di
--- Ember. '*' in un qualunque array = chiave master (vede tutto).
+-- Divina. '*' in un qualunque array = chiave master (vede tutto).
 
 create table if not exists api_keys (
     key_hash             text primary key,       -- sha256 della chiave in chiaro (mai in chiaro)
@@ -135,7 +135,7 @@ create trigger trg_documents_updated before update on documents
     for each row execute function ovyon.touch_updated_at();
 
 -- ── Helper RLS: i grant del richiedente arrivano da GUC di sessione ─────────
--- Ember (o il connettore) imposta per-transazione, es:
+-- Divina (o il connettore) imposta per-transazione, es:
 --   SET LOCAL ovyon.allowed_orgs = 'forma';
 --   SET LOCAL ovyon.allowed_tenants = 'ats,forma-core';
 --   SET LOCAL ovyon.allowed_sub_tenants = '';
@@ -180,7 +180,7 @@ create policy documents_write on documents
              with check (ovyon.can_read(org_code, tenant_code, sub_code));
 
 -- Audit trail: un tenant può inserire solo voci nel PROPRIO scope e rileggere solo
--- le proprie (append-only + isolamento). Ember imposta i GUC ovyon.* via
+-- le proprie (append-only + isolamento). Divina imposta i GUC ovyon.* via
 -- rls.session_grants prima di scrivere (vedi app/tenants.log_access).
 drop policy if exists access_logs_insert on access_logs;
 create policy access_logs_insert on access_logs
@@ -199,11 +199,11 @@ create policy access_logs_read on access_logs
         or org_code    = any(ovyon.grants('allowed_orgs'))
     );
 
--- Nota: il ruolo di servizio di Ember (service_role) bypassa la RLS; l'isolamento
+-- Nota: il ruolo di servizio di Divina (service_role) bypassa la RLS; l'isolamento
 -- effettivo si ottiene impostando i GUC ovyon.* per ogni richiesta tenant, oppure
 -- connettendosi con un ruolo NON privilegiato su cui la RLS è attiva.
 
--- ── Vista comoda: grant di una chiave (ciò che Ember legge) ─────────────────
+-- ── Vista comoda: grant di una chiave (ciò che Divina legge) ─────────────────
 create or replace view ovyon.key_grants as
     select key_hash, name, active, quota_day,
            allowed_orgs, allowed_tenants, allowed_sub_tenants, allowed_origins

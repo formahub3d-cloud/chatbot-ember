@@ -35,7 +35,7 @@ data.setdefault("mcpServers", {})
 data["mcpServers"]["ovy-brain"] = {
     "command": os.environ["PYBIN"],
     "args": [os.environ["SERVER"]],
-    "env": {"EMBER_API_URL": "https://ember.formahub.it",
+    "env": {"EMBER_API_URL": "https://divina.formahub.it",
             "EMBER_TENANT_KEY": os.environ["KEY"]},
 }
 json.dump(data, open(cfg, "w"), indent=2, ensure_ascii=False)
