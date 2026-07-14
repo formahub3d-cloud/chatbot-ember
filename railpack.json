@@ -1,1 +1,1 @@
-{"$schema":"https://schema.railpack.com","aptPackages":["git"]}
+{"$schema":"https://schema.railpack.com","deploy":{"aptPackages":["git"]}}
