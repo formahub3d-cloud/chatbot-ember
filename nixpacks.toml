@@ -1,0 +1,6 @@
+# Build Railway (nixpacks). Aggiunge `git` all'immagine: serve a app/ingest.py
+# (sync_vault → git clone/pull del vault da VAULT_GIT_URL prima dell'ingest).
+# Senza questo, /ingest va in 500 sul container Railway (git non presente).
+# È additivo: nixpacks tiene comunque il piano Python auto-rilevato.
+[phases.setup]
+aptPkgs = ["git"]
