@@ -218,6 +218,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <button class="nav-item" data-view="scopes"><span class="ic">▤</span> Scope</button>
     <button class="nav-item" data-view="insights"><span class="ic">◈</span> Segnali</button>
     <button class="nav-item" data-view="learning"><span class="ic">✦</span> Apprendimento <span class="badge" id="b-learning">0</span></button>
+    <button class="nav-item" data-view="roadmap"><span class="ic">🧭</span> Roadmap <span class="badge" id="b-roadmap">0</span></button>
     <button class="nav-item" data-view="usage"><span class="ic">€</span> Uso &amp; costi</button>
     <button class="nav-item" data-view="events"><span class="ic">≣</span> Eventi</button>
     <button class="nav-item" data-view="tenants"><span class="ic">⚿</span> Tenant</button>
@@ -330,6 +331,7 @@ function demoData(service, path, opts){
       '/admin/analytics':{uptime_s:186420,totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta 👎: rivedi la nota resi e chiarisci i passaggi.'}]},
+      '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
       '/admin/usage':{'ats':{count:412,cost_eur:2.06,alert:false},'forma-core':{count:198,cost_eur:0.99,alert:false},'andrea':{count:640,cost_eur:3.20,alert:true},'ovyon':{count:54,cost_eur:0.27,alert:false}},
       '/admin/events':{persist:true,events:[{at:nowIso(30000),kind:'chat',scope:'ats',question:'orari apertura sede Benevento'},{at:nowIso(120000),kind:'feedback_up',scope:'forma-core',question:'ottima risposta sui materiali'},{at:nowIso(260000),kind:'gap',scope:'ats',question:'spedizione internazionale?'}]},
       '/admin/tenants':{tenants:[{name:'ATS · Al Tuo Servizio',active:true,orgs:['forma'],tenants:['ats'],quota_day:2000,created_at:'2026-02-11'},{name:'FORMA (interno)',active:true,orgs:['forma'],tenants:['forma-core'],quota_day:null,created_at:'2026-01-04'},{name:'Andrea Aloia',active:true,orgs:['personal'],tenants:['andrea'],quota_day:500,created_at:'2026-01-04'}]},
@@ -465,6 +467,18 @@ const VIEWS={
     }catch(e){C.innerHTML=errBox(e);}
   },
 
+  async roadmap(){
+    if(needSvc('engine'))return; C.innerHTML=skeleton(5);
+    try{const d=await api('engine','/admin/roadmap');const tasks=d.tasks||[],pf=d.strengths||[],bm=d.benchmark||{},cn=d.counts||{};
+      $('#b-roadmap').textContent=(cn.aperte??tasks.filter(t=>t.status!=='fatto').length);
+      const PRI={alta:'neg',media:'warn',bassa:'mut'},STA={'da-fare':'mut',parziale:'warn','in-corso':'info',fatto:'pos'};
+      const AREA={memoria:'🧠 Memoria',companions:'✧ Companion',automazioni:'⚙ Automazioni',integrazioni:'🔗 Integrazioni',voce:'🎙 Voce',workspace:'▦ Workspace',business:'€ Business'};
+      const byArea={};tasks.forEach(t=>{(byArea[t.area]=byArea[t.area]||[]).push(t);});
+      const card=t=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px"><span class="tag ${PRI[t.priority]||'mut'}">${esc(t.priority)}</span><span class="tag ${STA[t.status]||'mut'}">${esc(t.status)}</span><span class="pill">${esc(t.repo)}</span></div><span class="pill">effort ${esc(t.effort)}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(t.title)}</div><div class="small" style="line-height:1.6;margin-bottom:8px">${esc(t.description)}</div><div class="small muted" style="line-height:1.6;margin-bottom:4px">🪞 Zoey: ${esc(t.zoey_ref)}</div><div class="small muted" style="line-height:1.6">💡 ${esc(t.divina_note)}</div></div>`;
+      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>🧭 Roadmap — Divina come "AI Operating System"</h3><p>Benchmark: <a href="${esc(bm.url||'#')}" target="_blank" rel="noopener"><b>${esc(bm.name||'Zoey OS')}</b></a> · statica, si aggiorna con una PR (app/roadmap.py del motore)</p></div><span class="pill">${cn.totale??tasks.length} task · ${cn.parziali??0} parziali</span></div><div class="small muted" style="line-height:1.7;margin-bottom:14px">${esc(bm.summary||'')}</div>${pf.length?`<div class="sec" style="margin-top:4px">Dove Divina è già avanti (da proteggere)</div><div class="row" style="flex-wrap:wrap;gap:8px">${pf.map(s=>`<span class="pill" style="border-color:var(--green);color:var(--green)">✓ ${esc(s)}</span>`).join('')}</div>`:''}</div>${Object.entries(byArea).map(([a,ts])=>`<div class="sec">${AREA[a]||esc(a)}</div><div class="grid g-2" style="align-items:start">${ts.map(card).join('')}</div>`).join('')}`;
+    }catch(e){C.innerHTML=errBox(e);}
+  },
+
   async usage(){
     if(needSvc('engine'))return; C.innerHTML=skeleton(4);
     try{const d=await api('engine','/admin/usage');const rows=Object.entries(d).filter(([k])=>typeof d[k]==='object');
@@ -597,7 +611,7 @@ function newTenantForm(){
 async function revokeTenant(name){if(!confirm(`Revocare le chiavi di "${name}"?`))return;try{const r=await api('engine','/admin/tenants/revoke',{method:'POST',body:{name}});toast(`Revocate ${r.revoked??0} chiavi`,'ok');route('tenants');}catch(e){toast(e.message,'bad');}}
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={chat:['Chat col cervello','Parla con Divina'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={chat:['Chat col cervello','Parla con Divina'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 function route(view){
   state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   const [t,s]=TITLES[view]||['',''];$('#pageTitle').textContent=t;$('#pageSub').textContent=s;
@@ -613,7 +627,8 @@ $('#sideBackdrop').onclick=()=>{$('#side').classList.remove('open');$('#sideBack
 (async function init(){
   setTheme(localStorage.getItem(LS.theme)||'dark');$('#tenantText').textContent=state.tenant;
   await checkConn();
-  if(state.engOk){try{const l=await api('engine','/admin/learning');$('#b-learning').textContent=(l.tasks||[]).length;}catch(_){}}
+  if(state.engOk){try{const l=await api('engine','/admin/learning');$('#b-learning').textContent=(l.tasks||[]).length;}catch(_){}
+    try{const rm=await api('engine','/admin/roadmap');$('#b-roadmap').textContent=(rm.counts||{}).aperte??(rm.tasks||[]).filter(t=>t.status!=='fatto').length;}catch(_){}}
   if(state.orchOk){try{const a=await api('orch','/agents');$('#b-agents').textContent=(a.agents||[]).length;const c=await api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'}));$('#b-contra').textContent=(c.contradictions||[]).length;}catch(_){}}
   if(!state.engOk&&!state.orchOk&&!state.demo)openConn();
   route('chat');

@@ -50,7 +50,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -500,6 +500,16 @@ def admin_learning(authorization: str = Header(default="")):
     domanda, con conteggio e suggerimento concreto. Bearer ADMIN_TOKEN. In-memory."""
     _require_admin(authorization)
     return metrics.learning_tasks()
+
+
+@app.get("/admin/roadmap")
+def admin_roadmap(authorization: str = Header(default="")):
+    """Roadmap del cervello verso la console "AI Operating System" (benchmark:
+    Zoey OS): task curate con priorità, stato e aggancio all'architettura.
+    Statica e versionata nel repo (app/roadmap.py): si aggiorna con una PR.
+    Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    return roadmap.roadmap()
 
 
 @app.get("/admin/events")
