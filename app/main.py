@@ -50,7 +50,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -510,6 +510,54 @@ def admin_roadmap(authorization: str = Header(default="")):
     Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
     return roadmap.roadmap()
+
+
+class TaskIn(BaseModel):
+    title: str
+    scope: str = ""
+    note: str = ""
+    kind: str = "manuale"      # manuale | gap | feedback | agente
+
+
+class TaskCloseIn(BaseModel):
+    id: str
+    by: str                    # nome dell'UMANO che chiude (obbligatorio, come resolved_by)
+    status: str = "fatta"      # fatta | archiviata
+
+
+@app.get("/admin/tasks")
+def admin_tasks(limit: int = 100, authorization: str = Header(default="")):
+    """Coda task PERSISTENTE del cervello (tabella brain_tasks; fallback in-memory
+    se Supabase è off — `persist` lo dice). Solo le aperte, più recenti prima.
+    Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    return {"tasks": braintasks.list_open(limit), "persist": braintasks.enabled()}
+
+
+@app.post("/admin/tasks")
+def admin_tasks_create(body: TaskIn, authorization: str = Header(default="")):
+    """Crea una task operativa del cervello (dalla console). Titolo obbligatorio,
+    già redatto (niente PII). Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    t = braintasks.add(body.title, scope=body.scope, note=body.note, kind=body.kind)
+    if t is None:
+        raise HTTPException(422, "Titolo obbligatorio (o persistenza non disponibile).")
+    return {"ok": True, "task": t}
+
+
+@app.post("/admin/tasks/close")
+def admin_tasks_close(body: TaskCloseIn, authorization: str = Header(default="")):
+    """Chiude una task ('fatta' | 'archiviata') col nome di chi decide: mai DELETE,
+    chiude solo un umano — come le contraddizioni. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    if not body.by.strip():
+        raise HTTPException(422, "Indica chi chiude la task (by).")
+    if body.status not in braintasks.CLOSE_STATUSES:
+        raise HTTPException(422, "status deve essere 'fatta' o 'archiviata'.")
+    ok = braintasks.close(body.id, body.by, body.status)
+    if not ok:
+        raise HTTPException(404, "Task non trovata o già chiusa.")
+    return {"ok": True}
 
 
 @app.get("/admin/events")

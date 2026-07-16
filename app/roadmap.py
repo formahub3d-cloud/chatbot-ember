@@ -73,31 +73,33 @@ TASKS = [
                      "servono CRUD via API + editor nel pannello. Regola tassativa: "
                      "il tier non amplia MAI lo scope dei dati.")},
     {"id": "chat-regista", "area": "companions", "priority": "alta",
-     "status": "parziale", "effort": "M", "repo": "entrambi",
+     "status": "in-corso", "effort": "M", "repo": "entrambi",
      "title": "Divina regista: un solo punto d'ingresso",
      "description": ("La chat della console capisce da sola quando una richiesta è "
                      "una task operativa e la smista all'agente giusto, mostrando "
                      "in chat chi se ne occupa e con quale esito."),
      "zoey_ref": ("«Tell Zoey what you need. She understands the intent and "
                   "decides who handles it.»"),
-     "divina_note": ("agents_bridge.py già riconosce i messaggi «task-like» e chiama "
-                     "/agents/route: completare il giro con esito visibile in chat "
-                     "e fallback esplicito quando la confidenza è bassa.")},
+     "divina_note": ("agents_bridge.py riconosce i messaggi «task-like» e chiama "
+                     "/agents/route; la chat della console ora mostra il chip "
+                     "agente·skill·confidenza quando risponde un companion. Resta "
+                     "il fallback esplicito quando la confidenza è bassa.")},
 
     # ── automazioni ──────────────────────────────────────────────────────
     {"id": "coda-task-persistente", "area": "automazioni", "priority": "alta",
-     "status": "da-fare", "effort": "M", "repo": "entrambi",
+     "status": "in-corso", "effort": "M", "repo": "entrambi",
      "title": "Coda task persistente del cervello",
-     "description": ("Oggi le task di apprendimento sono in-memory e si azzerano al "
-                     "redeploy. Serve una tabella tasks con stato (aperta/in-corso/"
-                     "fatta), origine (gap, 👎, manuale, agente) e assegnatario "
+     "description": ("Le task di apprendimento sono in-memory e si azzerano al "
+                     "redeploy. Serve una tabella tasks con stato (aperta/fatta/"
+                     "archiviata), origine (gap, 👎, manuale, agente) e assegnatario "
                      "(umano o companion)."),
      "zoey_ref": ("«Every task, companion, and action in one place» — il task "
                   "tracking è il cuore del workspace di Zoey."),
-     "divina_note": ("Migrazione additiva sul modello di contradictions "
-                     "(001_divina_schema.sql: RLS ovyon.can_read + trigger touch_"
-                     "updated_at); endpoint GET/POST /admin/tasks accanto a "
-                     "/admin/learning.")},
+     "divina_note": ("Prima tranche FATTA: tabella brain_tasks (db/ovyon_tasks.sql, "
+                     "da applicare su Supabase), app/braintasks.py con fallback "
+                     "in-memory, endpoint /admin/tasks e tab «Task del cervello» "
+                     "nella console. Restano: assegnazione ai companion e creazione "
+                     "automatica dai gap/👎.")},
     {"id": "skill-workflow", "area": "automazioni", "priority": "media",
      "status": "da-fare", "effort": "L", "repo": "orchestratore",
      "title": "Skill = interi workflow (playbook)",
@@ -144,37 +146,40 @@ TASKS = [
 
     # ── voce ─────────────────────────────────────────────────────────────
     {"id": "voce-continua", "area": "voce", "priority": "media",
-     "status": "parziale", "effort": "M", "repo": "motore",
+     "status": "in-corso", "effort": "M", "repo": "motore",
      "title": "Voce e testo in un'unica conversazione",
      "description": ("Parlare con Divina nella console e passare da voce a testo "
                      "senza interrompere il filo (STT + TTS in streaming)."),
      "zoey_ref": ("«Switch between voice and text anytime in one continuous "
                   "conversation» — Zoey è voice-first."),
-     "divina_note": ("Il provider voce è già previsto (voice_provider in "
-                     "/admin/status, app/voice.py): manca il round-trip completo "
-                     "nella chat della console e nel widget.")},
+     "divina_note": ("Prima tranche FATTA: dettatura (🎙) e lettura vocale (🔊) "
+                     "nella chat della console via Web Speech API, it-IT. Restano: "
+                     "provider server-side (app/voice.py, es. ElevenLabs) per "
+                     "qualità costante e la voce nel widget.")},
 
     # ── workspace ────────────────────────────────────────────────────────
     {"id": "dispatch-live", "area": "workspace", "priority": "media",
-     "status": "da-fare", "effort": "M", "repo": "orchestratore",
+     "status": "in-corso", "effort": "M", "repo": "orchestratore",
      "title": "Regia live: vedere il lavoro accadere",
      "description": ("Una vista «regia» nella console che mostra in tempo reale "
                      "richiesta → agente scelto → skill → esito, mentre succede."),
      "zoey_ref": ("«She fires a task to the right companion. You see the dispatch "
                   "happen in real time» (nel workspace 3D)."),
-     "divina_note": ("/agents/route già decide agente+skill; aggiungere lo streaming "
-                     "di stato (il motore fa già SSE su /chat). Niente 3D: prima "
-                     "la sostanza, poi la scena.")},
+     "divina_note": ("Prima tranche FATTA: registro dispatch (app/dispatches.py, "
+                     "GET /agents/dispatches) e vista «Regia live» nella console "
+                     "con aggiornamento ogni 5s. Resta lo streaming SSE al posto "
+                     "del polling. Niente 3D: prima la sostanza, poi la scena.")},
     {"id": "console-quotidiana", "area": "workspace", "priority": "bassa",
-     "status": "da-fare", "effort": "S", "repo": "entrambi",
+     "status": "in-corso", "effort": "S", "repo": "entrambi",
      "title": "Console come workspace quotidiano",
      "description": ("Far vivere l'utente nella console: notifiche sugli esiti dei "
                      "task, badge e contatori live, scorciatoie — l'equivalente "
                      "sobrio del «world» di Zoey."),
      "zoey_ref": ("«A living workspace where you and your companions build "
                   "together», senza perdersi nei tab."),
-     "divina_note": ("La SPA /panel/ è già il punto unico delle due facce: "
-                     "aggiungere refresh dei badge e notifiche (toast → web push).")},
+     "divina_note": ("Prima tranche FATTA: home «Il tuo mondo» (hero FORMA, companion "
+                     "card, stat vive) come vista d'ingresso e badge aggiornati "
+                     "ogni 60s. Restano le notifiche web push.")},
 
     # ── business ─────────────────────────────────────────────────────────
     {"id": "multi-utente", "area": "business", "priority": "media",

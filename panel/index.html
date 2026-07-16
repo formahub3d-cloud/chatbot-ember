@@ -200,6 +200,21 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
   .tenant-chip .tlabel{display:none}
   .bubble{max-width:86%}
 }
+/* ── Il tuo mondo (home) · stile "AI OS", brand FORMA ── */
+.hero{position:relative;border:1px solid var(--border);border-radius:var(--radius);padding:32px 28px;overflow:hidden;background:linear-gradient(150deg,var(--surface),var(--bg));box-shadow:var(--shadow-sm)}
+.hero::before{content:'';position:absolute;top:-45%;right:-12%;width:430px;height:430px;border-radius:50%;background:radial-gradient(circle,var(--bg-grad-1),transparent 65%);pointer-events:none}
+.hero::after{content:'';position:absolute;bottom:-55%;left:-14%;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,var(--bg-grad-2),transparent 65%);pointer-events:none}
+.hero-in{position:relative;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.orb{width:76px;height:76px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-family:'Orbitron';font-weight:800;font-size:21px;color:#fff;background:radial-gradient(circle at 30% 28%,rgba(255,255,255,.34),transparent 42%),linear-gradient(140deg,var(--magenta),var(--cyan));box-shadow:0 0 44px rgba(221,36,242,.45);animation:breathe 4.5s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1);box-shadow:0 0 34px rgba(221,36,242,.38)}50%{transform:scale(1.05);box-shadow:0 0 54px rgba(14,212,228,.5)}}
+.hero h1{font-size:clamp(20px,3.4vw,27px);letter-spacing:-.4px;line-height:1.25}
+.hero .grad{background:linear-gradient(90deg,var(--magenta),var(--cyan) 55%,var(--green));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub{font-size:13px;color:var(--text-2);margin-top:7px;max-width:640px;line-height:1.65}
+.hero .cta{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.mic-btn.rec{color:#fff;border-color:transparent;background:var(--neg);animation:pulse 1.2s infinite}
+.live-feed{display:flex;flex-direction:column;gap:10px}
+.live-row{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;animation:fade .3s ease}
+.live-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -207,11 +222,12 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
   <aside class="side" id="side">
     <div class="brand">
       <div class="brand-mark">DV</div>
-      <div><div class="brand-name">Divina</div><div class="brand-sub">Chatbot &amp; Orchestratore</div></div>
+      <div><div class="brand-name">Divina</div><div class="brand-sub">by FORMA · Cervello OVY</div></div>
     </div>
 
     <div class="nav-label"><span class="ld" style="background:linear-gradient(90deg,var(--magenta),var(--cyan))"></span> Conversa</div>
-    <button class="nav-item active" data-view="chat"><span class="ic">💬</span> Chat col cervello</button>
+    <button class="nav-item active" data-view="home"><span class="ic">✦</span> Il tuo mondo</button>
+    <button class="nav-item" data-view="chat"><span class="ic">💬</span> Chat col cervello</button>
 
     <div class="nav-label"><span class="ld" style="background:var(--cyan)"></span> Cervello · motore</div>
     <button class="nav-item" data-view="dashboard"><span class="ic">◎</span> Dashboard</button>
@@ -219,12 +235,14 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <button class="nav-item" data-view="insights"><span class="ic">◈</span> Segnali</button>
     <button class="nav-item" data-view="learning"><span class="ic">✦</span> Apprendimento <span class="badge" id="b-learning">0</span></button>
     <button class="nav-item" data-view="roadmap"><span class="ic">🧭</span> Roadmap <span class="badge" id="b-roadmap">0</span></button>
+    <button class="nav-item" data-view="tasks"><span class="ic">☑</span> Task del cervello <span class="badge" id="b-tasks">0</span></button>
     <button class="nav-item" data-view="usage"><span class="ic">€</span> Uso &amp; costi</button>
     <button class="nav-item" data-view="events"><span class="ic">≣</span> Eventi</button>
     <button class="nav-item" data-view="tenants"><span class="ic">⚿</span> Tenant</button>
 
     <div class="nav-label"><span class="ld" style="background:var(--magenta)"></span> Orchestra · agenti</div>
     <button class="nav-item" data-view="agents"><span class="ic">✧</span> Agenti &amp; skill <span class="badge" id="b-agents">3</span></button>
+    <button class="nav-item" data-view="live"><span class="ic">◉</span> Regia live</button>
     <button class="nav-item" data-view="router"><span class="ic">⇄</span> Router / esegui</button>
     <button class="nav-item" data-view="nodes"><span class="ic">◇</span> Nodi wiki</button>
     <button class="nav-item" data-view="contradictions"><span class="ic">⚠</span> Contraddizioni <span class="badge" id="b-contra">0</span></button>
@@ -233,7 +251,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic">⚙</span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · Cervello OVY<br><span id="foot-ver">motore — · orch —</span></div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span></div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
 
@@ -277,11 +295,12 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 
 <script>
 /* ══════════ STATO ══════════ */
-const LS={engBase:'dv_eng_base',engTok:'dv_eng_tok',tenantKey:'dv_tenant_key',orchBase:'dv_orch_base',orchTok:'dv_orch_tok',tenant:'dv_tenant',demo:'dv_demo',theme:'dv_theme'};
+const LS={engBase:'dv_eng_base',engTok:'dv_eng_tok',tenantKey:'dv_tenant_key',orchBase:'dv_orch_base',orchTok:'dv_orch_tok',tenant:'dv_tenant',demo:'dv_demo',theme:'dv_theme',tts:'dv_tts'};
 const state={
   engBase:localStorage.getItem(LS.engBase)||'', engTok:localStorage.getItem(LS.engTok)||'', tenantKey:localStorage.getItem(LS.tenantKey)||'',
   orchBase:localStorage.getItem(LS.orchBase)||'', orchTok:localStorage.getItem(LS.orchTok)||'', tenant:localStorage.getItem(LS.tenant)||'forma',
-  demo:localStorage.getItem(LS.demo)==='1', view:'chat', engOk:false, orchOk:false, chat:[],
+  demo:localStorage.getItem(LS.demo)==='1', view:'home', engOk:false, orchOk:false, chat:[],
+  tts:localStorage.getItem(LS.tts)==='1', _liveTimer:null,
 };
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -324,6 +343,8 @@ function demoData(service, path, opts){
       if(msg.includes('prezzo')||msg.includes('costo')||msg.includes('stampa')) a='(DEMO) La stampa 3D FDM parte da €15/pezzo; la SLA è su preventivo in base a volume e finitura. Vuoi una stima per un modello specifico?';
       return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats']});
     }
+    if(path.startsWith('/admin/tasks/close')) return Promise.resolve({ok:true});
+    if(path==='/admin/tasks'&&(opts.method||'GET')==='POST') return Promise.resolve({ok:true,task:{id:'t-demo',kind:(opts.body&&opts.body.kind)||'manuale',scope:(opts.body&&opts.body.scope)||'',title:(opts.body&&opts.body.title)||'Task',note:(opts.body&&opts.body.note)||'',status:'aperta',created_at:new Date().toISOString()}});
     const D={
       '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123'},
       '/health':{status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
@@ -331,6 +352,7 @@ function demoData(service, path, opts){
       '/admin/analytics':{uptime_s:186420,totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta 👎: rivedi la nota resi e chiarisci i passaggi.'}]},
+      '/admin/tasks':{persist:true,tasks:[{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta 👎 ricorrente',status:'aperta',created_at:nowIso(50*3600e3)}]},
       '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
       '/admin/usage':{'ats':{count:412,cost_eur:2.06,alert:false},'forma-core':{count:198,cost_eur:0.99,alert:false},'andrea':{count:640,cost_eur:3.20,alert:true},'ovyon':{count:54,cost_eur:0.27,alert:false}},
       '/admin/events':{persist:true,events:[{at:nowIso(30000),kind:'chat',scope:'ats',question:'orari apertura sede Benevento'},{at:nowIso(120000),kind:'feedback_up',scope:'forma-core',question:'ottima risposta sui materiali'},{at:nowIso(260000),kind:'gap',scope:'ats',question:'spedizione internazionale?'}]},
@@ -354,6 +376,7 @@ function demoData(service, path, opts){
         {id:'superpowers',role:'Skill Forge',desc:'pacchetto 14 skill',department:'Developers'},{id:'mcp-builder',role:'Tool Wright',desc:'server MCP',department:'Developers'},{id:'webapp-testing',role:'QA Engineer',desc:'test browser',department:'Developers'},{id:'ui-ux-pro-max',role:'Design Lead',desc:'sistema UI/UX',department:'Designers'},{id:'brand-guidelines',role:'Brand Keeper',desc:'brand kit',department:'Designers'},{id:'review-contract',role:'Contract Reviewer',desc:'revisiona contratti',department:'Legal'},{id:'triage-nda',role:'NDA Triage',desc:'review NDA',department:'Legal'}]},
       {id:'beatrice',name:'Beatrice',archetype:'la guida/visione',tagline:'Chart the strategy and tell the story',skills:[
         {id:'market-scan',role:'Market Scout',desc:'scansione mercato',department:'Strategy'},{id:'okr-planner',role:'OKR Planner',desc:'imposta OKR',department:'Strategy'},{id:'content-plan',role:'Content Planner',desc:'piano editoriale',department:'Growth'},{id:'seo-audit',role:'SEO Auditor',desc:'audit SEO',department:'Growth'},{id:'case-study',role:'Story Weaver',desc:'case study',department:'Growth'}]}]},
+    '/agents/dispatches':{dispatches:[{at:now-40,kind:'route',tenant:'ats',input:'Prepara i solleciti per le fatture scadute del cliente ATS',agent:'dante',skill:'invoice-chase',role:'Debt Chaser',department:'Small Business',routed:true,confidence:.86},{at:now-520,kind:'run',tenant:'forma',input:'Analisi UI/UX del pannello Divina',agent:'virgilio',skill:'ui-ux-pro-max',role:'Design Lead',department:'Designers',routed:true},{at:now-1900,kind:'route',tenant:'ats',input:'boh qualcosa sui prezzi forse',routed:false,confidence:.31}]},
     '/contradictions':{contradictions:[{id:'c1',description:'Il prezzo SLA differisce tra "listino-2026" e "faq-prezzi": €18 vs €22.',status:'irrisolto',created_at:nowIso(3600e3),node_a:'listino-2026',node_b:'faq-prezzi'},{id:'c2',description:'Orari discordanti tra scheda cliente ATS e pagina contatti.',status:'irrisolto',created_at:nowIso(26*3600e3),node_a:'scheda-ats',node_b:'contatti'}]},
     '/nodes/recent':{nodes:[{node_id:'n1',slug:'processo-onboarding-cliente',title:'Processo di onboarding cliente',kind:'processo',status:'bozza',summary:'Flusso in 5 step.',confidence:0.82,updated_at:nowIso(1200e3)},{node_id:'n2',slug:'listino-stampa-3d-2026',title:'Listino stampa 3D 2026',kind:'documento',status:'promosso',summary:'Prezzi FDM/SLA giugno 2026.',confidence:0.95,updated_at:nowIso(8*3600e3)},{node_id:'n3',slug:'faq-resi-rimborsi',title:'FAQ resi e rimborsi',kind:'faq',status:'bozza',summary:'Reso entro 14 giorni.',confidence:0.7,updated_at:nowIso(30*3600e3)}]},
     '/templates':{templates:[{name:'Preventivo servizi',business_area:'Sales',min_tier:'starter',format:'markdown',system:true},{name:'Contratto quadro',business_area:'Legal',min_tier:'enterprise',format:'docx',system:true},{name:'Report CO₂ B2B',business_area:'Sostenibilità',min_tier:'pro',format:'markdown',system:true}]},
@@ -375,7 +398,7 @@ $('#connSave').onclick=()=>{
   state.orchBase=$('#inOrchBase').value.trim();state.orchTok=$('#inOrchTok').value.trim();state.tenant=$('#inTenant').value.trim()||'forma';state.demo=$('#inDemo').checked;
   localStorage.setItem(LS.engBase,state.engBase);localStorage.setItem(LS.engTok,state.engTok);localStorage.setItem(LS.tenantKey,state.tenantKey);
   localStorage.setItem(LS.orchBase,state.orchBase);localStorage.setItem(LS.orchTok,state.orchTok);localStorage.setItem(LS.tenant,state.tenant);localStorage.setItem(LS.demo,state.demo?'1':'0');
-  $('#tenantText').textContent=state.tenant;closeConn();checkConn().then(()=>route(state.view));
+  $('#tenantText').textContent=state.tenant;closeConn();checkConn().then(()=>{refreshBadges();route(state.view);});
 };
 async function checkConn(){
   const chip=$('#connChip');$('#tenantText').textContent=state.tenant;
@@ -407,18 +430,54 @@ function needSvc(svc){
 /* ══════════ VIEWS ══════════ */
 const VIEWS={
 
+  /* ---------- HOME · IL TUO MONDO (stile AI OS, brand FORMA) ---------- */
+  async home(){
+    C.innerHTML=skeleton(4);
+    const [an,tk,ag,co,rm]=await Promise.all([
+      (state.engOk?api('engine','/admin/analytics'):Promise.reject()).catch(()=>null),
+      (state.engOk?api('engine','/admin/tasks'):Promise.reject()).catch(()=>null),
+      (state.orchOk?api('orch','/agents'):Promise.reject()).catch(()=>null),
+      (state.orchOk?api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'})):Promise.reject()).catch(()=>null),
+      (state.engOk?api('engine','/admin/roadmap'):Promise.reject()).catch(()=>null),
+    ]);
+    const t=(an&&an.totals)||{};const nTasks=tk?(tk.tasks||[]).length:null;if(tk)$('#b-tasks').textContent=nTasks;
+    const agents=(ag&&ag.agents)||[];const nContra=co?(co.contradictions||[]).length:null;
+    const fbTot=(t.feedback_up||0)+(t.feedback_down||0),help=fbTot?Math.round(t.feedback_up/fbTot*100):null;
+    const connected=state.engOk||state.orchOk;
+    const compCard=a=>{const col=AG_COLORS[a.id]||'var(--magenta)';return `<div class="agent-card"><div class="accent-top" style="background:${col}"></div><div class="agent-head"><div class="agent-avatar" style="background:${col}">${AG_INIT[a.id]||'AG'}</div><div><div class="agent-name">${esc(a.name)}</div><div class="agent-arch">${esc(a.archetype||'')}</div></div></div><div class="agent-tagline">${esc(a.tagline||'')}</div><div class="row" style="justify-content:space-between;margin-top:12px"><span class="pill">✧ ${(a.skills||[]).length} skill</span><button class="btn sm" onclick="askAgent('${esc(a.id)}')">Affida un compito</button></div></div>`;};
+    C.innerHTML=`
+    <div class="hero"><div class="hero-in">
+      <div class="orb">DV</div>
+      <div style="flex:1;min-width:230px">
+        <h1><span class="grad">Il tuo mondo. La tua AI.</span></h1>
+        <div class="sub">Divina — il prodotto AI di <b>FORMA</b> — unisce il cervello OVY, il motore di risposta e i tuoi companion in un unico posto: fai una domanda, affida un compito, guarda il lavoro accadere.</div>
+        <div class="cta"><button class="btn primary" onclick="route('chat')">💬 Parla con Divina</button><button class="btn" onclick="route('router')">⇄ Affida un compito</button>${!connected?`<button class="btn" onclick="openConn()">🔌 Connetti i servizi</button>`:''}</div>
+      </div></div></div>
+    ${an?`<div class="sec">Oggi nel cervello</div><div class="grid g-stats">
+      <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">💬 Conversazioni</div><div class="val" style="color:var(--cyan)">${fmtN(t.chat)}</div><div class="meta">dal boot</div></div>
+      <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">👍 Utilità</div><div class="val" style="color:var(--green)">${help==null?'—':help+'%'}</div><div class="meta">${fmtN(t.feedback_up)} 👍 · ${fmtN(t.feedback_down)} 👎</div></div>
+      <div class="stat" onclick="route('tasks')" style="cursor:pointer"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div><div class="lbl">☑ Task aperte</div><div class="val" style="color:var(--magenta)">${nTasks==null?'—':fmtN(nTasks)}</div><div class="meta">coda del cervello</div></div>
+      <div class="stat" onclick="route('contradictions')" style="cursor:pointer"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">⚠ Da decidere</div><div class="val" style="color:var(--orange)">${nContra==null?'—':fmtN(nContra)}</div><div class="meta">contraddizioni</div></div>
+    </div>`:''}
+    <div class="sec">I tuoi companion</div>
+    ${agents.length?`<div class="grid g-3" style="align-items:start">${agents.map(compCard).join('')}</div>`:`<div class="card">${emptyBox('✧','Companion non connessi',"Configura l'Orchestratore (URL + token) o attiva la modalità demo per vedere Dante, Virgilio e Beatrice.")}</div>`}
+    ${rm?`<div class="sec">Verso l'AI Operating System</div><div class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><div class="small" style="line-height:1.6">🧭 Roadmap (benchmark <b>Zoey OS</b>): <b>${(rm.counts||{}).aperte??'—'}</b> task aperte · <b>${(rm.counts||{}).parziali??'—'}</b> parziali su ${(rm.counts||{}).totale??'—'}</div><button class="btn sm" onclick="route('roadmap')">Apri la roadmap</button></div></div>`:''}`;
+  },
+
   /* ---------- CHAT ---------- */
   async chat(){
     C.classList.add('chatmode');
     C.innerHTML=`<div class="chat"><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
       <div class="composer"><div class="composer-inner">
-        <textarea id="chatMsg" placeholder="Scrivi al cervello OVY… (Invio per inviare, Shift+Invio a capo)" rows="1"></textarea>
+        <textarea id="chatMsg" placeholder="Scrivi o detta al cervello OVY… (Invio per inviare, Shift+Invio a capo)" rows="1"></textarea>
+        <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">🎙</button>
+        <button class="icon-btn" id="chatTts" title="Lettura vocale delle risposte">${state.tts?'🔊':'🔇'}</button>
         <button class="btn primary" id="chatSend" style="min-width:52px">➤</button></div></div></div>`;
     renderChat();
     const ta=$('#chatMsg');
     ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(160,ta.scrollHeight)+'px';});
     ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
-    $('#chatSend').onclick=sendChat;ta.focus();
+    $('#chatSend').onclick=sendChat;initVoice();ta.focus();
   },
 
   /* ---------- DASHBOARD (engine) ---------- */
@@ -479,6 +538,17 @@ const VIEWS={
     }catch(e){C.innerHTML=errBox(e);}
   },
 
+  async tasks(){
+    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+    try{const d=await api('engine','/admin/tasks');const ts=d.tasks||[];$('#b-tasks').textContent=ts.length;
+      const KT={manuale:'acc',gap:'warn',feedback:'neg',agente:'info'};
+      C.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>＋ Nuova task</h3><p>Coda operativa ${d.persist?'<b style="color:var(--green)">persistente (Supabase)</b>':'<b style="color:var(--orange)">in-memory — applica db/ovyon_tasks.sql per la persistenza</b>'}</p></div></div><div class="row" style="flex-wrap:wrap"><input id="tkTitle" placeholder="Titolo (niente dati personali)" style="flex:2;min-width:220px"><input id="tkScope" placeholder="Scope (es. ats)" style="max-width:140px"><input id="tkNote" placeholder="Nota (opzionale)" style="flex:1;min-width:160px"><button class="btn primary" id="tkAdd">Crea</button></div></div>
+      <div class="card"><div class="card-head"><div><h3>☑ Task aperte</h3><p>Si chiudono col nome di chi decide — mai cancellate, solo 'fatta' o 'archiviata'</p></div><span class="pill">${ts.length} aperte</span></div>${ts.length?`<div style="display:flex;flex-direction:column;gap:12px">${ts.map(t=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px"><span class="tag ${KT[t.kind]||'mut'}">${esc(t.kind)}</span>${t.scope?`<span class="scope-chip" style="background:${scopeColor(t.scope)}22;color:${scopeColor(t.scope)};border-color:${scopeColor(t.scope)}44">${esc(t.scope)}</span>`:''}</div><span class="small muted">${timeAgoIso(t.created_at)}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(t.title)}</div>${t.note?`<div class="small muted" style="margin-bottom:10px">${esc(t.note)}</div>`:''}<div class="row"><input placeholder="Chi chiude (nome)" id="tb-${esc(t.id)}" style="max-width:200px"><button class="btn sm primary" data-tclose="${esc(t.id)}" data-st="fatta">Fatta</button><button class="btn sm" data-tclose="${esc(t.id)}" data-st="archiviata">Archivia</button></div></div>`).join('')}</div>`:emptyBox('🎯','Nessuna task aperta','Creane una qui sopra, o lascia che nascano da gap e feedback')}</div>`;
+      $('#tkAdd').onclick=async()=>{const title=$('#tkTitle').value.trim();if(!title){toast('Titolo obbligatorio','bad');return;}try{await api('engine','/admin/tasks',{method:'POST',body:{title,scope:$('#tkScope').value.trim(),note:$('#tkNote').value.trim()}});toast('Task creata','ok');route('tasks');}catch(e){toast(e.message,'bad');}};
+      $$('[data-tclose]').forEach(b=>b.onclick=async()=>{const by=(document.getElementById('tb-'+b.dataset.tclose)||{value:''}).value.trim();if(!by){toast('Indica chi chiude la task','bad');return;}try{await api('engine','/admin/tasks/close',{method:'POST',body:{id:b.dataset.tclose,by,status:b.dataset.st}});toast('Task '+b.dataset.st,'ok');route('tasks');}catch(e){toast(e.message,'bad');}});
+    }catch(e){C.innerHTML=errBox(e);}
+  },
+
   async usage(){
     if(needSvc('engine'))return; C.innerHTML=skeleton(4);
     try{const d=await api('engine','/admin/usage');const rows=Object.entries(d).filter(([k])=>typeof d[k]==='object');
@@ -510,6 +580,16 @@ const VIEWS={
     try{const ag=await api('orch','/agents');const agents=ag.agents||[];$('#b-agents').textContent=agents.length;
       C.innerHTML=`<div class="grid g-3" style="align-items:start">${agents.map(a=>{const col=AG_COLORS[a.id]||'var(--magenta)';const byDept={};(a.skills||[]).forEach(s=>{(byDept[s.department]=byDept[s.department]||[]).push(s);});return `<div class="agent-card"><div class="accent-top" style="background:${col}"></div><div class="agent-head"><div class="agent-avatar" style="background:${col}">${AG_INIT[a.id]||'AG'}</div><div><div class="agent-name">${esc(a.name)}</div><div class="agent-arch">${esc(a.archetype)}</div></div></div><div class="agent-tagline">${esc(a.tagline||'')}</div>${Object.entries(byDept).map(([d,sk])=>`<div class="dept-title">${esc(d)}</div>${sk.map(s=>`<div class="skill-item" onclick="quickRun('${esc(a.id)}','${esc(s.id)}')"><span style="color:${col};font-size:14px">▸</span><div><div class="skill-role">${esc(s.role||s.id)}</div><div class="skill-desc">${esc(s.desc||'')}</div></div></div>`).join('')}`).join('')}</div>`;}).join('')}</div>`;
     }catch(e){C.innerHTML=errBox(e);}
+  },
+
+  async live(){
+    if(needSvc('orch'))return;
+    C.innerHTML=`<div class="card"><div class="card-head"><div><h3>◉ Regia live</h3><p>Gli ultimi dispatch degli agenti (route/run), mentre accadono · aggiornamento ogni 5s</p></div><span class="pill" id="liveCount">—</span></div><div class="live-feed" id="liveFeed">${skeleton(3)}</div></div>`;
+    const draw=async()=>{try{const d=await api('orch','/agents/dispatches?limit=50');const evs=d.dispatches||[];const lc=$('#liveCount'),lf=$('#liveFeed');if(!lf)return;lc.textContent=evs.length+' dispatch';
+      lf.innerHTML=evs.length?evs.map(e=>{const col=e.routed?(AG_COLORS[e.agent]||'var(--magenta)'):'var(--orange)';return `<div class="live-row"><span class="live-dot" style="background:${col};box-shadow:0 0 8px ${col}"></span><div style="flex:1;min-width:0"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px">${e.routed?`<b style="color:${col}">${esc(e.agent)}</b><span class="pill">${esc(e.role||e.skill||'')}</span>`:'<span class="tag warn">non instradato</span>'}<span class="tag ${e.kind==='route'?'info':'acc'}">${esc(e.kind)}</span>${e.confidence!=null?`<span class="pill">conf. ${Math.round(e.confidence*100)}%</span>`:''}</div><span class="small muted">${timeAgoTs(e.at)} · ${esc(e.tenant||'')}</span></div><div class="small muted" style="margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">“${esc(e.input||'')}”</div></div></div>`;}).join(''):emptyBox('◉','Nessun dispatch ancora','Affida un compito dal Router o dalla chat: lo vedrai qui mentre accade');
+    }catch(e){const lf=$('#liveFeed');if(lf)lf.innerHTML=errBox(e);}};
+    await draw();
+    state._liveTimer=setInterval(draw,5000);
   },
 
   async router(){
@@ -565,14 +645,16 @@ const VIEWS={
 function renderChat(){
   const inner=$('#chatInner');if(!inner)return;
   if(!state.chat.length){
-    inner.innerHTML=`<div class="chat-hint"><div class="big">🔥</div><h2>Ciao, sono Divina</h2><p>Rispondo attingendo al cervello OVY, nel rispetto dello scope del tuo tenant.</p><div style="margin-top:18px">${['Quali servizi offre FORMA?','Prezzi della stampa 3D?','Orari e sede'].map(s=>`<span class="chip-suggest" data-s="${esc(s)}">${esc(s)}</span>`).join('')}</div>${!state.tenantKey&&!state.demo?'<p class="small" style="margin-top:20px;color:var(--orange)">⚠ Per chattare serve una <b>chiave tenant</b> (X-Tenant-Key) nelle impostazioni di connessione.</p>':''}</div>`;
+    inner.innerHTML=`<div class="chat-hint"><div class="big">🔥</div><h2>Ciao, sono Divina</h2><p>Il tuo mondo. La tua AI. Rispondo attingendo al cervello OVY, nel rispetto dello scope del tuo tenant — scrivimi o dettami a voce col 🎙.</p><div style="margin-top:18px">${['Quali servizi offre FORMA?','Prezzi della stampa 3D?','Orari e sede'].map(s=>`<span class="chip-suggest" data-s="${esc(s)}">${esc(s)}</span>`).join('')}</div>${!state.tenantKey&&!state.demo?'<p class="small" style="margin-top:20px;color:var(--orange)">⚠ Per chattare serve una <b>chiave tenant</b> (X-Tenant-Key) nelle impostazioni di connessione.</p>':''}</div>`;
     inner.querySelectorAll('.chip-suggest').forEach(c=>c.onclick=()=>{$('#chatMsg').value=c.dataset.s;sendChat();});
     return;
   }
   inner.innerHTML=state.chat.map(m=>{
     if(m.role==='user') return `<div class="msg user"><div class="av">Tu</div><div class="bubble">${esc(m.text)}</div></div>`;
     if(m.role==='typing') return `<div class="msg bot"><div class="av">DV</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
-    const src=(m.sources||[]).map(s=>`<span class="src-pill">🧠 ${esc(s.title||s.slug||'nota')}${s.scope?` · ${esc(s.scope)}`:''}</span>`).join('');
+    const src=(m.sources||[]).map(s=>{
+      if(s.type==='agent'){const col=AG_COLORS[s.agent]||'var(--magenta)';return `<span class="src-pill" style="color:${col};border-color:${col}55">✧ ${esc(s.agent||'agente')}${s.skill?` · ${esc(s.skill)}`:''}${s.confidence!=null?` · ${Math.round(s.confidence*100)}%`:''}</span>`;}
+      return `<span class="src-pill">🧠 ${esc(s.title||s.slug||'nota')}${s.scope?` · ${esc(s.scope)}`:''}</span>`;}).join('');
     return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${esc(m.text)}</div>${src?`<div class="sources">${src}</div>`:''}</div></div>`;
   }).join('');
   const sc=$('#chatScroll');if(sc)sc.scrollTop=sc.scrollHeight;
@@ -588,9 +670,34 @@ async function sendChat(){
     state.chat.pop();
     const answer=r.answer||r.text||r.message||(typeof r==='string'?r:'(nessuna risposta)');
     state.chat.push({role:'bot',text:answer,sources:r.sources||[]});
+    speak(answer);
   }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'⚠ '+e.message,sources:[]});}
   renderChat();
 }
+
+/* ---- VOCE (Web Speech API: dettatura + lettura — round-trip nella console) ---- */
+let _rec=null;
+function speak(text){
+  if(!state.tts||!('speechSynthesis' in window))return;
+  try{const u=new SpeechSynthesisUtterance(String(text).slice(0,600));u.lang='it-IT';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(_){}
+}
+function stopVoice(){if(_rec){try{_rec.stop();}catch(_){}_rec=null;}if('speechSynthesis' in window)try{speechSynthesis.cancel();}catch(_){}}
+function initVoice(){
+  const mic=$('#chatMic'),tts=$('#chatTts');if(!mic)return;
+  tts.onclick=()=>{state.tts=!state.tts;localStorage.setItem(LS.tts,state.tts?'1':'0');tts.textContent=state.tts?'🔊':'🔇';if(!state.tts)stopVoice();toast(state.tts?'Lettura vocale attiva':'Lettura vocale disattivata','info');};
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){mic.onclick=()=>toast('Dettatura non supportata da questo browser','bad');mic.style.opacity=.45;return;}
+  mic.onclick=()=>{
+    if(_rec){_rec.stop();return;}
+    const ta=$('#chatMsg');if(!ta)return;const base=ta.value?ta.value.trim()+' ':'';
+    _rec=new SR();_rec.lang='it-IT';_rec.interimResults=true;_rec.continuous=true;
+    _rec.onresult=e=>{let fin='',tmp='';for(const r of e.results){if(r.isFinal)fin+=r[0].transcript;else tmp+=r[0].transcript;}ta.value=(base+fin+tmp).trim();ta.dispatchEvent(new Event('input'));};
+    _rec.onend=()=>{_rec=null;mic.classList.remove('rec');const t=$('#chatMsg');if(t)t.focus();};
+    _rec.onerror=()=>{};
+    mic.classList.add('rec');try{_rec.start();toast('Ti ascolto… premi di nuovo il microfono per fermare','info');}catch(_){mic.classList.remove('rec');_rec=null;}
+  };
+}
+async function askAgent(agentId){route('router');await new Promise(r=>setTimeout(r,60));const ta=$('#rInput');if(ta){ta.placeholder=`Scrivi il compito da affidare a ${agentId}…`;ta.focus();}}
 
 /* ---- shared actions ---- */
 function renderAgentOut(r){
@@ -611,27 +718,39 @@ function newTenantForm(){
 async function revokeTenant(name){if(!confirm(`Revocare le chiavi di "${name}"?`))return;try{const r=await api('engine','/admin/tenants/revoke',{method:'POST',body:{name}});toast(`Revocate ${r.revoked??0} chiavi`,'ok');route('tenants');}catch(e){toast(e.message,'bad');}}
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={chat:['Chat col cervello','Parla con Divina'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 function route(view){
+  if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
+  if(_rec)stopVoice();
   state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   const [t,s]=TITLES[view]||['',''];$('#pageTitle').textContent=t;$('#pageSub').textContent=s;
   $('#side').classList.remove('open');$('#sideBackdrop').classList.remove('open');
   C.classList.toggle('chatmode',view==='chat');
-  (VIEWS[view]||VIEWS.chat)();
+  (VIEWS[view]||VIEWS.home)();
 }
 $$('.nav-item').forEach(n=>n.onclick=()=>route(n.dataset.view));
 $('#refreshBtn').onclick=()=>route(state.view);
 $('#burger').onclick=()=>{$('#side').classList.toggle('open');$('#sideBackdrop').classList.toggle('open');};
 $('#sideBackdrop').onclick=()=>{$('#side').classList.remove('open');$('#sideBackdrop').classList.remove('open');};
 
+async function refreshBadges(){
+  /* Contatori vivi della console (console-quotidiana): richiamati all'avvio e ogni 60s. */
+  if(state.engOk){
+    try{const l=await api('engine','/admin/learning');$('#b-learning').textContent=(l.tasks||[]).length;}catch(_){}
+    try{const rm=await api('engine','/admin/roadmap');$('#b-roadmap').textContent=(rm.counts||{}).aperte??(rm.tasks||[]).filter(t=>t.status!=='fatto').length;}catch(_){}
+    try{const tk=await api('engine','/admin/tasks');$('#b-tasks').textContent=(tk.tasks||[]).length;}catch(_){}
+  }
+  if(state.orchOk){
+    try{const a=await api('orch','/agents');$('#b-agents').textContent=(a.agents||[]).length;}catch(_){}
+    try{const c=await api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'}));$('#b-contra').textContent=(c.contradictions||[]).length;}catch(_){}
+  }
+}
 (async function init(){
   setTheme(localStorage.getItem(LS.theme)||'dark');$('#tenantText').textContent=state.tenant;
   await checkConn();
-  if(state.engOk){try{const l=await api('engine','/admin/learning');$('#b-learning').textContent=(l.tasks||[]).length;}catch(_){}
-    try{const rm=await api('engine','/admin/roadmap');$('#b-roadmap').textContent=(rm.counts||{}).aperte??(rm.tasks||[]).filter(t=>t.status!=='fatto').length;}catch(_){}}
-  if(state.orchOk){try{const a=await api('orch','/agents');$('#b-agents').textContent=(a.agents||[]).length;const c=await api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'}));$('#b-contra').textContent=(c.contradictions||[]).length;}catch(_){}}
+  refreshBadges();setInterval(refreshBadges,60000);
   if(!state.engOk&&!state.orchOk&&!state.demo)openConn();
-  route('chat');
+  route('home');
 })();
 </script>
 </body>

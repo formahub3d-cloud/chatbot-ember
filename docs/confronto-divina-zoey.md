@@ -63,6 +63,14 @@ barattati per nessuna feature:
 | Multi-seat | world per membro + ruoli | una chiave = un tenant | `multi-utente` |
 | Packaging | 4 piani chiari + BYO key | tier presenti ma non «a listino» | `listino-tier` |
 
+## Stato avanzamento (2026-07-16, prima tranche)
+
+Implementati nella console e nei servizi: coda task persistente (`brain_tasks` +
+tab «Task del cervello»), regia live dei dispatch (`/agents/dispatches` + vista
+«Regia live»), voce nella chat della console (dettatura + lettura, Web Speech API),
+home «Il tuo mondo» in stile AI-OS col brand FORMA, chip agente in chat e badge
+aggiornati ogni 60s. Gli stati aggiornati vivono in `app/roadmap.py` (tab Roadmap).
+
 ## Linea di prodotto
 
 Divina non deve inseguire il «world 3D»: la sostanza di Zoey è
