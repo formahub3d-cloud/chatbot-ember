@@ -231,6 +231,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 
     <div class="nav-label"><span class="ld" style="background:var(--cyan)"></span> Cervello · motore</div>
     <button class="nav-item" data-view="dashboard"><span class="ic">◎</span> Dashboard</button>
+    <button class="nav-item" data-view="brain"><span class="ic">🧠</span> Cervello vivo</button>
     <button class="nav-item" data-view="scopes"><span class="ic">▤</span> Scope</button>
     <button class="nav-item" data-view="insights"><span class="ic">◈</span> Segnali</button>
     <button class="nav-item" data-view="learning"><span class="ic">✦</span> Apprendimento <span class="badge" id="b-learning">0</span></button>
@@ -286,7 +287,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="st" style="color:var(--magenta)"><span>✧</span> Orchestratore (agenti)</div>
     <label class="fld"><span class="lt">URL orchestratore</span><input id="inOrchBase" placeholder="es. https://divina-orchestra.formahub.it" autocomplete="off"></label>
     <label class="fld"><span class="lt">Admin token (DIVINA_ADMIN_TOKEN)</span><input id="inOrchTok" type="password" placeholder="per agenti/router/contraddizioni" autocomplete="off"></label>
-    <label class="fld" style="margin-bottom:0"><span class="lt">Tenant code (RLS)</span><input id="inTenant" placeholder="forma" autocomplete="off"></label>
+    <label class="fld" style="margin-bottom:0"><span class="lt">Tenant code (RLS)</span><input id="inTenant" placeholder="forma-core" autocomplete="off"></label>
   </div>
 
   <label class="row small muted" style="margin:2px 0 16px;cursor:pointer"><input type="checkbox" id="inDemo" style="width:auto;min-height:auto;margin-right:8px"> Modalità demo (dati d'esempio, nessuna chiamata)</label>
@@ -299,9 +300,12 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 const LS={engBase:'dv_eng_base',engTok:'dv_eng_tok',tenantKey:'dv_tenant_key',orchBase:'dv_orch_base',orchTok:'dv_orch_tok',tenant:'dv_tenant',demo:'dv_demo',theme:'dv_theme',tts:'dv_tts'};
 const state={
   engBase:localStorage.getItem(LS.engBase)||'', engTok:localStorage.getItem(LS.engTok)||'', tenantKey:localStorage.getItem(LS.tenantKey)||'',
-  orchBase:localStorage.getItem(LS.orchBase)||'', orchTok:localStorage.getItem(LS.orchTok)||'', tenant:localStorage.getItem(LS.tenant)||'forma',
+  orchBase:localStorage.getItem(LS.orchBase)||'', orchTok:localStorage.getItem(LS.orchTok)||'',
+  /* Fix A3 (collaudo 16-07): 'forma' è il codice dell'ORG, il tenant del DB è 'forma-core' —
+     migra anche il valore salvato in passato, altrimenti l'orchestratore risponde 404. */
+  tenant:(t=>t==='forma'?'forma-core':t)(localStorage.getItem(LS.tenant)||'forma-core'),
   demo:localStorage.getItem(LS.demo)==='1', view:'home', engOk:false, orchOk:false, chat:[],
-  tts:localStorage.getItem(LS.tts)==='1', _liveTimer:null,
+  tts:localStorage.getItem(LS.tts)==='1', _liveTimer:null, _brainOn:false,
 };
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -345,6 +349,7 @@ function demoData(service, path, opts){
       return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats']});
     }
     if(path.startsWith('/admin/tasks/close')) return Promise.resolve({ok:true});
+    if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
     if(path.startsWith('/admin/proposals/approve')) return Promise.resolve({ok:true,task:{id:'t-demo',kind:'gap',status:'aperta'}});
     if(path.startsWith('/admin/proposals/dismiss')) return Promise.resolve({ok:true});
     if(path==='/admin/tasks'&&(opts.method||'GET')==='POST') return Promise.resolve({ok:true,task:{id:'t-demo',kind:(opts.body&&opts.body.kind)||'manuale',scope:(opts.body&&opts.body.scope)||'',title:(opts.body&&opts.body.title)||'Task',note:(opts.body&&opts.body.note)||'',status:'aperta',created_at:new Date().toISOString()}});
@@ -356,6 +361,7 @@ function demoData(service, path, opts){
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta 👎: rivedi la nota resi e chiarisci i passaggi.'}]},
       '/admin/proposals':{proposals:[{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta 👎: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
+      '/admin/brain':{persist:true,stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)}]},
       '/admin/tasks':{persist:true,tasks:[{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta 👎 ricorrente',status:'aperta',created_at:nowIso(50*3600e3)}]},
       '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
       '/admin/usage':{'ats':{count:412,cost_eur:2.06,alert:false},'forma-core':{count:198,cost_eur:0.99,alert:false},'andrea':{count:640,cost_eur:3.20,alert:true},'ovyon':{count:54,cost_eur:0.27,alert:false}},
@@ -399,7 +405,7 @@ $('#connChip').onclick=openConn;$('#tenantChip').onclick=openConn;$('#connCancel
 $('#connModal').onclick=e=>{if(e.target===$('#connModal'))closeConn();};
 $('#connSave').onclick=()=>{
   state.engBase=$('#inEngBase').value.trim();state.engTok=$('#inEngTok').value.trim();state.tenantKey=$('#inTenantKey').value.trim();
-  state.orchBase=$('#inOrchBase').value.trim();state.orchTok=$('#inOrchTok').value.trim();state.tenant=$('#inTenant').value.trim()||'forma';state.demo=$('#inDemo').checked;
+  state.orchBase=$('#inOrchBase').value.trim();state.orchTok=$('#inOrchTok').value.trim();state.tenant=(v=>v==='forma'?'forma-core':v)($('#inTenant').value.trim()||'forma-core');state.demo=$('#inDemo').checked;
   localStorage.setItem(LS.engBase,state.engBase);localStorage.setItem(LS.engTok,state.engTok);localStorage.setItem(LS.tenantKey,state.tenantKey);
   localStorage.setItem(LS.orchBase,state.orchBase);localStorage.setItem(LS.orchTok,state.orchTok);localStorage.setItem(LS.tenant,state.tenant);localStorage.setItem(LS.demo,state.demo?'1':'0');
   $('#tenantText').textContent=state.tenant;closeConn();checkConn().then(()=>{refreshBadges();route(state.view);});
@@ -490,7 +496,7 @@ const VIEWS={
   async dashboard(){
     if(needSvc('engine'))return; C.innerHTML=skeleton(4);
     try{
-      const [a,st,h]=await Promise.all([api('engine','/admin/analytics'),api('engine','/admin/status'),api('engine','/health')]);
+      const [a,st,h,br]=await Promise.all([api('engine','/admin/analytics'),api('engine','/admin/status'),api('engine','/health'),api('engine','/admin/brain').catch(()=>null)]);
       const t=a.totals||{},fbTot=(t.feedback_up||0)+(t.feedback_down||0),help=fbTot?Math.round(t.feedback_up/fbTot*100):null;
       const cover=(t.chat+t.gap)?Math.round(t.chat/(t.chat+t.gap)*100):null;
       const scopes=Object.entries(a.per_scope||{}).sort((x,y)=>(y[1].chat||0)-(x[1].chat||0));const maxChat=Math.max(1,...scopes.map(s=>s[1].chat||0));
@@ -499,6 +505,7 @@ const VIEWS={
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">🕳 Gap</div><div class="val" style="color:var(--orange)">${fmtN(t.gap)}</div><div class="meta">senza risposta</div></div>
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">👍 Utilità</div><div class="val" style="color:var(--green)">${help==null?'—':help+'%'}</div><div class="meta">${fmtN(t.feedback_up)} 👍 · ${fmtN(t.feedback_down)} 👎</div></div>
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div><div class="lbl">⏱ Uptime</div><div class="val" style="color:var(--magenta)">${uptime(a.uptime_s)}</div><div class="meta">in-memory</div></div>
+        ${br&&br.stats?`<div class="stat" onclick="route('brain')" style="cursor:pointer"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),var(--cyan))"></div><div class="lbl">🧠 Note nel cervello</div><div class="val" style="color:var(--cyan)">${fmtN(br.stats.notes)}</div><div class="meta">${fmtN(br.stats.recent_7d)} negli ultimi 7g · apri il Cervello vivo</div></div>`:''}
       </div>
       <div class="sec">Attività per scope</div>
       <div class="grid g-21">
@@ -507,6 +514,29 @@ const VIEWS={
         <div class="card"><div class="card-head"><div><h3>Salute motore</h3><p>Provider &amp; funzioni</p></div></div>
           <table><tbody><tr><td class="muted">LLM</td><td class="num"><span class="pill">${esc(h.llm||'—')}</span></td></tr><tr><td class="muted">Embeddings</td><td class="num"><span class="pill">${esc(h.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr><tr><td class="muted">Analytics persist</td><td class="num">${st.analytics_persist?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Cifratura</td><td class="num">${st.content_encryption?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr></tbody></table></div>
       </div>`;
+    }catch(e){C.innerHTML=errBox(e);}
+  },
+
+  /* ---------- CERVELLO VIVO (engine · convergenza portale, tranche 1) ---------- */
+  async brain(){
+    if(needSvc('engine'))return; C.innerHTML=skeleton(5);
+    try{const d=await api('engine','/admin/brain');const s=d.stats||{},rec=d.recent||[];
+      const noteRow=n=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div><div class="small muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.path||'')}</div></div><div class="row" style="gap:8px;flex-shrink:0"><span class="scope-chip" style="background:${scopeColor(n.tenant)}22;color:${scopeColor(n.tenant)};border-color:${scopeColor(n.tenant)}44">${esc(n.tenant||'')}</span><span class="small muted" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</span></div></div>`;
+      C.innerHTML=`
+      <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden"><canvas id="brainCanvas" style="width:100%;height:380px;display:block"></canvas><div class="row small muted" style="justify-content:space-between;flex-wrap:wrap;gap:6px;padding:10px 16px;border-top:1px solid var(--border)"><span>🧠 <b>${fmtN(s.notes)}</b> neuroni = le note reali del vault · colori = aree</span><span>${d.persist?"collegamenti per vicinanza d'area — le sinapsi reali ([[link]]) arrivano con la tranche 2":'backend Supabase non attivo'}</span></div></div>
+      <div class="grid g-stats">
+        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div><div class="lbl">🧠 Neuroni (note)</div><div class="val" style="color:var(--magenta)">${fmtN(s.notes)}</div><div class="meta">nel vault</div></div>
+        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">▤ Aree</div><div class="val" style="color:var(--cyan)">${fmtN(s.areas)}</div><div class="meta">${Object.keys(s.by_tenant||{}).slice(0,4).map(esc).join(' · ')||'—'}</div></div>
+        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">✦ Ultimi 7 giorni</div><div class="val" style="color:var(--green)">${fmtN(s.recent_7d)}</div><div class="meta">note aggiornate</div></div>
+        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">⟳ Ultima ingest</div><div class="val" style="color:var(--orange);font-size:21px">${s.last_ingest?timeAgoIso(s.last_ingest):'—'}</div><div class="meta">sync metadati note</div></div>
+      </div>
+      <div class="grid g-2" style="margin-top:14px;align-items:start">
+        <div class="card"><div class="card-head"><div><h3>🔎 Esplora le note</h3><p>Ricerca su titolo e percorso — la ricerca semantica vive nella Chat</p></div></div><div class="row"><input id="bnQ" placeholder="Cerca nel cervello… (es. listino, onboarding)" style="flex:1;min-width:160px"><button class="btn primary" id="bnGo">Cerca</button></div><div id="bnOut" style="margin-top:12px"></div></div>
+        <div class="card"><div class="card-head"><div><h3>✦ Note recenti</h3><p>Le ultime note toccate nel vault</p></div><span class="pill">${rec.length}</span></div>${rec.length?rec.map(noteRow).join(''):emptyBox('📭','Nessuna nota','Lancia una ingest col backend Supabase attivo')}</div>
+      </div>`;
+      const doSearch=async()=>{const term=$('#bnQ').value.trim();const out=$('#bnOut');out.innerHTML=skeleton(2);try{const r=await api('engine','/admin/brain/notes?'+q({q:term,limit:20}));const ns=r.notes||[];out.innerHTML=ns.length?ns.map(noteRow).join(''):emptyBox('🕳','Nessun risultato','Prova con un termine diverso');}catch(e){out.innerHTML=errBox(e);}};
+      $('#bnGo').onclick=doSearch;$('#bnQ').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+      try{const g=await api('engine','/admin/brain/notes?'+q({limit:220}));startBrainCanvas(g.notes||[]);}catch(_){startBrainCanvas([]);}
     }catch(e){C.innerHTML=errBox(e);}
   },
 
@@ -726,6 +756,31 @@ function initVoice(){
 }
 async function askAgent(agentId){route('router');await new Promise(r=>setTimeout(r,60));const ta=$('#rInput');if(ta){ta.placeholder=`Scrivi il compito da affidare a ${agentId}…`;ta.focus();}}
 
+/* ---- CERVELLO VIVO: costellazione animata dei neuroni (note reali per area) ---- */
+function startBrainCanvas(notes){
+  const cv=document.getElementById('brainCanvas');if(!cv)return;
+  const ctx=cv.getContext('2d');const DPR=window.devicePixelRatio||1;
+  const W=cv.clientWidth||900,H=cv.clientHeight||380;cv.width=W*DPR;cv.height=H*DPR;ctx.scale(DPR,DPR);
+  const cols={'ats':'#0ED4E4','forma-core':'#89D41D','andrea':'#DD24F2','ovyon':'#F8693C'};
+  const colFor=t=>cols[t]||'#8b91a0';
+  const tset=[...new Set(notes.map(n=>n.tenant||'∅'))];
+  const centers={};tset.forEach((t,i)=>{const a=(i/Math.max(1,tset.length))*6.283-0.8;centers[t]=[W/2+Math.cos(a)*W*0.26,H/2+Math.sin(a)*H*0.27];});
+  let nodes=notes.slice(0,220).map(n=>{const c=centers[n.tenant||'∅']||[W/2,H/2];const a=Math.random()*6.283,r=Math.pow(Math.random(),0.6)*Math.min(W,H)*0.22;return {x:c[0]+Math.cos(a)*r,y:c[1]+Math.sin(a)*r*0.72,ph:Math.random()*6.283,sp:0.4+Math.random()*0.9,t:n.tenant||'∅'};});
+  if(!nodes.length)nodes=Array.from({length:70},()=>({x:20+Math.random()*(W-40),y:20+Math.random()*(H-40),ph:Math.random()*6.283,sp:0.6,t:'∅'}));
+  const links=[];nodes.forEach((n,i)=>{nodes.map((m,j)=>({j,d:(n.x-m.x)**2+(n.y-m.y)**2,t:m.t})).filter(o=>o.j!==i&&o.t===n.t).sort((a,b)=>a.d-b.d).slice(0,2).forEach(o=>{if(o.j>i)links.push([i,o.j]);});});
+  const reduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  state._brainOn=true;const t0=performance.now();
+  const frame=now=>{
+    if(!state._brainOn||!document.getElementById('brainCanvas'))return;
+    const t=(now-t0)/1000;ctx.clearRect(0,0,W,H);ctx.lineWidth=0.6;
+    links.forEach(([a,b])=>{const na=nodes[a],nb=nodes[b];ctx.strokeStyle=colFor(na.t)+'30';ctx.beginPath();ctx.moveTo(na.x,na.y);ctx.lineTo(nb.x,nb.y);ctx.stroke();});
+    nodes.forEach(n=>{const p=reduced?1:(0.72+0.28*Math.sin(t*n.sp+n.ph));ctx.globalAlpha=0.45+0.55*p;ctx.fillStyle=colFor(n.t);ctx.beginPath();ctx.arc(n.x,n.y,2.1*p+0.7,0,6.283);ctx.fill();});
+    ctx.globalAlpha=1;
+    if(!reduced)requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
 /* ---- shared actions ---- */
 function renderAgentOut(r){
   if(r.routed===false)return `<div style="padding:15px;background:var(--warn-bg);border:1px solid rgba(248,105,60,.3);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:6px"><b>Non instradato</b><span class="tag warn">conf. ${Math.round((r.confidence||0)*100)}%</span></div><div class="small muted">${esc(r.suggestion||'')}</div></div>`;
@@ -745,9 +800,10 @@ function newTenantForm(){
 async function revokeTenant(name){if(!confirm(`Revocare le chiavi di "${name}"?`))return;try{const r=await api('engine','/admin/tenants/revoke',{method:'POST',body:{name}});toast(`Revocate ${r.revoked??0} chiavi`,'ok');route('tenants');}catch(e){toast(e.message,'bad');}}
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','🔒 Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','🔒 Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 function route(view){
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
+  state._brainOn=false;
   if(_rec)stopVoice();
   state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   const [t,s]=TITLES[view]||['',''];$('#pageTitle').textContent=t;$('#pageSub').textContent=s;
