@@ -134,6 +134,19 @@ TASKS = [
                      "client_connectors + webhook esistono, il connettore MCP ha 5 "
                      "tool. Priorità: Gmail/Calendar/Notion, e write-back Notion "
                      "già in roadmap (Fase 2b).")},
+    {"id": "crm-forma-sync", "area": "integrazioni", "priority": "alta",
+     "status": "da-fare", "effort": "M", "repo": "orchestratore",
+     "title": "Sincronizzazione col CRM FORMA (Railway)",
+     "description": ("Il sito e il CRM FORMA (già su Railway) notificano clienti, "
+                     "preventivi e ordini al cervello: le informazioni restano "
+                     "sincronizzate e diventano conoscenza interrogabile, con "
+                     "conferma umana prima di consolidare."),
+     "zoey_ref": ("«Connected to the platforms your work already lives in» — le "
+                  "integrazioni con gli strumenti dove il lavoro vive davvero."),
+     "divina_note": ("Il funnel c'è già: registrare un connettore 'forma-crm' e "
+                     "usare POST /connectors/webhook/forma-crm (X-Connector-Secret) "
+                     "→ raw_sources → pipeline. Regola: tenant/scope dalla config "
+                     "del connettore, MAI dal payload. FORMA è il tenant 0.")},
     {"id": "mcp-marketplace", "area": "integrazioni", "priority": "bassa",
      "status": "da-fare", "effort": "M", "repo": "orchestratore",
      "title": "Catalogo connettori nel pannello",
@@ -192,6 +205,31 @@ TASKS = [
      "divina_note": ("Oggi una chiave = un tenant: aggiungere i seat sopra api_keys "
                      "(Supabase). RLS, audit e cifratura ci sono già — su questo "
                      "siamo avanti a Zoey, non indietro.")},
+    {"id": "console-da-piattaforma", "area": "business", "priority": "media",
+     "status": "da-fare", "effort": "M", "repo": "entrambi",
+     "title": "Console raggiungibile dalla piattaforma FORMA",
+     "description": ("Dal CRM/piattaforma FORMA si entra nella console Divina con "
+                     "un click (prima link dedicato, poi SSO con seat e ruoli), "
+                     "senza reinserire token a mano."),
+     "zoey_ref": ("Business: un solo posto di lavoro per il team, con permessi "
+                  "per ruolo dal primo giorno."),
+     "divina_note": ("Prima tranche: bottone «Console Divina» nel CRM verso "
+                     "https://divina.formahub.it/panel/. Poi SSO/seat: dipende "
+                     "dalla task multi-utente (i token restano nel browser, mai "
+                     "nel codice del CRM).")},
+    {"id": "rebrand-forma-orchestrator", "area": "business", "priority": "media",
+     "status": "da-fare", "effort": "S", "repo": "orchestratore",
+     "title": "FORMA al centro: repo forma-orchestrator",
+     "description": ("Rinominare ovy-orchestrator → forma-orchestrator: FORMA è il "
+                     "cuore e il creatore della piattaforma, che poi si distribuisce "
+                     "a partner e clienti (OVYON, ATS, hospitality, ristorazione…)."),
+     "zoey_ref": ("Zoey OS è un prodotto che si vende a tier: prima l'identità "
+                  "del creatore, poi la distribuzione."),
+     "divina_note": ("Rename su GitHub (i vecchi URL redirigono in automatico), poi: "
+                     "ri-collegare il servizio Railway al nuovo nome, aggiornare i "
+                     "remote locali (git remote set-url) e i riferimenti nei docs. "
+                     "Il codice non cambia; EMBER_URL/DIVINA_URL restano uguali "
+                     "finché non cambia il dominio.")},
     {"id": "listino-tier", "area": "business", "priority": "bassa",
      "status": "parziale", "effort": "S", "repo": "motore",
      "title": "Listino a pacchetti + BYO key",

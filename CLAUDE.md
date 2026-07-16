@@ -94,4 +94,5 @@ python scripts/verify_ingest.py     # verifica org/tenant/sub_tenant nei payload
 ## Riferimenti nel cervello
 
 - Architettura/costi/roadmap: `../forma/docs/doc-chatbot-cervello.md`
-- Audit visivo: `../audit-chatbot-ember.html`
+- Audit visivo: `../audit-chatbot-ember.html` · ecosistema+punteggi: `../audit-divina.html`
+- Benchmark Zoey OS: `../forma/docs/doc-divina-vs-zoey.md` e `docs/confronto-divina-zoey.md`
