@@ -50,7 +50,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -557,6 +557,39 @@ def admin_tasks_close(body: TaskCloseIn, authorization: str = Header(default="")
     ok = braintasks.close(body.id, body.by, body.status)
     if not ok:
         raise HTTPException(404, "Task non trovata o già chiusa.")
+    return {"ok": True}
+
+
+class ProposalIn(BaseModel):
+    id: str
+
+
+@app.get("/admin/proposals")
+def admin_proposals(authorization: str = Header(default="")):
+    """Proposte di auto-miglioramento (audit → owner). SEZIONE PRIVATA: solo
+    Bearer ADMIN_TOKEN (owner) — mai chiave tenant, mai esposta per-tenant.
+    Derivate dai segnali correnti (gap/👎/stato sistema), si rigenerano a ogni
+    lettura; l'approvazione le trasforma in task della coda brain_tasks."""
+    _require_admin(authorization)
+    return {"proposals": proposals.generate()}
+
+
+@app.post("/admin/proposals/approve")
+def admin_proposals_approve(body: ProposalIn, authorization: str = Header(default="")):
+    """L'owner approva una proposta → nasce una task operativa (brain_tasks).
+    Niente è automatico: senza approvazione esplicita non si crea nulla."""
+    _require_admin(authorization)
+    t = proposals.approve(body.id)
+    if t is None:
+        raise HTTPException(404, "Proposta non trovata: ricarica la lista.")
+    return {"ok": True, "task": t}
+
+
+@app.post("/admin/proposals/dismiss")
+def admin_proposals_dismiss(body: ProposalIn, authorization: str = Header(default="")):
+    """L'owner ignora una proposta (non ricompare finché il processo vive)."""
+    _require_admin(authorization)
+    proposals.dismiss(body.id)
     return {"ok": True}
 
 
