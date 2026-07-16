@@ -218,17 +218,17 @@ TASKS = [
                      "dalla task multi-utente (i token restano nel browser, mai "
                      "nel codice del CRM).")},
     {"id": "rebrand-forma-orchestrator", "area": "business", "priority": "media",
-     "status": "da-fare", "effort": "S", "repo": "orchestratore",
+     "status": "in-corso", "effort": "S", "repo": "orchestratore",
      "title": "FORMA al centro: repo forma-orchestrator",
      "description": ("Rinominare ovy-orchestrator → forma-orchestrator: FORMA è il "
                      "cuore e il creatore della piattaforma, che poi si distribuisce "
                      "a partner e clienti (OVYON, ATS, hospitality, ristorazione…)."),
      "zoey_ref": ("Zoey OS è un prodotto che si vende a tier: prima l'identità "
                   "del creatore, poi la distribuzione."),
-     "divina_note": ("Rename su GitHub (i vecchi URL redirigono in automatico), poi: "
-                     "ri-collegare il servizio Railway al nuovo nome, aggiornare i "
-                     "remote locali (git remote set-url) e i riferimenti nei docs. "
-                     "Il codice non cambia; EMBER_URL/DIVINA_URL restano uguali "
+     "divina_note": ("Rename su GitHub FATTO (16-07, i vecchi URL redirigono). "
+                     "Restano: verifica del collegamento Railway al nuovo nome, "
+                     "git remote set-url sui cloni locali e aggiornamento dei "
+                     "riferimenti nei docs/CI. EMBER_URL/DIVINA_URL restano uguali "
                      "finché non cambia il dominio.")},
     {"id": "listino-tier", "area": "business", "priority": "bassa",
      "status": "parziale", "effort": "S", "repo": "motore",
