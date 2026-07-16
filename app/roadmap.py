@@ -81,9 +81,10 @@ TASKS = [
      "zoey_ref": ("«Tell Zoey what you need. She understands the intent and "
                   "decides who handles it.»"),
      "divina_note": ("agents_bridge.py riconosce i messaggi «task-like» e chiama "
-                     "/agents/route; la chat della console ora mostra il chip "
-                     "agente·skill·confidenza quando risponde un companion. Resta "
-                     "il fallback esplicito quando la confidenza è bassa.")},
+                     "/agents/route; la chat mostra il chip agente·skill·confidenza "
+                     "e, DURANTE l'attesa, il cervello vivo: chi sta lavorando "
+                     "compare in tempo reale nella bolla (polling della regia). "
+                     "Resta il fallback esplicito quando la confidenza è bassa.")},
 
     # ── automazioni ──────────────────────────────────────────────────────
     {"id": "coda-task-persistente", "area": "automazioni", "priority": "alta",

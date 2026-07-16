@@ -668,7 +668,7 @@ function renderChat(){
   }
   inner.innerHTML=state.chat.map(m=>{
     if(m.role==='user') return `<div class="msg user"><div class="av">Tu</div><div class="bubble">${esc(m.text)}</div></div>`;
-    if(m.role==='typing') return `<div class="msg bot"><div class="av">DV</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
+    if(m.role==='typing') return `<div class="msg bot"><div class="av">DV</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div><div class="small muted" id="typingStatus" style="margin-top:7px">🧠 Divina sta consultando il cervello…</div></div></div>`;
     const src=(m.sources||[]).map(s=>{
       if(s.type==='agent'){const col=AG_COLORS[s.agent]||'var(--magenta)';return `<span class="src-pill" style="color:${col};border-color:${col}55">✧ ${esc(s.agent||'agente')}${s.skill?` · ${esc(s.skill)}`:''}${s.confidence!=null?` · ${Math.round(s.confidence*100)}%`:''}</span>`;}
       return `<span class="src-pill">🧠 ${esc(s.title||s.slug||'nota')}${s.scope?` · ${esc(s.scope)}`:''}</span>`;}).join('');
@@ -682,6 +682,15 @@ async function sendChat(){
   ta.value='';ta.style.height='auto';
   const history=state.chat.filter(m=>m.role==='user'||m.role==='bot').map(m=>({role:m.role==='bot'?'assistant':'user',content:m.text}));
   state.chat.push({role:'user',text});state.chat.push({role:'typing'});renderChat();
+  /* Cervello VIVO in chat (stile Zoey): mentre Divina lavora, qui si vede cosa
+     sta accadendo — se l'orchestratore smista a un companion, nome e ruolo
+     compaiono in tempo reale nella bolla di attesa (polling della regia). */
+  const t0=Math.floor(Date.now()/1000);let brainTimer=null;
+  if(state.orchOk){brainTimer=setInterval(async()=>{try{
+    const d=await api('orch','/agents/dispatches?limit=1');const e=(d.dispatches||[])[0];
+    const el=document.getElementById('typingStatus');
+    if(el&&e&&e.at>=t0-2&&e.routed){const col=AG_COLORS[e.agent]||'var(--magenta)';el.innerHTML=`<b style="color:${col}">✧ ${esc(e.agent)}</b> · ${esc(e.role||e.skill||'')} sta lavorando…`;}
+  }catch(_){}},1500);}
   try{
     const r=await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:{message:text,history}});
     state.chat.pop();
@@ -689,6 +698,7 @@ async function sendChat(){
     state.chat.push({role:'bot',text:answer,sources:r.sources||[]});
     speak(answer);
   }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'⚠ '+e.message,sources:[]});}
+  if(brainTimer)clearInterval(brainTimer);
   renderChat();
 }
 
