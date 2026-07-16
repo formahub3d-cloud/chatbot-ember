@@ -183,6 +183,37 @@ TASKS = [
                      "GET /agents/dispatches) e vista «Regia live» nella console "
                      "con aggiornamento ogni 5s. Resta lo streaming SSE al posto "
                      "del polling. Niente 3D: prima la sostanza, poi la scena.")},
+    {"id": "cervello-vivo-console", "area": "workspace", "priority": "alta",
+     "status": "in-corso", "effort": "M", "repo": "motore",
+     "title": "Cervello vivo nella console (convergenza portale)",
+     "description": ("Portare nel pannello ciò che viveva solo sul vecchio portale: "
+                     "il grafo animato dei neuroni, i KPI del vault, l'esploratore "
+                     "note e le note recenti — per spegnere il portale a fine corsa."),
+     "zoey_ref": ("Il «world» di Zoey: non solo vedere i companion lavorare, ma "
+                  "vedere il cervello stesso pulsare mentre impara."),
+     "divina_note": ("Prima tranche FATTA: tab «Cervello vivo» (costellazione delle "
+                     "note reali per area, KPI vault, ricerca metadati, note recenti) "
+                     "su GET /admin/brain* dalla tabella documents. Tranche 2: sinapsi "
+                     "reali ([[link]]) via brain-graph.json dalla pipeline del vault.")},
+    {"id": "audit-visivi-console", "area": "workspace", "priority": "media",
+     "status": "da-fare", "effort": "M", "repo": "motore",
+     "title": "Audit visivi di progetto in console",
+     "description": ("I report di avanzamento (checklist per fasi, punteggi, % "
+                     "completamento) oggi in audit-*.html sul portale: consultabili "
+                     "dalla console, solo owner."),
+     "zoey_ref": "Tutto in un posto solo: anche lo stato dei progetti.",
+     "divina_note": ("Brief Cowork A5. Fonte: HTML statici generati dal vault — "
+                     "decidere se servirli dal motore o rigenerarli come dati "
+                     "(fasi/stati) per una vista nativa della console.")},
+    {"id": "mappe-console", "area": "workspace", "priority": "media",
+     "status": "da-fare", "effort": "L", "repo": "motore",
+     "title": "Mappe del cervello in console (aree/progetti/clienti)",
+     "description": ("Le 4 mappe .canvas di Obsidian ricreate come viste web nella "
+                     "console, navigabili."),
+     "zoey_ref": "Il workspace visivo: mappe e relazioni, non solo liste.",
+     "divina_note": ("Brief Cowork A6. I .canvas sono JSON: parser + render web "
+                     "(o embed della pagina generata). Dipende dalla stessa "
+                     "pipeline dati di cervello-vivo (tranche 2).")},
     {"id": "console-quotidiana", "area": "workspace", "priority": "bassa",
      "status": "in-corso", "effort": "S", "repo": "entrambi",
      "title": "Console come workspace quotidiano",
@@ -205,7 +236,9 @@ TASKS = [
                   "knowledge stays connected, admins control who sees what»."),
      "divina_note": ("Oggi una chiave = un tenant: aggiungere i seat sopra api_keys "
                      "(Supabase). RLS, audit e cifratura ci sono già — su questo "
-                     "siamo avanti a Zoey, non indietro.")},
+                     "siamo avanti a Zoey, non indietro. Assorbe anche il pannello "
+                     "cliente white-label /c/<cliente> del vecchio portale "
+                     "(brief Cowork A8): login per-cliente, chat scoped, branding.")},
     {"id": "console-da-piattaforma", "area": "business", "priority": "media",
      "status": "da-fare", "effort": "M", "repo": "entrambi",
      "title": "Console raggiungibile dalla piattaforma FORMA",
@@ -231,6 +264,19 @@ TASKS = [
                      "git remote set-url sui cloni locali e aggiornamento dei "
                      "riferimenti nei docs/CI. EMBER_URL/DIVINA_URL restano uguali "
                      "finché non cambia il dominio.")},
+    {"id": "spegnimento-portale", "area": "business", "priority": "media",
+     "status": "da-fare", "effort": "M", "repo": "entrambi",
+     "title": "Spegnere il vecchio portale (cervello.formahub.it)",
+     "description": ("A convergenza completata, il portale web su Cloudflare Pages "
+                     "si spegne e Divina resta l'unica faccia di FORMA. Il VAULT "
+                     "Obsidian non si tocca MAI: è la fonte del cervello."),
+     "zoey_ref": "Un solo posto dove vivere e lavorare: il world.",
+     "divina_note": ("Checklist del brief Cowork (sez. C), ogni passo con "
+                     "approvazione esplicita: prerequisiti in console (cervello "
+                     "vivo, KPI, note, audit, mappe, pannello clienti), censimento "
+                     "di chi consuma il portale (Custom Frames ?key=, clienti /c/, "
+                     "link nelle note), poi CNAME via, progetto Pages ARCHIVIATO "
+                     "(non eliminato), deploy.command e README aggiornati.")},
     {"id": "listino-tier", "area": "business", "priority": "bassa",
      "status": "parziale", "effort": "S", "repo": "motore",
      "title": "Listino a pacchetti + BYO key",

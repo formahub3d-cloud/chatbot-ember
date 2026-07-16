@@ -50,7 +50,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -510,6 +510,26 @@ def admin_roadmap(authorization: str = Header(default="")):
     Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
     return roadmap.roadmap()
+
+
+@app.get("/admin/brain")
+def admin_brain(authorization: str = Header(default="")):
+    """Il cervello vivo in console: KPI del vault (note, aree, ultimi 7 giorni,
+    ultima ingest, dettaglio per area) + note più recenti, dai metadati che
+    l'ingest sincronizza su Supabase (`documents`). Bearer ADMIN_TOKEN.
+    `persist:false` (e dati vuoti) se il backend non è configurato."""
+    _require_admin(authorization)
+    return {"persist": brain.enabled(), "stats": brain.stats(),
+            "recent": brain.notes(limit=10)}
+
+
+@app.get("/admin/brain/notes")
+def admin_brain_notes(q: str = "", limit: int = 50, authorization: str = Header(default="")):
+    """Esploratore note del cervello (l'ex ⌘K del vecchio pannello): ricerca sui
+    metadati (titolo/slug/path) o, senza query, le più recenti. Bearer ADMIN_TOKEN.
+    La ricerca semantica sul CONTENUTO resta su POST /search (per-tenant)."""
+    _require_admin(authorization)
+    return {"notes": brain.notes(q, limit), "persist": brain.enabled()}
 
 
 class TaskIn(BaseModel):
