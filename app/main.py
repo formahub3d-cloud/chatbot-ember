@@ -548,7 +548,9 @@ class TaskIn(BaseModel):
     title: str
     scope: str = ""
     note: str = ""
-    kind: str = "manuale"      # manuale | gap | feedback | agente
+    kind: str = "manuale"        # manuale | gap | feedback | agente | azione
+    status: str = "aperta"       # aperta | in-approvazione (azioni da approvare)
+    idempotency_key: str = ""    # anti-duplicazione per le azioni (Z3)
 
 
 class TaskCloseIn(BaseModel):
@@ -557,24 +559,48 @@ class TaskCloseIn(BaseModel):
     status: str = "fatta"      # fatta | archiviata
 
 
+class TaskTransitionIn(BaseModel):
+    id: str
+    to: str                    # in-approvazione | approvata | in-esecuzione | fatta | fallita | archiviata
+    by: str = ""               # obbligatorio per approvata/fatta/archiviata (decide un umano)
+    error: str = ""            # per 'fallita'
+
+
 @app.get("/admin/tasks")
-def admin_tasks(limit: int = 100, authorization: str = Header(default="")):
-    """Coda task PERSISTENTE del cervello (tabella brain_tasks; fallback in-memory
-    se Supabase è off — `persist` lo dice). Solo le aperte, più recenti prima.
+def admin_tasks(limit: int = 100, status: str = "", authorization: str = Header(default="")):
+    """Coda task PERSISTENTE del cervello (brain_tasks; fallback in-memory se
+    Supabase è off — `persist` lo dice). Di default le ATTIVE (aperta,
+    in-approvazione, approvata, in-esecuzione); con `status` filtra uno stato.
     Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
-    return {"tasks": braintasks.list_open(limit), "persist": braintasks.enabled()}
+    return {"tasks": braintasks.list_open(limit, status), "persist": braintasks.enabled()}
 
 
 @app.post("/admin/tasks")
 def admin_tasks_create(body: TaskIn, authorization: str = Header(default="")):
-    """Crea una task operativa del cervello (dalla console). Titolo obbligatorio,
-    già redatto (niente PII). Bearer ADMIN_TOKEN."""
+    """Crea una task operativa del cervello. Le AZIONI con effetto esterno nascono
+    'in-approvazione' e non partono mai senza l'ok dell'owner (Z2). Titolo già
+    redatto (niente PII). Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
-    t = braintasks.add(body.title, scope=body.scope, note=body.note, kind=body.kind)
+    t = braintasks.add(body.title, scope=body.scope, note=body.note, kind=body.kind,
+                       status=body.status, idempotency_key=body.idempotency_key)
     if t is None:
-        raise HTTPException(422, "Titolo obbligatorio (o persistenza non disponibile).")
+        raise HTTPException(422, "Titolo obbligatorio e status iniziale valido "
+                                 "(aperta | in-approvazione).")
     return {"ok": True, "task": t}
+
+
+@app.post("/admin/tasks/transition")
+def admin_tasks_transition(body: TaskTransitionIn, authorization: str = Header(default="")):
+    """Muove una task nella macchina a stati (Z2): approvata/fatta/archiviata
+    richiedono `by` (decide un umano — mai automatico); 'fallita' registra
+    l'errore. Transizioni fuori catalogo → 422. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    ok = braintasks.transition(body.id, body.to, by=body.by, error=body.error)
+    if not ok:
+        raise HTTPException(422, "Transizione non valida (stato di partenza, "
+                                 "nome mancante o task inesistente).")
+    return {"ok": True}
 
 
 @app.post("/admin/tasks/close")

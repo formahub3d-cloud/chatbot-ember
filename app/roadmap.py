@@ -96,11 +96,14 @@ TASKS = [
                      "(umano o companion)."),
      "zoey_ref": ("«Every task, companion, and action in one place» — il task "
                   "tracking è il cuore del workspace di Zoey."),
-     "divina_note": ("Prima tranche FATTA: tabella brain_tasks (db/ovyon_tasks.sql, "
-                     "da applicare su Supabase), app/braintasks.py con fallback "
-                     "in-memory, endpoint /admin/tasks e tab «Task del cervello» "
-                     "nella console. Restano: assegnazione ai companion e creazione "
-                     "automatica dai gap/👎.")},
+     "divina_note": ("Tranche 1 FATTA (tabella brain_tasks + tab console). Tranche 2 "
+                     "FATTA (Z2, brief 17-07): macchina a stati con APPROVAZIONE — "
+                     "aperta → in-approvazione → approvata (solo un umano, "
+                     "approved_by) → in-esecuzione → fatta|fallita|archiviata, con "
+                     "idempotency_key anti-doppioni (DDL db/ovyon_tasks_states.sql "
+                     "da applicare). Le azioni da approvare compaiono in «Proposte "
+                     "audit». Resta Z3: worker pool sull'orchestratore (SKIP LOCKED) "
+                     "che consuma le approvate.")},
     {"id": "skill-workflow", "area": "automazioni", "priority": "media",
      "status": "da-fare", "effort": "L", "repo": "orchestratore",
      "title": "Skill = interi workflow (playbook)",
@@ -148,6 +151,18 @@ TASKS = [
                      "usare POST /connectors/webhook/forma-crm (X-Connector-Secret) "
                      "→ raw_sources → pipeline. Regola: tenant/scope dalla config "
                      "del connettore, MAI dal payload. FORMA è il tenant 0.")},
+    {"id": "fossato-italia", "area": "integrazioni", "priority": "media",
+     "status": "da-fare", "effort": "L", "repo": "orchestratore",
+     "title": "Fossato Italia: SDI, PEC, WhatsApp Business (MCP nativi)",
+     "description": ("I connettori che gli aggregatori USA non coprono: fatturazione "
+                     "elettronica SDI, PEC, WhatsApp Business — il vantaggio "
+                     "competitivo di Divina verso Zoey (US-centrica)."),
+     "zoey_ref": ("Zoey compra l'ampiezza (1.000+ integrazioni claim): Divina "
+                  "costruisce il fossato dove Zoey non arriva."),
+     "divina_note": ("Brief 17-07 Z8. Server MCP nativi: SDI via Aruba/InfoCert API, "
+                     "PEC, WhatsApp Business (Meta Cloud API). Per l'ampiezza: "
+                     "aggregatore (Composio) + ownership token (Nango self-hosted, "
+                     "RLS per-tenant) — Z6/Z7, servono account/chiavi dell'owner.")},
     {"id": "mcp-marketplace", "area": "integrazioni", "priority": "bassa",
      "status": "da-fare", "effort": "M", "repo": "orchestratore",
      "title": "Catalogo connettori nel pannello",
@@ -166,10 +181,13 @@ TASKS = [
                      "senza interrompere il filo (STT + TTS in streaming)."),
      "zoey_ref": ("«Switch between voice and text anytime in one continuous "
                   "conversation» — Zoey è voice-first."),
-     "divina_note": ("Prima tranche FATTA: dettatura (🎙) e lettura vocale (🔊) "
-                     "nella chat della console via Web Speech API, it-IT. Restano: "
-                     "provider server-side (app/voice.py, es. ElevenLabs) per "
-                     "qualità costante e la voce nel widget.")},
+     "divina_note": ("Tranche 1 FATTA: dettatura (🎙) e lettura (🔊) via Web Speech "
+                     "API. Prossime (Z4+Z5, brief 17-07): gateway realtime "
+                     "(Pipecat/LiveKit, VAD + barge-in), pipeline Voxtral STT → "
+                     "Mistral streaming → TTS (NO speech-to-speech OpenAI), orb "
+                     "«Brain Motion» pilotato dall'audio reale coi colori dei "
+                     "companion. Servono: chiavi Voxtral/ElevenLabs + nuovo "
+                     "servizio Railway (decisioni owner).")},
 
     # ── workspace ────────────────────────────────────────────────────────
     {"id": "dispatch-live", "area": "workspace", "priority": "media",
