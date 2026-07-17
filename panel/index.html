@@ -804,7 +804,18 @@ function renderAgentOut(r){
   const col=AG_COLORS[r.agent]||'var(--magenta)';
   const cerv=(r.cervello_sources||[]).map(s=>`<span class="pill">🧠 ${esc(s.title||s.slug)}</span>`).join(' ');
   const web=(r.web_sources||[]).map(s=>`<a class="pill" href="${esc(s.url)}" target="_blank" rel="noopener">🔗 ${esc(s.title||s.url)}</a>`).join(' ');
-  return `<div style="border:1px solid ${col}55;border-radius:12px;overflow:hidden"><div style="padding:12px 15px;background:${col}18;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div class="agent-avatar" style="width:34px;height:34px;font-size:13px;background:${col}">${AG_INIT[r.agent]||'AG'}</div><div><b>${esc(r.agent)}</b> · <span class="muted">${esc(r.role||r.skill)}</span><div class="small muted">${esc(r.department||'')}</div></div>${r.confidence!=null?`<span class="tag acc" style="margin-left:auto">conf. ${Math.round(r.confidence*100)}%</span>`:''}</div><div style="padding:15px"><pre class="mono small" style="white-space:pre-wrap;color:var(--text)">${esc(r.output||'')}</pre>${(cerv||web)?`<div class="row" style="margin-top:12px">${cerv}${web}</div>`:''}</div></div>`;
+  state._lastOut={agent:r.agent,skill:r.skill,output:r.output||''};   /* per queueAction (Z1) */
+  return `<div style="border:1px solid ${col}55;border-radius:12px;overflow:hidden"><div style="padding:12px 15px;background:${col}18;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div class="agent-avatar" style="width:34px;height:34px;font-size:13px;background:${col}">${AG_INIT[r.agent]||'AG'}</div><div><b>${esc(r.agent)}</b> · <span class="muted">${esc(r.role||r.skill)}</span><div class="small muted">${esc(r.department||'')}</div></div>${r.confidence!=null?`<span class="tag acc" style="margin-left:auto">conf. ${Math.round(r.confidence*100)}%</span>`:''}</div><div style="padding:15px"><pre class="mono small" style="white-space:pre-wrap;color:var(--text)">${esc(r.output||'')}</pre><div class="row" style="margin-top:12px;flex-wrap:wrap">${cerv}${web}${state.engOk?`<button class="btn sm" onclick="queueAction()" title="La bozza diventa un'azione: non parte finché non la approvi in Proposte audit">⚡ Accoda per approvazione</button>`:''}</div></div></div>`;
+}
+/* Z1 (azioni fidate): la bozza del companion diventa una task 'azione' in-approvazione —
+   nessun effetto esterno finché l'owner non la approva in Proposte audit. */
+async function queueAction(){
+  const o=state._lastOut;if(!o||!o.output){toast('Nessun esito da accodare','bad');return;}
+  let h=0;for(let i=0;i<o.output.length;i++){h=(h*31+o.output.charCodeAt(i))>>>0;}
+  try{
+    await api('engine','/admin/tasks',{method:'POST',body:{title:`[${o.agent}·${o.skill}] azione proposta dal companion`,note:o.output.slice(0,380),kind:'azione',status:'in-approvazione',scope:state.tenant,idempotency_key:`act-${o.agent}-${o.skill}-${h}`}});
+    toast('⚡ In Proposte audit: nessun effetto finché non approvi','ok');refreshBadges();
+  }catch(e){toast(e.message,'bad');}
 }
 async function quickRun(agentId,skillId){route('router');await new Promise(r=>setTimeout(r,50));const ta=$('#rInput');if(ta){ta.value=`Esegui la skill "${skillId}" dell'agente ${agentId}: `;ta.focus();}toast(`Skill ${skillId} pronta`,'info');}
 async function promoteNode(id,slug){if(!confirm(`Promuovere "${slug}"? Verrà aperta una PR sul vault.`))return;try{const r=await api('orch','/nodes/promote',{method:'POST',body:{tenant:state.tenant,node_id:id}});if(r.ok)toast('PR aperta sul vault ✓','ok');else toast('Inerte: '+(r.reason||'token vault assente'),'info');route('nodes');}catch(e){toast(e.message,'bad');}}

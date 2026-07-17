@@ -590,6 +590,20 @@ def admin_tasks_create(body: TaskIn, authorization: str = Header(default="")):
     return {"ok": True, "task": t}
 
 
+class TaskClaimIn(BaseModel):
+    worker: str = ""           # nome del worker (per l'audit/regia)
+
+
+@app.post("/admin/tasks/claim")
+def admin_tasks_claim(body: TaskClaimIn, authorization: str = Header(default="")):
+    """Z3: claim ATOMICO della prossima azione approvata (approvata →
+    in-esecuzione, FOR UPDATE SKIP LOCKED su Supabase: mai doppioni tra worker
+    concorrenti). {"task": null} se non c'è nulla da eseguire. È il contratto
+    che il worker pool dell'orchestratore consumerà. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    return {"task": braintasks.claim_next(body.worker)}
+
+
 @app.post("/admin/tasks/transition")
 def admin_tasks_transition(body: TaskTransitionIn, authorization: str = Header(default="")):
     """Muove una task nella macchina a stati (Z2): approvata/fatta/archiviata

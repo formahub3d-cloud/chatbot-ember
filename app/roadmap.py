@@ -112,9 +112,13 @@ TASKS = [
                      "umana sui passi critici."),
      "zoey_ref": ("«Give a companion a skill and it runs the whole workflow — send "
                   "the email, update the CRM, book the meeting.»"),
-     "divina_note": ("pipeline.py concatena già 3 skill nell'ingest (Ricercatore → "
-                     "Ingest → Cross-referencer): generalizzare in playbook "
-                     "dichiarativi riusabili dalle skill di business.")},
+     "divina_note": ("Z1 primo passo FATTO: dall'esito di un companion (Router) il "
+                     "bottone «⚡ Accoda per approvazione» crea l'azione "
+                     "in-approvazione (idempotente) → Proposte audit → ok owner → "
+                     "claim atomico del worker (POST /admin/tasks/claim, SKIP "
+                     "LOCKED). Restano: input_schema/executor_ref dichiarativi per "
+                     "skill (con gli executor Z6) e il worker pool Z3 "
+                     "sull'orchestratore che esegue davvero.")},
     {"id": "task-programmati", "area": "automazioni", "priority": "media",
      "status": "parziale", "effort": "M", "repo": "orchestratore",
      "title": "Task programmati per tenant",
