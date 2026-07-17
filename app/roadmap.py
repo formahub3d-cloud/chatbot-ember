@@ -191,10 +191,12 @@ TASKS = [
                      "note e le note recenti — per spegnere il portale a fine corsa."),
      "zoey_ref": ("Il «world» di Zoey: non solo vedere i companion lavorare, ma "
                   "vedere il cervello stesso pulsare mentre impara."),
-     "divina_note": ("Prima tranche FATTA: tab «Cervello vivo» (costellazione delle "
-                     "note reali per area, KPI vault, ricerca metadati, note recenti) "
-                     "su GET /admin/brain* dalla tabella documents. Tranche 2: sinapsi "
-                     "reali ([[link]]) via brain-graph.json dalla pipeline del vault.")},
+     "divina_note": ("Tranche 1 FATTA: tab «Cervello vivo» (costellazione, KPI vault, "
+                     "ricerca metadati, note recenti) su GET /admin/brain*. Tranche 2 "
+                     "FATTA: sinapsi REALI dai [[link]] — il grafo si ricostruisce a "
+                     "ogni ingest completa (ingest.py passo 5 → brain.save_graph, "
+                     "DDL db/ovyon_graph.sql da applicare su Supabase). Restano "
+                     "mappe e audit (task dedicate).")},
     {"id": "audit-visivi-console", "area": "workspace", "priority": "media",
      "status": "da-fare", "effort": "M", "repo": "motore",
      "title": "Audit visivi di progetto in console",

@@ -17,12 +17,23 @@ sinapsi reali arriverà con brain-graph.json pubblicato dalla pipeline del vault
 (tranche 2). Qui i nodi sono reali; i collegamenti visivi in console sono per
 vicinanza d'area, dichiarati come tali.
 """
+import json
 import logging
+import re
+import time
+from threading import Lock
 
 from . import tenants
 from .config import settings
 
 log = logging.getLogger("ember.brain")
+
+# [[wikilink]] di Obsidian: '[[slug]]', '[[slug|etichetta]]', '[[slug#sezione]]'.
+# Stessa grammatica del quality gate del vault (LINK_RE).
+_LINK_RE = re.compile(r"\[\[([^\]|#\n]+?)(?:[|#][^\]\n]*)?\]\]")
+
+_glock = Lock()
+_mem_graph: dict | None = None      # fallback quando Supabase è off (dev/test)
 
 
 def enabled() -> bool:
@@ -81,3 +92,79 @@ def notes(q: str = "", limit: int = 50) -> list[dict]:
     except Exception:  # pragma: no cover
         log.warning("brain: lettura note fallita (ignorata)", exc_info=True)
         return []
+
+
+# ── Grafo REALE del cervello: nodi = note, sinapsi = [[link]] ─────────────────
+# Costruito dall'ingest completo (che ha in mano il contenuto di ogni nota dopo
+# sync_vault) e persistito su Supabase (riga unica jsonb, db/ovyon_graph.sql):
+# la console lo disegna nella tab «Cervello vivo» — tranche 2 della convergenza.
+
+def build_graph(notes: list[dict]) -> dict:
+    """Nodi e archi dai [[wikilink]]: risoluzione per slug (case-insensitive),
+    alias '[[x|label]]' e ancore '[[x#sez]]' gestiti, self-link e duplicati
+    scartati. `notes`: dict con slug/title/tenant/content (come notes_meta)."""
+    notes = list(notes)[:2000]
+    nodes = [{"slug": n.get("slug", ""), "title": n.get("title") or n.get("slug", ""),
+              "tenant": n.get("tenant", "")} for n in notes]
+    idx: dict[str, int] = {}
+    for i, n in enumerate(nodes):
+        idx.setdefault(n["slug"].lower(), i)
+    seen: set[tuple] = set()
+    links: list[list[int]] = []
+    for i, n in enumerate(notes):
+        for m in _LINK_RE.finditer(n.get("content") or ""):
+            j = idx.get(m.group(1).strip().lower())
+            if j is None or j == i:
+                continue
+            key = (min(i, j), max(i, j))
+            if key not in seen:
+                seen.add(key)
+                links.append([key[0], key[1]])
+    return {"nodes": nodes, "links": links,
+            "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+
+
+def save_graph(notes: list[dict]) -> int:
+    """Ricostruisce il grafo dalle note e lo salva (jsonb riga unica; fallback
+    in-memory). Best-effort: mai un'eccezione verso l'ingest. Ritorna il numero
+    di sinapsi salvate."""
+    global _mem_graph
+    g = build_graph(notes)
+    with _glock:
+        _mem_graph = g
+    if enabled():
+        try:
+            with tenants._conn() as c:
+                with c.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO brain_graph (id, graph) VALUES (1, %s::jsonb) "
+                        "ON CONFLICT (id) DO UPDATE SET graph = EXCLUDED.graph, "
+                        "generated_at = now()", (json.dumps(g),))
+                c.commit()
+        except Exception:  # pragma: no cover - best-effort
+            log.warning("brain: salvataggio grafo fallito (resta in-memory)", exc_info=True)
+    return len(g["links"])
+
+
+def graph() -> dict | None:
+    """L'ultimo grafo generato (Supabase, poi fallback in-memory). None se mai
+    generato: serve una ingest completa."""
+    if enabled():
+        try:
+            with tenants._conn() as c:
+                with c.cursor() as cur:
+                    cur.execute("SELECT graph FROM brain_graph WHERE id = 1")
+                    row = cur.fetchone()
+            if row and row[0]:
+                return row[0] if isinstance(row[0], dict) else json.loads(row[0])
+        except Exception:  # pragma: no cover
+            log.warning("brain: lettura grafo fallita (ignorata)", exc_info=True)
+    with _glock:
+        return _mem_graph
+
+
+def reset() -> None:
+    """Solo per i test."""
+    global _mem_graph
+    with _glock:
+        _mem_graph = None

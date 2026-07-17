@@ -349,6 +349,7 @@ function demoData(service, path, opts){
       return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats']});
     }
     if(path.startsWith('/admin/tasks/close')) return Promise.resolve({ok:true});
+    if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:28},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
     if(path.startsWith('/admin/proposals/approve')) return Promise.resolve({ok:true,task:{id:'t-demo',kind:'gap',status:'aperta'}});
     if(path.startsWith('/admin/proposals/dismiss')) return Promise.resolve({ok:true});
@@ -523,7 +524,7 @@ const VIEWS={
     try{const d=await api('engine','/admin/brain');const s=d.stats||{},rec=d.recent||[];
       const noteRow=n=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div><div class="small muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.path||'')}</div></div><div class="row" style="gap:8px;flex-shrink:0"><span class="scope-chip" style="background:${scopeColor(n.tenant)}22;color:${scopeColor(n.tenant)};border-color:${scopeColor(n.tenant)}44">${esc(n.tenant||'')}</span><span class="small muted" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</span></div></div>`;
       C.innerHTML=`
-      <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden"><canvas id="brainCanvas" style="width:100%;height:380px;display:block"></canvas><div class="row small muted" style="justify-content:space-between;flex-wrap:wrap;gap:6px;padding:10px 16px;border-top:1px solid var(--border)"><span>🧠 <b>${fmtN(s.notes)}</b> neuroni = le note reali del vault · colori = aree</span><span>${d.persist?"collegamenti per vicinanza d'area — le sinapsi reali ([[link]]) arrivano con la tranche 2":'backend Supabase non attivo'}</span></div></div>
+      <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden"><canvas id="brainCanvas" style="width:100%;height:380px;display:block"></canvas><div class="row small muted" style="justify-content:space-between;flex-wrap:wrap;gap:6px;padding:10px 16px;border-top:1px solid var(--border)"><span>🧠 <b>${fmtN(s.notes)}</b> neuroni = le note reali del vault · colori = aree</span><span id="brainCap">${d.persist?"collegamenti per vicinanza d'area — sinapsi reali in caricamento…":'backend Supabase non attivo'}</span></div></div>
       <div class="grid g-stats">
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div><div class="lbl">🧠 Neuroni (note)</div><div class="val" style="color:var(--magenta)">${fmtN(s.notes)}</div><div class="meta">nel vault</div></div>
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">▤ Aree</div><div class="val" style="color:var(--cyan)">${fmtN(s.areas)}</div><div class="meta">${Object.keys(s.by_tenant||{}).slice(0,4).map(esc).join(' · ')||'—'}</div></div>
@@ -536,7 +537,12 @@ const VIEWS={
       </div>`;
       const doSearch=async()=>{const term=$('#bnQ').value.trim();const out=$('#bnOut');out.innerHTML=skeleton(2);try{const r=await api('engine','/admin/brain/notes?'+q({q:term,limit:20}));const ns=r.notes||[];out.innerHTML=ns.length?ns.map(noteRow).join(''):emptyBox('🕳','Nessun risultato','Prova con un termine diverso');}catch(e){out.innerHTML=errBox(e);}};
       $('#bnGo').onclick=doSearch;$('#bnQ').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
-      try{const g=await api('engine','/admin/brain/notes?'+q({limit:220}));startBrainCanvas(g.notes||[]);}catch(_){startBrainCanvas([]);}
+      /* Sinapsi REALI ([[link]]) se il grafo è stato generato dall'ingest; altrimenti
+         fallback alla costellazione per vicinanza d'area. */
+      let g=null;try{g=await api('engine','/admin/brain/graph');}catch(_){}
+      const cap=$('#brainCap');
+      if(g&&(g.links||[]).length){if(cap)cap.textContent=`sinapsi REALI dai [[link]] · ${g.links.length} collegamenti · grafo ${timeAgoIso(g.generated_at)}`;startBrainCanvas(g.nodes||[],g.links);}
+      else{if(cap&&d.persist)cap.textContent="collegamenti per vicinanza d'area — le sinapsi reali arrivano con la prossima ingest completa";try{const r=await api('engine','/admin/brain/notes?'+q({limit:220}));startBrainCanvas(r.notes||[]);}catch(_){startBrainCanvas([]);}}
     }catch(e){C.innerHTML=errBox(e);}
   },
 
@@ -757,23 +763,26 @@ function initVoice(){
 async function askAgent(agentId){route('router');await new Promise(r=>setTimeout(r,60));const ta=$('#rInput');if(ta){ta.placeholder=`Scrivi il compito da affidare a ${agentId}…`;ta.focus();}}
 
 /* ---- CERVELLO VIVO: costellazione animata dei neuroni (note reali per area) ---- */
-function startBrainCanvas(notes){
+function startBrainCanvas(notes,realLinks){
   const cv=document.getElementById('brainCanvas');if(!cv)return;
   const ctx=cv.getContext('2d');const DPR=window.devicePixelRatio||1;
   const W=cv.clientWidth||900,H=cv.clientHeight||380;cv.width=W*DPR;cv.height=H*DPR;ctx.scale(DPR,DPR);
   const cols={'ats':'#0ED4E4','forma-core':'#89D41D','andrea':'#DD24F2','ovyon':'#F8693C'};
   const colFor=t=>cols[t]||'#8b91a0';
-  const tset=[...new Set(notes.map(n=>n.tenant||'∅'))];
+  const src=notes.slice(0,220);
+  const tset=[...new Set(src.map(n=>n.tenant||'∅'))];
   const centers={};tset.forEach((t,i)=>{const a=(i/Math.max(1,tset.length))*6.283-0.8;centers[t]=[W/2+Math.cos(a)*W*0.26,H/2+Math.sin(a)*H*0.27];});
-  let nodes=notes.slice(0,220).map(n=>{const c=centers[n.tenant||'∅']||[W/2,H/2];const a=Math.random()*6.283,r=Math.pow(Math.random(),0.6)*Math.min(W,H)*0.22;return {x:c[0]+Math.cos(a)*r,y:c[1]+Math.sin(a)*r*0.72,ph:Math.random()*6.283,sp:0.4+Math.random()*0.9,t:n.tenant||'∅'};});
+  let nodes=src.map(n=>{const c=centers[n.tenant||'∅']||[W/2,H/2];const a=Math.random()*6.283,r=Math.pow(Math.random(),0.6)*Math.min(W,H)*0.22;return {x:c[0]+Math.cos(a)*r,y:c[1]+Math.sin(a)*r*0.72,ph:Math.random()*6.283,sp:0.4+Math.random()*0.9,t:n.tenant||'∅'};});
   if(!nodes.length)nodes=Array.from({length:70},()=>({x:20+Math.random()*(W-40),y:20+Math.random()*(H-40),ph:Math.random()*6.283,sp:0.6,t:'∅'}));
-  const links=[];nodes.forEach((n,i)=>{nodes.map((m,j)=>({j,d:(n.x-m.x)**2+(n.y-m.y)**2,t:m.t})).filter(o=>o.j!==i&&o.t===n.t).sort((a,b)=>a.d-b.d).slice(0,2).forEach(o=>{if(o.j>i)links.push([i,o.j]);});});
+  let links,real=false;
+  if(realLinks&&realLinks.length){links=realLinks.filter(([a,b])=>a<nodes.length&&b<nodes.length);real=true;}
+  else{links=[];nodes.forEach((n,i)=>{nodes.map((m,j)=>({j,d:(n.x-m.x)**2+(n.y-m.y)**2,t:m.t})).filter(o=>o.j!==i&&o.t===n.t).sort((a,b)=>a.d-b.d).slice(0,2).forEach(o=>{if(o.j>i)links.push([i,o.j]);});});}
   const reduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   state._brainOn=true;const t0=performance.now();
   const frame=now=>{
     if(!state._brainOn||!document.getElementById('brainCanvas'))return;
-    const t=(now-t0)/1000;ctx.clearRect(0,0,W,H);ctx.lineWidth=0.6;
-    links.forEach(([a,b])=>{const na=nodes[a],nb=nodes[b];ctx.strokeStyle=colFor(na.t)+'30';ctx.beginPath();ctx.moveTo(na.x,na.y);ctx.lineTo(nb.x,nb.y);ctx.stroke();});
+    const t=(now-t0)/1000;ctx.clearRect(0,0,W,H);ctx.lineWidth=real?0.8:0.6;
+    links.forEach(([a,b])=>{const na=nodes[a],nb=nodes[b];ctx.strokeStyle=colFor(na.t)+(real?'46':'30');ctx.beginPath();ctx.moveTo(na.x,na.y);ctx.lineTo(nb.x,nb.y);ctx.stroke();});
     nodes.forEach(n=>{const p=reduced?1:(0.72+0.28*Math.sin(t*n.sp+n.ph));ctx.globalAlpha=0.45+0.55*p;ctx.fillStyle=colFor(n.t);ctx.beginPath();ctx.arc(n.x,n.y,2.1*p+0.7,0,6.283);ctx.fill();});
     ctx.globalAlpha=1;
     if(!reduced)requestAnimationFrame(frame);
