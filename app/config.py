@@ -49,8 +49,11 @@ class Settings(BaseSettings):
     # il write-back. Non fa git pull (indicizza la copia locale appena scritta).
     auto_reingest: bool = False
 
-    # sicurezza
-    admin_token: str = "change-me"
+    # sicurezza — NESSUN default: senza un ADMIN_TOKEN forte gli endpoint
+    # /admin/* restano chiusi (503, fail-closed). Il vecchio default "change-me"
+    # rendeva gli admin di fatto pubblici su un deploy non configurato
+    # (fix sicurezza collaudo 17-07).
+    admin_token: str = ""
     rate_limit_per_min: int = 30   # richieste/minuto per chiave tenant (0 = illimitato)
     max_message_chars: int = 2000  # lunghezza massima della domanda (anti-abuso/costi)
     security_headers: bool = True  # aggiunge header di sicurezza a ogni risposta

@@ -13,6 +13,7 @@ import contextvars
 import csv
 import io
 import logging
+import secrets
 import tempfile
 import uuid
 from pathlib import Path
@@ -53,6 +54,18 @@ from .config import settings
 from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
+
+# Token placeholder/deboli: con uno di questi (o vuoto) gli endpoint admin restano
+# CHIUSI (503) — un deploy con config sbagliata non diventa mai un pannello aperto.
+# Fix sicurezza (collaudo 17-07): un Bearer debole dava accesso a /admin/*.
+_WEAK_ADMIN_TOKENS = {"change-me", "changeme", "password", "admin", "token",
+                      "secret", "test", "123456", "admin123"}
+
+_tok_boot = (settings.admin_token or "").strip()
+if not _tok_boot or _tok_boot.lower() in _WEAK_ADMIN_TOKENS or len(_tok_boot) < 16:
+    log.critical("ADMIN_TOKEN assente, debole o troppo corto: gli endpoint /admin/* "
+                 "risponderanno 503 finché non viene impostato un token forte "
+                 "(consigliato: >= 32 caratteri casuali). RUOTARE SUBITO.")
 
 app = FastAPI(title="Divina — Cervello OVY", version="0.3.0")
 
@@ -321,8 +334,7 @@ def do_ingest(body: IngestIn | None = None, authorization: str = Header(default=
     """Indicizza il cervello. Body vuoto → ingest COMPLETO (storico). Con
     {"paths": [...]} → re-ingest INCREMENTALE solo di quelle note (realtime:
     aggiorna il cervello man mano senza reindicizzare tutto)."""
-    if authorization != f"Bearer {settings.admin_token}":
-        raise HTTPException(401, "Token admin non valido")
+    _require_admin(authorization)
     try:
         if body and body.paths:
             return ingest.reindex_paths(body.paths)
@@ -473,7 +485,15 @@ def do_feedback(body: FeedbackIn, x_tenant_key: str = Header(default=""), origin
 
 
 def _require_admin(authorization: str) -> None:
-    if authorization != f"Bearer {settings.admin_token}":
+    """Bearer ADMIN_TOKEN con confronto timing-safe. FAIL-CLOSED: token non
+    configurato o debole/placeholder → 503 (gli admin non si aprono mai per un
+    errore di config); token errato → 401. Copre lettura E scrittura di tutti
+    gli /admin/* (fix sicurezza, collaudo 17-07)."""
+    tok = (settings.admin_token or "").strip()
+    if not tok or tok.lower() in _WEAK_ADMIN_TOKENS:
+        raise HTTPException(503, "ADMIN_TOKEN assente o debole: endpoint admin "
+                                 "disabilitati finché non viene impostato un token forte.")
+    if not secrets.compare_digest(authorization or "", f"Bearer {tok}"):
         raise HTTPException(401, "Token admin non valido.")
 
 
