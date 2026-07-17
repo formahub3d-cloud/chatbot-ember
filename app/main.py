@@ -592,16 +592,18 @@ def admin_tasks_create(body: TaskIn, authorization: str = Header(default="")):
 
 class TaskClaimIn(BaseModel):
     worker: str = ""           # nome del worker (per l'audit/regia)
+    kind: str = ""             # es. 'azione' = solo payload strutturati eseguibili
 
 
 @app.post("/admin/tasks/claim")
 def admin_tasks_claim(body: TaskClaimIn, authorization: str = Header(default="")):
     """Z3: claim ATOMICO della prossima azione approvata (approvata →
     in-esecuzione, FOR UPDATE SKIP LOCKED su Supabase: mai doppioni tra worker
-    concorrenti). {"task": null} se non c'è nulla da eseguire. È il contratto
-    che il worker pool dell'orchestratore consumerà. Bearer ADMIN_TOKEN."""
+    concorrenti). Con kind='azione' il worker prende SOLO i payload strutturati
+    (le proposte a esecuzione umana, kind 'agente', restano fuori).
+    {"task": null} se non c'è nulla da eseguire. Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
-    return {"task": braintasks.claim_next(body.worker)}
+    return {"task": braintasks.claim_next(body.worker, body.kind)}
 
 
 @app.post("/admin/tasks/transition")

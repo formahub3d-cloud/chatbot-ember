@@ -129,19 +129,20 @@ TASKS = [
 
     # ── integrazioni ─────────────────────────────────────────────────────
     {"id": "connettori-azioni", "area": "integrazioni", "priority": "alta",
-     "status": "parziale", "effort": "L", "repo": "orchestratore",
+     "status": "in-corso", "effort": "L", "repo": "orchestratore",
      "title": "Connettori che eseguono azioni reali",
      "description": ("I companion non devono solo rispondere: eseguono (email, "
                      "calendario, Notion, Slack, Drive) con conferma umana sulle "
                      "azioni verso l'esterno."),
      "zoey_ref": ("«Connected to the platforms your work already lives in, they "
                   "carry out real actions» — 1.000+ integrazioni."),
-     "divina_note": ("SBLOCCATA (17-07): COMPOSIO_API_KEY sull'orchestratore "
-                     "(free tier 20k call/mese) e Z1 FATTO — catalogo azioni "
-                     "dichiarative (GET /skills/spec: Gmail bozza, Calendar evento, "
-                     "Slack messaggio; JSON Schema tool-callable, tutte con "
-                     "approvazione). Prossimo: executor Composio + worker Z3. "
-                     "Nango (Z7) rimandato alla produzione (decisione owner).")},
+     "divina_note": ("Z1+Z3+Z6 IMPLEMENTATI: catalogo azioni dichiarative "
+                     "(GET /skills/spec), worker pool opt-in (WORKER_ENABLED, "
+                     "claim SKIP LOCKED, solo kind 'azione' strutturate) ed "
+                     "executor Composio. Per il collaudo live: collegare gli "
+                     "account OAuth nel workspace Composio e attivare il worker "
+                     "su Railway (runbook Cowork). Nango (Z7) rimandato alla "
+                     "produzione (decisione owner).")},
     {"id": "crm-forma-sync", "area": "integrazioni", "priority": "alta",
      "status": "da-fare", "effort": "M", "repo": "orchestratore",
      "title": "Sincronizzazione col CRM FORMA (Railway)",

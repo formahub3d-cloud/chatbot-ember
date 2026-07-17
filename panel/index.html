@@ -813,7 +813,7 @@ async function queueAction(){
   const o=state._lastOut;if(!o||!o.output){toast('Nessun esito da accodare','bad');return;}
   let h=0;for(let i=0;i<o.output.length;i++){h=(h*31+o.output.charCodeAt(i))>>>0;}
   try{
-    await api('engine','/admin/tasks',{method:'POST',body:{title:`[${o.agent}·${o.skill}] azione proposta dal companion`,note:o.output.slice(0,380),kind:'azione',status:'in-approvazione',scope:state.tenant,idempotency_key:`act-${o.agent}-${o.skill}-${h}`}});
+    await api('engine','/admin/tasks',{method:'POST',body:{title:`[${o.agent}·${o.skill}] azione proposta dal companion`,note:o.output.slice(0,380),kind:'agente',status:'in-approvazione',scope:state.tenant,idempotency_key:`act-${o.agent}-${o.skill}-${h}`}});
     toast('⚡ In Proposte audit: nessun effetto finché non approvi','ok');refreshBadges();
   }catch(e){toast(e.message,'bad');}
 }
