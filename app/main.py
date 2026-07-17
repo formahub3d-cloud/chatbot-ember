@@ -523,6 +523,18 @@ def admin_brain(authorization: str = Header(default="")):
             "recent": brain.notes(limit=10)}
 
 
+@app.get("/admin/brain/graph")
+def admin_brain_graph(authorization: str = Header(default="")):
+    """Il grafo REALE del cervello: nodi = note, sinapsi = [[link]] tra note,
+    ricostruito a ogni ingest completa (persistito su Supabase, db/ovyon_graph.sql).
+    404 finché non è stata eseguita almeno una ingest. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    g = brain.graph()
+    if not g:
+        raise HTTPException(404, "Grafo non ancora generato: lancia una ingest completa.")
+    return {"persist": brain.enabled(), **g}
+
+
 @app.get("/admin/brain/notes")
 def admin_brain_notes(q: str = "", limit: int = 50, authorization: str = Header(default="")):
     """Esploratore note del cervello (l'ex ⌘K del vecchio pannello): ricerca sui

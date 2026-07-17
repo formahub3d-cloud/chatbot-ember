@@ -290,7 +290,18 @@ def run() -> dict:
         import logging
         logging.getLogger("ember.ingest").exception("sync documents Supabase fallito (ignorato)")
 
-    return {"notes": n_notes, "chunks": len(points), "documents_synced": synced}
+    # 5) Grafo del cervello (best-effort): nodi = note, sinapsi = [[link]] reali —
+    #    alimenta la tab «Cervello vivo» della console (db/ovyon_graph.sql).
+    graph_links = 0
+    try:
+        from . import brain
+        graph_links = brain.save_graph(notes_meta)
+    except Exception:
+        import logging
+        logging.getLogger("ember.ingest").exception("grafo cervello non aggiornato (ignorato)")
+
+    return {"notes": n_notes, "chunks": len(points), "documents_synced": synced,
+            "graph_links": graph_links}
 
 
 # ── Re-ingest INCREMENTALE (una o poche note) ─────────────────────────────────
