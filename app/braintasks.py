@@ -178,20 +178,25 @@ def transition(task_id: str, to: str, by: str = "", error: str = "") -> bool:
     return False
 
 
-def claim_next(worker: str = "") -> dict | None:
+def claim_next(worker: str = "", kind: str = "") -> dict | None:
     """Z3: un worker prende in carico ATOMICAMENTE la prossima azione approvata
     (approvata → in-esecuzione). Su Supabase usa FOR UPDATE SKIP LOCKED: più
     worker concorrenti non si rubano mai la stessa task (niente doppioni).
+    Con `kind` filtra (es. 'azione' = payload strutturato eseguibile: le
+    proposte a esecuzione umana, kind 'agente', restano fuori dal claim).
     None se non c'è nulla da eseguire. Fallback in-memory per dev/test."""
     worker = _clean(worker, 60)
+    kind = kind if kind in KINDS else ""
     if enabled():
         try:
             with tenants._conn() as c:
                 with c.cursor() as cur:
                     cur.execute(
                         "SELECT task_id FROM brain_tasks WHERE status='approvata' "
+                        + ("AND kind=%s " if kind else "") +
                         "ORDER BY approved_at NULLS LAST, created_at "
-                        "LIMIT 1 FOR UPDATE SKIP LOCKED")
+                        "LIMIT 1 FOR UPDATE SKIP LOCKED",
+                        ((kind,) if kind else ()))
                     row = cur.fetchone()
                     if not row:
                         c.commit()
@@ -210,7 +215,7 @@ def claim_next(worker: str = "") -> dict | None:
             return None
     with _lock:
         for t in _mem:
-            if t["status"] == "approvata":
+            if t["status"] == "approvata" and (not kind or t["kind"] == kind):
                 t["status"] = "in-esecuzione"
                 t["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                 return {**t, "worker": worker}

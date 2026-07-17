@@ -72,6 +72,11 @@ def test_claim_atomico_del_worker():
     with braintasks._lock:
         assert braintasks._mem[0]["status"] == "in-esecuzione"
     assert braintasks.transition(a["id"], "fatta", by="w1")
+    # filtro kind: le proposte a esecuzione umana ('agente') non vengono claimate
+    p = braintasks.add("Proposta umana", kind="agente", status="in-approvazione")
+    braintasks.transition(p["id"], "approvata", by="Andrea")
+    assert braintasks.claim_next("w1", kind="azione") is None
+    assert braintasks.claim_next("w1")["id"] == p["id"]      # senza filtro sì
 
 
 def test_rifiuto_archivia_mai_delete():
