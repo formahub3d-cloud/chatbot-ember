@@ -178,6 +178,45 @@ def transition(task_id: str, to: str, by: str = "", error: str = "") -> bool:
     return False
 
 
+def claim_next(worker: str = "") -> dict | None:
+    """Z3: un worker prende in carico ATOMICAMENTE la prossima azione approvata
+    (approvata → in-esecuzione). Su Supabase usa FOR UPDATE SKIP LOCKED: più
+    worker concorrenti non si rubano mai la stessa task (niente doppioni).
+    None se non c'è nulla da eseguire. Fallback in-memory per dev/test."""
+    worker = _clean(worker, 60)
+    if enabled():
+        try:
+            with tenants._conn() as c:
+                with c.cursor() as cur:
+                    cur.execute(
+                        "SELECT task_id FROM brain_tasks WHERE status='approvata' "
+                        "ORDER BY approved_at NULLS LAST, created_at "
+                        "LIMIT 1 FOR UPDATE SKIP LOCKED")
+                    row = cur.fetchone()
+                    if not row:
+                        c.commit()
+                        return None
+                    cur.execute(
+                        "UPDATE brain_tasks SET status='in-esecuzione', started_at=now() "
+                        "WHERE task_id=%s RETURNING task_id, kind, scope, title, note, "
+                        "idempotency_key, approved_by", (row[0],))
+                    r = cur.fetchone()
+                c.commit()
+            return {"id": str(r[0]), "kind": r[1], "scope": r[2] or "", "title": r[3],
+                    "note": r[4] or "", "idempotency_key": r[5] or "",
+                    "approved_by": r[6] or "", "worker": worker}
+        except Exception:  # pragma: no cover
+            log.warning("brain_tasks: claim fallito (ignorato)", exc_info=True)
+            return None
+    with _lock:
+        for t in _mem:
+            if t["status"] == "approvata":
+                t["status"] = "in-esecuzione"
+                t["started_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                return {**t, "worker": worker}
+    return None
+
+
 def close(task_id: str, by: str, status: str = "fatta") -> bool:
     """Chiusura semplice ('fatta' | 'archiviata') col nome di chi decide — wrapper
     storico sulla macchina a stati (valido dagli stati che lo permettono)."""

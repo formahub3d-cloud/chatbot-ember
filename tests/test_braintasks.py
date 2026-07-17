@@ -60,6 +60,20 @@ def test_macchina_a_stati_azione_con_approvazione():
     assert not braintasks.transition(a["id"], "approvata", by="Andrea")  # terminale
 
 
+def test_claim_atomico_del_worker():
+    # Z3: il worker prende SOLO azioni approvate, una alla volta, mai doppioni
+    assert braintasks.claim_next("w1") is None               # coda vuota
+    a = braintasks.add("Invia email", kind="azione", status="in-approvazione")
+    assert braintasks.claim_next("w1") is None               # non ancora approvata
+    assert braintasks.transition(a["id"], "approvata", by="Andrea")
+    got = braintasks.claim_next("w1")
+    assert got["id"] == a["id"] and got["worker"] == "w1"
+    assert braintasks.claim_next("w2") is None               # già presa: niente doppioni
+    with braintasks._lock:
+        assert braintasks._mem[0]["status"] == "in-esecuzione"
+    assert braintasks.transition(a["id"], "fatta", by="w1")
+
+
 def test_rifiuto_archivia_mai_delete():
     a = braintasks.add("Azione da rifiutare", kind="azione", status="in-approvazione")
     assert braintasks.transition(a["id"], "archiviata", by="Andrea")
