@@ -96,14 +96,12 @@ TASKS = [
                      "(umano o companion)."),
      "zoey_ref": ("«Every task, companion, and action in one place» — il task "
                   "tracking è il cuore del workspace di Zoey."),
-     "divina_note": ("Tranche 1 FATTA (tabella brain_tasks + tab console). Tranche 2 "
-                     "FATTA (Z2, brief 17-07): macchina a stati con APPROVAZIONE — "
-                     "aperta → in-approvazione → approvata (solo un umano, "
-                     "approved_by) → in-esecuzione → fatta|fallita|archiviata, con "
-                     "idempotency_key anti-doppioni (DDL db/ovyon_tasks_states.sql "
-                     "da applicare). Le azioni da approvare compaiono in «Proposte "
-                     "audit». Resta Z3: worker pool sull'orchestratore (SKIP LOCKED) "
-                     "che consuma le approvate.")},
+     "divina_note": ("Z2 FATTO e COLLAUDATO end-to-end (17-07): Dante → «Accoda per "
+                     "approvazione» → Proposte audit → approvata da Andrea, "
+                     "migration stati applicata su Supabase. Claim atomico worker "
+                     "pronto (POST /admin/tasks/claim, SKIP LOCKED). Resta Z3: il "
+                     "worker pool sull'orchestratore con gli executor reali "
+                     "(Composio) che esegue le approvate.")},
     {"id": "skill-workflow", "area": "automazioni", "priority": "media",
      "status": "da-fare", "effort": "L", "repo": "orchestratore",
      "title": "Skill = interi workflow (playbook)",
@@ -138,10 +136,12 @@ TASKS = [
                      "azioni verso l'esterno."),
      "zoey_ref": ("«Connected to the platforms your work already lives in, they "
                   "carry out real actions» — 1.000+ integrazioni."),
-     "divina_note": ("Fase 5 già in design (docs/fase5-connettori-realtime.md); "
-                     "client_connectors + webhook esistono, il connettore MCP ha 5 "
-                     "tool. Priorità: Gmail/Calendar/Notion, e write-back Notion "
-                     "già in roadmap (Fase 2b).")},
+     "divina_note": ("SBLOCCATA (17-07): COMPOSIO_API_KEY sull'orchestratore "
+                     "(free tier 20k call/mese) e Z1 FATTO — catalogo azioni "
+                     "dichiarative (GET /skills/spec: Gmail bozza, Calendar evento, "
+                     "Slack messaggio; JSON Schema tool-callable, tutte con "
+                     "approvazione). Prossimo: executor Composio + worker Z3. "
+                     "Nango (Z7) rimandato alla produzione (decisione owner).")},
     {"id": "crm-forma-sync", "area": "integrazioni", "priority": "alta",
      "status": "da-fare", "effort": "M", "repo": "orchestratore",
      "title": "Sincronizzazione col CRM FORMA (Railway)",
@@ -164,9 +164,10 @@ TASKS = [
      "zoey_ref": ("Zoey compra l'ampiezza (1.000+ integrazioni claim): Divina "
                   "costruisce il fossato dove Zoey non arriva."),
      "divina_note": ("Brief 17-07 Z8. Server MCP nativi: SDI via Aruba/InfoCert API, "
-                     "PEC, WhatsApp Business (Meta Cloud API). Per l'ampiezza: "
-                     "aggregatore (Composio) + ownership token (Nango self-hosted, "
-                     "RLS per-tenant) — Z6/Z7, servono account/chiavi dell'owner.")},
+                     "PEC, WhatsApp Business (Meta Cloud API). Pratiche avviate "
+                     "lato owner (17-07): verifica Meta Business + numero dedicato, "
+                     "credenziali SDI e PEC in raccolta. Non blocca le altre "
+                     "tranche; parte appena arrivano le credenziali.")},
     {"id": "mcp-marketplace", "area": "integrazioni", "priority": "bassa",
      "status": "da-fare", "effort": "M", "repo": "orchestratore",
      "title": "Catalogo connettori nel pannello",
@@ -185,13 +186,13 @@ TASKS = [
                      "senza interrompere il filo (STT + TTS in streaming)."),
      "zoey_ref": ("«Switch between voice and text anytime in one continuous "
                   "conversation» — Zoey è voice-first."),
-     "divina_note": ("Tranche 1 FATTA: dettatura (🎙) e lettura (🔊) via Web Speech "
-                     "API. Prossime (Z4+Z5, brief 17-07): gateway realtime "
-                     "(Pipecat/LiveKit, VAD + barge-in), pipeline Voxtral STT → "
-                     "Mistral streaming → TTS (NO speech-to-speech OpenAI), orb "
-                     "«Brain Motion» pilotato dall'audio reale coi colori dei "
-                     "companion. Servono: chiavi Voxtral/ElevenLabs + nuovo "
-                     "servizio Railway (decisioni owner).")},
+     "divina_note": ("Tranche 1 FATTA (Web Speech in console). SBLOCCATA (17-07): "
+                     "Voxtral accessibile (STT mini/small + realtime, TTS), "
+                     "MISTRAL_API_KEY ed ELEVENLABS_API_KEY su Railway, OK formale "
+                     "per il servizio divina-voice. Prossima tranche: gateway "
+                     "realtime (VAD + barge-in, PTT default) + orb «Brain Motion» "
+                     "dall'artifact spec. Nota owner: valutare upgrade piano "
+                     "Mistral prima della produzione (free tier 1 req/s + privacy).")},
 
     # ── workspace ────────────────────────────────────────────────────────
     {"id": "dispatch-live", "area": "workspace", "priority": "media",
@@ -206,19 +207,18 @@ TASKS = [
                      "con aggiornamento ogni 5s. Resta lo streaming SSE al posto "
                      "del polling. Niente 3D: prima la sostanza, poi la scena.")},
     {"id": "cervello-vivo-console", "area": "workspace", "priority": "alta",
-     "status": "in-corso", "effort": "M", "repo": "motore",
+     "status": "fatto", "effort": "M", "repo": "motore",
      "title": "Cervello vivo nella console (convergenza portale)",
      "description": ("Portare nel pannello ciò che viveva solo sul vecchio portale: "
                      "il grafo animato dei neuroni, i KPI del vault, l'esploratore "
                      "note e le note recenti — per spegnere il portale a fine corsa."),
      "zoey_ref": ("Il «world» di Zoey: non solo vedere i companion lavorare, ma "
                   "vedere il cervello stesso pulsare mentre impara."),
-     "divina_note": ("Tranche 1 FATTA: tab «Cervello vivo» (costellazione, KPI vault, "
-                     "ricerca metadati, note recenti) su GET /admin/brain*. Tranche 2 "
-                     "FATTA: sinapsi REALI dai [[link]] — il grafo si ricostruisce a "
-                     "ogni ingest completa (ingest.py passo 5 → brain.save_graph, "
-                     "DDL db/ovyon_graph.sql da applicare su Supabase). Restano "
-                     "mappe e audit (task dedicate).")},
+     "divina_note": ("FATTO e COLLAUDATO (17-07): tab «Cervello vivo» con KPI vault, "
+                     "ricerca, note recenti e sinapsi REALI dai [[link]] — 236 "
+                     "collegamenti dal grafo rigenerato a ogni ingest (brain_graph "
+                     "su Supabase, applicata). Mappe e audit visivi restano come "
+                     "task dedicate.")},
     {"id": "audit-visivi-console", "area": "workspace", "priority": "media",
      "status": "da-fare", "effort": "M", "repo": "motore",
      "title": "Audit visivi di progetto in console",
