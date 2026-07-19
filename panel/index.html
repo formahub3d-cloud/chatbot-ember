@@ -212,6 +212,12 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .hero .sub{font-size:13px;color:var(--text-2);margin-top:7px;max-width:640px;line-height:1.65}
 .hero .cta{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
 .mic-btn.rec{color:#fff;border-color:transparent;background:var(--neg);animation:pulse 1.2s infinite}
+/* ── Orb «Brain Motion» (spec artifact v2): la sfera reagisce alla voce e cambia col companion ── */
+.orbbar{display:flex;align-items:center;gap:14px;padding:8px 22px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface) 55%,transparent);flex-shrink:0}
+.orbbar canvas{width:72px;height:72px;flex-shrink:0}
+.orb-state{font-family:'Orbitron','Montserrat',sans-serif;font-size:13px;font-weight:700;letter-spacing:.02em}
+.orb-agent{font-size:11px;color:var(--text-2);margin-top:3px}
+.orb-gov{margin-left:auto;font-size:10.5px;color:var(--text-3);max-width:320px;line-height:1.5;text-align:right}
 .live-feed{display:flex;flex-direction:column;gap:10px}
 .live-row{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;animation:fade .3s ease}
 .live-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
@@ -480,7 +486,7 @@ const VIEWS={
   /* ---------- CHAT ---------- */
   async chat(){
     C.classList.add('chatmode');
-    C.innerHTML=`<div class="chat"><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
+    C.innerHTML=`<div class="chat"><div class="orbbar"><canvas id="orbCv"></canvas><div><div class="orb-state" id="orbState">Inattivo</div><div class="orb-agent" id="orbAgent">agente attivo · Divina</div></div><div class="orb-gov">ogni azione con effetto esterno passa dalla tua approvazione 🔒</div></div><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
       <div class="composer"><div class="composer-inner">
         <textarea id="chatMsg" placeholder="Scrivi o detta al cervello OVY… (Invio per inviare, Shift+Invio a capo)" rows="1"></textarea>
         <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">🎙</button>
@@ -490,7 +496,7 @@ const VIEWS={
     const ta=$('#chatMsg');
     ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(160,ta.scrollHeight)+'px';});
     ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
-    $('#chatSend').onclick=sendChat;initVoice();ta.focus();
+    $('#chatSend').onclick=sendChat;initVoice();initOrb();setOrb('idle','divina');ta.focus();
   },
 
   /* ---------- DASHBOARD (engine) ---------- */
@@ -730,6 +736,7 @@ async function sendChat(){
   ta.value='';ta.style.height='auto';
   const history=state.chat.filter(m=>m.role==='user'||m.role==='bot').map(m=>({role:m.role==='bot'?'assistant':'user',content:m.text}));
   state.chat.push({role:'user',text});state.chat.push({role:'typing'});renderChat();
+  setOrb('ragionando','divina');
   /* Cervello VIVO in chat (stile Zoey): mentre Divina lavora, qui si vede cosa
      sta accadendo — se l'orchestratore smista a un companion, nome e ruolo
      compaiono in tempo reale nella bolla di attesa (polling della regia). */
@@ -737,24 +744,79 @@ async function sendChat(){
   if(state.orchOk){brainTimer=setInterval(async()=>{try{
     const d=await api('orch','/agents/dispatches?limit=1');const e=(d.dispatches||[])[0];
     const el=document.getElementById('typingStatus');
-    if(el&&e&&e.at>=t0-2&&e.routed){const col=AG_COLORS[e.agent]||'var(--magenta)';el.innerHTML=`<b style="color:${col}">✧ ${esc(e.agent)}</b> · ${esc(e.role||e.skill||'')} sta lavorando…`;}
+    if(el&&e&&e.at>=t0-2&&e.routed){const col=AG_COLORS[e.agent]||'var(--magenta)';el.innerHTML=`<b style="color:${col}">✧ ${esc(e.agent)}</b> · ${esc(e.role||e.skill||'')} sta lavorando…`;setOrb('ragionando',e.agent);}
   }catch(_){}},1500);}
   try{
     const r=await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:{message:text,history}});
     state.chat.pop();
     const answer=r.answer||r.text||r.message||(typeof r==='string'?r:'(nessuna risposta)');
     state.chat.push({role:'bot',text:answer,sources:r.sources||[]});
+    const ag=(r.sources||[]).find(s=>s.type==='agent');
+    setOrb(state.tts?null:'idle',ag?ag.agent:'divina');
     speak(answer);
-  }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'⚠ '+e.message,sources:[]});}
+  }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'⚠ '+e.message,sources:[]});setOrb('idle');}
   if(brainTimer)clearInterval(brainTimer);
   renderChat();
+}
+
+/* ---- ORB «Brain Motion» (spec artifact v2) ----
+   Stati: Inattivo / In ascolto (ampiezza microfono REALE via Web Audio) /
+   Sto parlando (TTS) / Sto ragionando (attesa risposta) / In azione (beat
+   approvazione). Colori companion: Dante arancio · Virgilio ciano ·
+   Beatrice magenta · Divina viola. */
+const ORB_COLS={dante:'#F8693C',virgilio:'#0ED4E4',beatrice:'#DD24F2',divina:'#a855f7',worker:'#89D41D'};
+function initOrb(){
+  const cv=document.getElementById('orbCv');if(!cv)return;
+  state._orb={comp:'divina',mode:'idle',level:0,mic:0,on:true};
+  const ctx=cv.getContext('2d');const DPR=window.devicePixelRatio||1;const S=72;cv.width=S*DPR;cv.height=S*DPR;ctx.scale(DPR,DPR);
+  const reduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const t0=performance.now();
+  const frame=now=>{
+    const o=state._orb;if(!o||!o.on||!document.getElementById('orbCv'))return;
+    const t=(now-t0)/1000;const col=ORB_COLS[o.comp]||ORB_COLS.divina;
+    let target=0.10+(reduced?0:0.03*Math.sin(t*1.1));
+    if(o.mode==='ascolto')target=0.16+Math.min(0.7,o.mic);
+    else if(o.mode==='parlando')target=0.28+0.30*Math.abs(Math.sin(t*7.3)*0.6+Math.sin(t*3.1)*0.4);
+    else if(o.mode==='ragionando')target=0.20+0.10*Math.sin(t*2.4);
+    else if(o.mode==='azione')target=0.52+0.18*Math.sin(t*9);
+    o.level+=(target-o.level)*0.16;
+    ctx.clearRect(0,0,S,S);
+    const cx=S/2,cy=S/2,r=15+15*o.level;
+    const g=ctx.createRadialGradient(cx-4,cy-5,2,cx,cy,r+12);
+    g.addColorStop(0,'#ffffffbb');g.addColorStop(0.28,col);g.addColorStop(1,col+'00');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,Math.min(r+12,S/2),0,6.283);ctx.fill();
+    ctx.globalAlpha=.92;ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy,r*0.6,0,6.283);ctx.fill();ctx.globalAlpha=1;
+    if(!reduced)requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+function setOrb(mode,comp){
+  const o=state._orb;if(!o)return;if(mode)o.mode=mode;if(comp)o.comp=comp;
+  const L={idle:'Inattivo',ascolto:'In ascolto…',parlando:'Sto parlando…',ragionando:'Sto ragionando…',azione:'In azione…'};
+  const s=document.getElementById('orbState');if(s)s.textContent=L[o.mode]||'Inattivo';
+  const a=document.getElementById('orbAgent');if(a){a.textContent='agente attivo · '+(o.comp||'divina');a.style.color=ORB_COLS[o.comp]||'';}
+}
+async function startOrbMic(){
+  try{
+    const st=await navigator.mediaDevices.getUserMedia({audio:true});state._orbStream=st;
+    const AC=window.AudioContext||window.webkitAudioContext;const ac=new AC();state._orbAC=ac;
+    const an=ac.createAnalyser();an.fftSize=256;ac.createMediaStreamSource(st).connect(an);
+    const buf=new Uint8Array(an.frequencyBinCount);
+    const tick=()=>{const o=state._orb;if(!o||!state._orbAC)return;an.getByteTimeDomainData(buf);let s=0;for(let i=0;i<buf.length;i++)s+=Math.abs(buf[i]-128);o.mic=Math.min(0.8,(s/buf.length)/34);requestAnimationFrame(tick);};
+    tick();
+  }catch(_){}
+}
+function stopOrbMic(){
+  try{state._orbStream&&state._orbStream.getTracks().forEach(t=>t.stop());}catch(_){}
+  try{state._orbAC&&state._orbAC.close();}catch(_){}
+  state._orbStream=null;state._orbAC=null;if(state._orb)state._orb.mic=0;
 }
 
 /* ---- VOCE (Web Speech API: dettatura + lettura — round-trip nella console) ---- */
 let _rec=null;
 function speak(text){
   if(!state.tts||!('speechSynthesis' in window))return;
-  try{const u=new SpeechSynthesisUtterance(String(text).slice(0,600));u.lang='it-IT';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(_){}
+  try{const u=new SpeechSynthesisUtterance(String(text).slice(0,600));u.lang='it-IT';u.onstart=()=>setOrb('parlando');u.onend=()=>setOrb('idle');speechSynthesis.cancel();speechSynthesis.speak(u);}catch(_){}
 }
 function stopVoice(){if(_rec){try{_rec.stop();}catch(_){}_rec=null;}if('speechSynthesis' in window)try{speechSynthesis.cancel();}catch(_){}}
 function initVoice(){
@@ -767,9 +829,9 @@ function initVoice(){
     const ta=$('#chatMsg');if(!ta)return;const base=ta.value?ta.value.trim()+' ':'';
     _rec=new SR();_rec.lang='it-IT';_rec.interimResults=true;_rec.continuous=true;
     _rec.onresult=e=>{let fin='',tmp='';for(const r of e.results){if(r.isFinal)fin+=r[0].transcript;else tmp+=r[0].transcript;}ta.value=(base+fin+tmp).trim();ta.dispatchEvent(new Event('input'));};
-    _rec.onend=()=>{_rec=null;mic.classList.remove('rec');const t=$('#chatMsg');if(t)t.focus();};
+    _rec.onend=()=>{_rec=null;mic.classList.remove('rec');stopOrbMic();setOrb('idle');const t=$('#chatMsg');if(t)t.focus();};
     _rec.onerror=()=>{};
-    mic.classList.add('rec');try{_rec.start();toast('Ti ascolto… premi di nuovo il microfono per fermare','info');}catch(_){mic.classList.remove('rec');_rec=null;}
+    mic.classList.add('rec');try{_rec.start();setOrb('ascolto');startOrbMic();toast('Ti ascolto… premi di nuovo il microfono per fermare','info');}catch(_){mic.classList.remove('rec');_rec=null;}
   };
 }
 async function askAgent(agentId){route('router');await new Promise(r=>setTimeout(r,60));const ta=$('#rInput');if(ta){ta.placeholder=`Scrivi il compito da affidare a ${agentId}…`;ta.focus();}}
@@ -818,6 +880,8 @@ async function queueAction(){
   let h=0;for(let i=0;i<o.output.length;i++){h=(h*31+o.output.charCodeAt(i))>>>0;}
   try{
     await api('engine','/admin/tasks',{method:'POST',body:{title:`[${o.agent}·${o.skill}] azione proposta dal companion`,note:o.output.slice(0,380),kind:'agente',status:'in-approvazione',scope:state.tenant,idempotency_key:`act-${o.agent}-${o.skill}-${h}`}});
+    setOrb('azione',o.agent);setTimeout(()=>{const ob=state._orb;if(ob&&ob.mode==='azione')setOrb('idle');},2600);
+    if(state.view==='chat'){state.chat.push({role:'bot',text:'⚡ Azione accodata: aspetta la TUA approvazione in 🔒 Proposte audit — nessun effetto finché non approvi.',sources:[]});renderChat();}
     toast('⚡ In Proposte audit: nessun effetto finché non approvi','ok');refreshBadges();
   }catch(e){toast(e.message,'bad');}
 }
@@ -836,6 +900,8 @@ const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat co
 function route(view){
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
   state._brainOn=false;
+  if(state._orb)state._orb.on=false;
+  stopOrbMic();
   if(_rec)stopVoice();
   state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   const [t,s]=TITLES[view]||['',''];$('#pageTitle').textContent=t;$('#pageSub').textContent=s;
