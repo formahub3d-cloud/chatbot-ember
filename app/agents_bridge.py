@@ -56,7 +56,8 @@ def is_task_like(message: str) -> bool:
     return first in _TASK_VERBS
 
 
-def route(tenant_code: str, message: str, history=None, timeout: float = 30.0) -> dict | None:
+def route(tenant_code: str, message: str, history=None, timeout: float = 30.0,
+          agent: str | None = None) -> dict | None:
     """Instrada il messaggio all'agente Divina giusto. Ritorna il dict di Divina
     (`{routed, agent, skill, output, confidence, web_sources?}`) o None se inerte/errore.
 
@@ -64,7 +65,8 @@ def route(tenant_code: str, message: str, history=None, timeout: float = 30.0) -
     il `tenant_code`/il messaggio. Gli errori di rete/HTTP sono assorbiti (ritorna None,
     log senza segreti): il ponte è additivo e non deve MAI far esplodere /chat → il
     chiamante ripiega sul RAG. Si passa a Divina SOLO il `tenant_code`: lo scope lo
-    applica Divina con la sua RLS.
+    applica Divina con la sua RLS. `agent` (opzionale) = companion scelto ESPLICITAMENTE
+    dall'utente nella console; un orchestratore datato ignora il campo extra (additivo).
     """
     if not enabled():
         return None
@@ -73,6 +75,8 @@ def route(tenant_code: str, message: str, history=None, timeout: float = 30.0) -
         return None
     url = settings.divina_url.strip().rstrip("/") + "/agents/route"
     payload = {"tenant": code, "input": message, "history": history or []}
+    if agent:
+        payload["agent"] = agent
     try:
         r = httpx.post(
             url,

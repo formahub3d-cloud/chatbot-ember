@@ -84,7 +84,10 @@ TASKS = [
                      "/agents/route; la chat mostra il chip agente·skill·confidenza "
                      "e, DURANTE l'attesa, il cervello vivo: chi sta lavorando "
                      "compare in tempo reale nella bolla (polling della regia). "
-                     "Resta il fallback esplicito quando la confidenza è bassa.")},
+                     "Resta il fallback esplicito quando la confidenza è bassa. "
+                     "19-07: SELETTORE companion in chat (Divina/Dante/Virgilio/"
+                     "Beatrice) — la scelta umana forza l'agente, l'orb ne prende "
+                     "il colore, il classificatore sceglie solo la skill.")},
 
     # ── automazioni ──────────────────────────────────────────────────────
     {"id": "coda-task-persistente", "area": "automazioni", "priority": "alta",

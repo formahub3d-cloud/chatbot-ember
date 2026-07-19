@@ -217,7 +217,10 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .orbbar canvas{width:72px;height:72px;flex-shrink:0}
 .orb-state{font-family:'Orbitron','Montserrat',sans-serif;font-size:13px;font-weight:700;letter-spacing:.02em}
 .orb-agent{font-size:11px;color:var(--text-2);margin-top:3px}
-.orb-gov{margin-left:auto;font-size:10.5px;color:var(--text-3);max-width:320px;line-height:1.5;text-align:right}
+.orb-picks{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.orb-pick{border:1px solid var(--border);background:transparent;color:var(--text-2);border-radius:999px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.02em;min-height:32px;font-family:'Montserrat',sans-serif;transition:all .15s}
+.orb-pick.active{color:#050505;border-color:transparent}
+.orb-gov{font-size:10.5px;color:var(--text-3);max-width:230px;line-height:1.5;text-align:right}
 .live-feed{display:flex;flex-direction:column;gap:10px}
 .live-row{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;animation:fade .3s ease}
 .live-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
@@ -236,9 +239,11 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
   .hero-in{gap:16px}
   .orb{width:60px;height:60px;font-size:17px}
   .hero .cta .btn{flex:1 1 auto;min-width:132px}
-  .orbbar{padding:7px 12px;gap:10px}
+  .orbbar{padding:7px 12px;gap:10px;flex-wrap:wrap}
   .orbbar canvas{width:52px;height:52px}
   .orb-gov{display:none}
+  .orb-picks{flex:1 1 100%;margin-left:0;justify-content:flex-start;padding-bottom:2px;overflow-x:auto}
+  .orb-pick{min-height:34px;flex-shrink:0}
   #brainCanvas{height:250px!important}
   .stat .val{font-size:23px}
   .card{padding:15px}
@@ -298,7 +303,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic">⚙</span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 19-07b · app mobile</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 19-07c · selettore companion</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -349,7 +354,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 
 <script>
 /* ══════════ STATO ══════════ */
-const LS={engBase:'dv_eng_base',engTok:'dv_eng_tok',tenantKey:'dv_tenant_key',orchBase:'dv_orch_base',orchTok:'dv_orch_tok',tenant:'dv_tenant',demo:'dv_demo',theme:'dv_theme',tts:'dv_tts'};
+const LS={engBase:'dv_eng_base',engTok:'dv_eng_tok',tenantKey:'dv_tenant_key',orchBase:'dv_orch_base',orchTok:'dv_orch_tok',tenant:'dv_tenant',demo:'dv_demo',theme:'dv_theme',tts:'dv_tts',comp:'dv_comp'};
 const state={
   engBase:localStorage.getItem(LS.engBase)||'', engTok:localStorage.getItem(LS.engTok)||'', tenantKey:localStorage.getItem(LS.tenantKey)||'',
   orchBase:localStorage.getItem(LS.orchBase)||'', orchTok:localStorage.getItem(LS.orchTok)||'',
@@ -358,6 +363,9 @@ const state={
   tenant:(t=>t==='forma'?'forma-core':t)(localStorage.getItem(LS.tenant)||'forma-core'),
   demo:localStorage.getItem(LS.demo)==='1', view:'home', engOk:false, orchOk:false, chat:[],
   tts:localStorage.getItem(LS.tts)==='1', _liveTimer:null, _brainOn:false,
+  /* Selettore companion in chat: divina = smistamento automatico; dante/virgilio/
+     beatrice = scelta esplicita (viaggia come `companion` in /chat). */
+  _compSel:(c=>['divina','dante','virgilio','beatrice'].includes(c)?c:'divina')(localStorage.getItem(LS.comp)||'divina'),
 };
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -532,7 +540,7 @@ const VIEWS={
   /* ---------- CHAT ---------- */
   async chat(){
     C.classList.add('chatmode');
-    C.innerHTML=`<div class="chat"><div class="orbbar"><canvas id="orbCv"></canvas><div><div class="orb-state" id="orbState">Inattivo</div><div class="orb-agent" id="orbAgent">agente attivo · Divina</div></div><div class="orb-gov">ogni azione con effetto esterno passa dalla tua approvazione 🔒</div></div><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
+    C.innerHTML=`<div class="chat"><div class="orbbar"><canvas id="orbCv"></canvas><div><div class="orb-state" id="orbState">Inattivo</div><div class="orb-agent" id="orbAgent">agente attivo · Divina</div></div><div class="orb-picks" id="orbPicks"><button class="orb-pick" data-oc="divina" title="Smistamento automatico">✧ Divina</button><button class="orb-pick" data-oc="dante" title="Finanza & numeri">Dante</button><button class="orb-pick" data-oc="virgilio" title="Legale & operazioni">Virgilio</button><button class="orb-pick" data-oc="beatrice" title="Marketing & contenuti">Beatrice</button></div><div class="orb-gov">ogni azione con effetto esterno passa dalla tua approvazione 🔒</div></div><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
       <div class="composer"><div class="composer-inner">
         <textarea id="chatMsg" placeholder="Scrivi o detta al cervello OVY… (Invio per inviare, Shift+Invio a capo)" rows="1"></textarea>
         <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">🎙</button>
@@ -542,7 +550,9 @@ const VIEWS={
     const ta=$('#chatMsg');
     ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(160,ta.scrollHeight)+'px';});
     ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
-    $('#chatSend').onclick=sendChat;initVoice();initOrb();setOrb('idle','divina');ta.focus();
+    $('#chatSend').onclick=sendChat;initVoice();initOrb();
+    $$('#orbPicks .orb-pick').forEach(b=>b.onclick=()=>pickComp(b.dataset.oc));
+    pickComp(state._compSel||'divina');ta.focus();
   },
 
   /* ---------- DASHBOARD (engine) ---------- */
@@ -783,7 +793,8 @@ async function sendChat(){
   ta.value='';ta.style.height='auto';
   const history=state.chat.filter(m=>m.role==='user'||m.role==='bot').map(m=>({role:m.role==='bot'?'assistant':'user',content:m.text}));
   state.chat.push({role:'user',text});state.chat.push({role:'typing'});renderChat();
-  setOrb('ragionando','divina');
+  const comp=(state._compSel&&state._compSel!=='divina')?state._compSel:null;
+  setOrb('ragionando',comp||'divina');
   /* Cervello VIVO in chat (stile Zoey): mentre Divina lavora, qui si vede cosa
      sta accadendo — se l'orchestratore smista a un companion, nome e ruolo
      compaiono in tempo reale nella bolla di attesa (polling della regia). */
@@ -794,12 +805,12 @@ async function sendChat(){
     if(el&&e&&e.at>=t0-2&&e.routed){const col=AG_COLORS[e.agent]||'var(--magenta)';el.innerHTML=`<b style="color:${col}">✧ ${esc(e.agent)}</b> · ${esc(e.role||e.skill||'')} sta lavorando…`;setOrb('ragionando',e.agent);}
   }catch(_){}},1500);}
   try{
-    const r=await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:{message:text,history}});
+    const r=await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:{message:text,history,...(comp?{agent:true,companion:comp}:{})}});
     state.chat.pop();
     const answer=r.answer||r.text||r.message||(typeof r==='string'?r:'(nessuna risposta)');
     state.chat.push({role:'bot',text:answer,sources:r.sources||[]});
     const ag=(r.sources||[]).find(s=>s.type==='agent');
-    setOrb(state.tts?null:'idle',ag?ag.agent:'divina');
+    setOrb(state.tts?null:'idle',ag?ag.agent:(comp||'divina'));
     speak(answer);
   }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'⚠ '+e.message,sources:[]});setOrb('idle');}
   if(brainTimer)clearInterval(brainTimer);
@@ -837,11 +848,18 @@ function initOrb(){
   };
   requestAnimationFrame(frame);
 }
+/* Selettore companion: 'divina' = smistamento automatico; un companion esplicito
+   colora subito l'orb e viaggia in /chat come `companion` (che implica agent:true). */
+function pickComp(c){
+  state._compSel=c;localStorage.setItem(LS.comp,c);
+  $$('#orbPicks .orb-pick').forEach(b=>{const on=b.dataset.oc===c;b.classList.toggle('active',on);b.style.background=on?(ORB_COLS[c]||''):'';});
+  setOrb(null,c);
+}
 function setOrb(mode,comp){
   const o=state._orb;if(!o)return;if(mode)o.mode=mode;if(comp)o.comp=comp;
   const L={idle:'Inattivo',ascolto:'In ascolto…',parlando:'Sto parlando…',ragionando:'Sto ragionando…',azione:'In azione…'};
   const s=document.getElementById('orbState');if(s)s.textContent=L[o.mode]||'Inattivo';
-  const a=document.getElementById('orbAgent');if(a){a.textContent='agente attivo · '+(o.comp||'divina');a.style.color=ORB_COLS[o.comp]||'';}
+  const a=document.getElementById('orbAgent');if(a){const c=o.comp||'divina';a.textContent='agente attivo · '+c.charAt(0).toUpperCase()+c.slice(1);a.style.color=ORB_COLS[o.comp]||'';}
 }
 async function startOrbMic(){
   try{

@@ -182,6 +182,9 @@ class ChatIn(BaseModel):
     #                        la capability web è abilitata (WEB_SEARCH o branding.web_search)
     agent: bool = False    # richiesta esplicita di instradare a un agente Divina (COMPITO);
     #                        effettiva solo col ponte attivo (AGENTS_BRIDGE + DIVINA_URL/token)
+    companion: str = ""    # companion scelto ESPLICITAMENTE (selettore console):
+    #                        dante/virgilio/beatrice → implica agent:true e Divina smista
+    #                        tra le skill di QUEL companion. Valore ignoto → ignorato.
 
 
 class SearchIn(BaseModel):
@@ -387,9 +390,16 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     # RLS); i grant/il filtro Qdrant del RAG NON cambiano. Con ponte OFF o senza config il
     # blocco è saltato → /chat identico a oggi. Fallback pulito al RAG se Divina è inerte,
     # irraggiungibile o non instrada (routed:false) → mai un errore secco.
-    want_agent = body.agent or (settings.agents_auto and agents_bridge.is_task_like(body.message))
+    # Companion scelto esplicitamente dal selettore in console: implica l'instradamento
+    # agli agenti; un valore ignoto è ignorato (fail-open verso lo smistamento auto).
+    companion = (body.companion or "").strip().lower()
+    if companion not in ("dante", "virgilio", "beatrice"):
+        companion = ""
+    want_agent = bool(companion) or body.agent \
+        or (settings.agents_auto and agents_bridge.is_task_like(body.message))
     if want_agent and agents_bridge.enabled():
-        routed = agents_bridge.route(_tenant_code(tenant), body.message, body.history)
+        routed = agents_bridge.route(_tenant_code(tenant), body.message, body.history,
+                                     agent=companion or None)
         if routed and routed.get("routed"):
             return _agent_response(routed, _grants(tenant))
         # Divina inerte/irraggiungibile o non ha instradato → si prosegue col RAG.

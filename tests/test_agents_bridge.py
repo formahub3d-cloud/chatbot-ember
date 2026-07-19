@@ -91,6 +91,12 @@ def test_route_chiama_divina_payload_e_bearer(monkeypatch):
     assert seen["json"]["tenant"] == "ats"
     assert seen["json"]["input"] == "prepara una nota"
     assert "allowed_scopes" not in seen["json"] and "grants" not in seen["json"]
+    # senza companion esplicito il campo `agent` NON viaggia (payload storico invariato)
+    assert "agent" not in seen["json"]
+    # col companion dal selettore in console il campo viaggia (l'orchestratore datato
+    # lo ignora: additivo, mai rompente)
+    agents_bridge.route("ats", "prepara una nota", agent="dante")
+    assert seen["json"]["agent"] == "dante"
 
 
 def test_route_errore_rete_ritorna_none(monkeypatch):
@@ -221,6 +227,36 @@ def test_chat_tenant_code_da_branding_override(monkeypatch):
                     headers={"X-Tenant-Key": "K"})
     assert r.status_code == 200
     assert seen["tc"] == "forma-core"
+
+
+# ── Selettore companion in console: companion → implica agent + viaggia a Divina ──
+def test_chat_companion_implica_agent_e_viaggia(monkeypatch):
+    _mock_tenant(monkeypatch)
+    _enable_bridge(monkeypatch)
+    seen = {}
+    monkeypatch.setattr(agents_bridge, "route",
+                        lambda tc, m, history=None, agent=None, **k:
+                        seen.update(agent=agent) or _ROUTED)
+    # SENZA flag agent:true — basta il companion per instradare
+    r = client.post("/chat", json={"message": "come sta la cassa?",
+                                   "companion": "Dante"},
+                    headers={"X-Tenant-Key": "K"})
+    assert r.status_code == 200
+    assert r.json()["answer"] == "Ecco la bozza richiesta."
+    assert seen["agent"] == "dante"                     # normalizzato lowercase
+
+
+def test_chat_companion_ignoto_resta_rag(monkeypatch):
+    """Companion non valido → ignorato: senza flag agent il RAG risponde come sempre."""
+    _mock_tenant(monkeypatch)
+    _enable_bridge(monkeypatch)
+    _mock_rag(monkeypatch)
+    monkeypatch.setattr(agents_bridge, "route", lambda *a, **k:
+                        (_ for _ in ()).throw(AssertionError("non deve instradare")))
+    r = client.post("/chat", json={"message": "ciao", "companion": "gandalf"},
+                    headers={"X-Tenant-Key": "K"})
+    assert r.status_code == 200
+    assert r.json()["answer"] == "risposta-rag"
 
 
 # ── Fallback pulito al RAG: Divina irraggiungibile o routed:false ─────────────
