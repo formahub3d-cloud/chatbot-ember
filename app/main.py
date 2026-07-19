@@ -90,6 +90,11 @@ async def _security_headers(request: Request, call_next):
     _request_id.set(rid)
     resp = await call_next(request)
     resp.headers["X-Request-ID"] = rid
+    # La console /panel/ è una SPA statica che cambia a ogni deploy: no-cache
+    # (con ETag → 304 se invariata) così il MOBILE non resta sulla versione
+    # vecchia dopo un aggiornamento (collaudo 19-07).
+    if request.url.path.startswith("/panel"):
+        resp.headers["Cache-Control"] = "no-cache"
     if settings.security_headers:
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "DENY")

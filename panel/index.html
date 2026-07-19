@@ -221,6 +221,36 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .live-feed{display:flex;flex-direction:column;gap:10px}
 .live-row{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;animation:fade .3s ease}
 .live-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
+/* ── Full mobile responsive (collaudo da telefono, 19-07) ── */
+@media(max-width:920px){
+  .hero{padding:20px 16px}
+  .hero-in{gap:16px}
+  .orb{width:60px;height:60px;font-size:17px}
+  .hero .cta .btn{flex:1 1 auto;min-width:132px}
+  .orbbar{padding:7px 12px;gap:10px}
+  .orbbar canvas{width:52px;height:52px}
+  .orb-gov{display:none}
+  #brainCanvas{height:250px!important}
+  .stat .val{font-size:23px}
+  .card{padding:15px}
+  .card-head{flex-wrap:wrap}
+  .topbar{padding:10px 12px;gap:8px}
+  .page-sub{display:none}
+  .composer-inner{flex-wrap:wrap}
+  .composer-inner textarea{flex:1 1 100%}
+  .grid.g-stats{grid-template-columns:1fr 1fr;gap:10px}
+  .sec{margin:20px 0 11px}
+  .row{row-gap:8px}
+}
+@media(max-width:480px){
+  .hero h1{font-size:19px}
+  .hero .sub{font-size:12px}
+  .btn{padding:0 13px;font-size:12.5px;min-height:40px}
+  .content{padding:12px}
+  .stat{padding:14px}
+  .tag{font-size:9px}
+  .agent-tagline{font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -259,7 +289,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic">⚙</span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span></div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 19-07 · mobile</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
 
