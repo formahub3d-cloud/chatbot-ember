@@ -187,13 +187,14 @@ TASKS = [
                      "senza interrompere il filo (STT + TTS in streaming)."),
      "zoey_ref": ("«Switch between voice and text anytime in one continuous "
                   "conversation» — Zoey è voice-first."),
-     "divina_note": ("Tranche 1 FATTA (Web Speech in console). SBLOCCATA (17-07): "
-                     "Voxtral accessibile (STT mini/small + realtime, TTS), "
-                     "MISTRAL_API_KEY ed ELEVENLABS_API_KEY su Railway, OK formale "
-                     "per il servizio divina-voice. Prossima tranche: gateway "
-                     "realtime (VAD + barge-in, PTT default) + orb «Brain Motion» "
-                     "dall'artifact spec. Nota owner: valutare upgrade piano "
-                     "Mistral prima della produzione (free tier 1 req/s + privacy).")},
+     "divina_note": ("Tranche 1 FATTA (Web Speech). Tranche 2 FATTA (§2, spec "
+                     "Brain Motion v2): orb nella Chat con stati Inattivo/ascolto/"
+                     "parlando/ragionando/in-azione, ampiezza REALE dal microfono "
+                     "(Web Audio), colori companion (Dante arancio · Virgilio "
+                     "ciano · Beatrice magenta · Divina viola) e beat approvazione. "
+                     "Resta §3: gateway divina-voice (Voxtral realtime, VAD + "
+                     "barge-in). Nota owner: upgrade piano Mistral per la "
+                     "produzione voce (B2, da decidere).")},
 
     # ── workspace ────────────────────────────────────────────────────────
     {"id": "dispatch-live", "area": "workspace", "priority": "media",
