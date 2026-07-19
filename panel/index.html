@@ -222,7 +222,16 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .live-row{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;animation:fade .3s ease}
 .live-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
 /* ── Full mobile responsive (collaudo da telefono, 19-07) ── */
+.bottombar{display:none}
 @media(max-width:920px){
+  .bottombar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:28;background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--border);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
+  .bottombar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:var(--text-3);font-size:9.5px;font-weight:700;padding:4px 0;cursor:pointer;min-height:44px}
+  .bottombar button span{font-size:17px}
+  .bottombar button.active{color:var(--magenta)}
+  .content{padding-bottom:92px}
+  .composer{margin-bottom:56px}
+  .topbar>div{min-width:0}
+  .page-title{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hero{padding:20px 16px}
   .hero-in{gap:16px}
   .orb{width:60px;height:60px;font-size:17px}
@@ -289,9 +298,16 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic">⚙</span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 19-07 · mobile</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 19-07b · app mobile</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
+  <nav class="bottombar" id="bottomBar">
+    <button data-bv="home"><span>✦</span>Mondo</button>
+    <button data-bv="chat"><span>💬</span>Chat</button>
+    <button data-bv="brain"><span>🧠</span>Cervello</button>
+    <button data-bv="tasks"><span>☑</span>Task</button>
+    <button data-bv="proposals"><span>🔒</span>Audit</button>
+  </nav>
 
   <div class="main">
     <header class="topbar">
@@ -953,12 +969,14 @@ function route(view){
   stopOrbMic();
   if(_rec)stopVoice();
   state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
+  $$('.bottombar button').forEach(b=>b.classList.toggle('active',b.dataset.bv===view));
   const [t,s]=TITLES[view]||['',''];$('#pageTitle').textContent=t;$('#pageSub').textContent=s;
   $('#side').classList.remove('open');$('#sideBackdrop').classList.remove('open');
   C.classList.toggle('chatmode',view==='chat');
   (VIEWS[view]||VIEWS.home)();
 }
 $$('.nav-item').forEach(n=>n.onclick=()=>route(n.dataset.view));
+$$('.bottombar button').forEach(b=>b.onclick=()=>route(b.dataset.bv));
 $('#refreshBtn').onclick=()=>route(state.view);
 $('#burger').onclick=()=>{$('#side').classList.toggle('open');$('#sideBackdrop').classList.toggle('open');};
 $('#sideBackdrop').onclick=()=>{$('#side').classList.remove('open');$('#sideBackdrop').classList.remove('open');};
