@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # rendeva gli admin di fatto pubblici su un deploy non configurato
     # (fix sicurezza collaudo 17-07).
     admin_token: str = ""
+    # Accessi console cliente (app/clientauth.py) — NESSUN default: senza un
+    # CLIENT_SESSION_SECRET forte l'intera feature resta spenta (fail-closed,
+    # stesso principio dell'ADMIN_TOKEN). Firma le sessioni HMAC dei clienti.
+    client_session_secret: str = ""
     rate_limit_per_min: int = 30   # richieste/minuto per chiave tenant (0 = illimitato)
     max_message_chars: int = 2000  # lunghezza massima della domanda (anti-abuso/costi)
     security_headers: bool = True  # aggiunge header di sicurezza a ogni risposta

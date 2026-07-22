@@ -485,6 +485,23 @@ TASKS = [
                      "(19-07): formalizzarlo in .github/workflows/ci.yml con "
                      "3-4 scenari + check console.error. Copre ANCHE la copia "
                      "orchestratore (diff byte-identico dei due panel).")},
+    {"id": "accessi-clienti", "area": "business", "priority": "alta",
+     "status": "fatto", "effort": "M", "repo": "motore",
+     "title": "Accessi cliente gestiti da FORMA (password → codice a 6 cifre)",
+     "description": ("Il cliente entra nel SUO pannello (solo chat) con email+"
+                     "password al primo accesso, poi col codice a 6 cifre che "
+                     "solo FORMA genera/rigenera. Chiavi e token restano sul "
+                     "server: il cliente non li vede mai. FORMA aggiunge/"
+                     "sospende/rimuove gli accessi e può entrare nel pannello "
+                     "di ogni cliente (sessione breve, tracciata)."),
+     "zoey_ref": "Ogni utente il suo world; da Divina: l'owner governa gli accessi.",
+     "divina_note": ("21-07: app/clientauth.py + /client/* + tab Tenant in "
+                     "console (crea, codice, sospendi, rimuovi=archivio, "
+                     "«Entra» ghost 30min con banner). Sessioni HMAC in cookie "
+                     "HttpOnly, lockout 5 tentativi, chiave tenant cifrata a "
+                     "riposo con CONTENT_ENC_KEY, master vietata, fail-closed "
+                     "senza CLIENT_SESSION_SECRET. Login cliente: "
+                     "/panel/#cliente. DDL: db/ovyon_client_access.sql.")},
     {"id": "i18n-console", "area": "business", "priority": "bassa",
      "status": "da-fare", "effort": "M", "repo": "entrambi",
      "title": "Console bilingue (IT/EN)",
