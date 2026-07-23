@@ -318,7 +318,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 23-07 · fix onboarding</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 23-07b · orb nel cervello vivo</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -644,6 +644,7 @@ const VIEWS={
     try{const d=await api('engine','/admin/brain');const s=d.stats||{},rec=d.recent||[];
       const noteRow=n=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div><div class="small muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.path||'')}</div></div><div class="row" style="gap:8px;flex-shrink:0"><span class="scope-chip" style="background:${scopeColor(n.tenant)}22;color:${scopeColor(n.tenant)};border-color:${scopeColor(n.tenant)}44">${esc(n.tenant||'')}</span><span class="small muted" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</span></div></div>`;
       C.innerHTML=`
+      <div class="orbbar" style="border:1px solid var(--border);border-radius:14px;margin-bottom:14px;background:var(--surface)"><canvas id="brainOrbCv"></canvas><div><div class="orb-state">Cervello vivo</div><div class="orb-agent" id="brainOrbSub">${fmtN(s.notes)} neuroni · sinapsi in caricamento…</div></div><div class="orb-gov">la sfera respira col cervello: si accende quando pensa — grafo, ricerche, ingest</div></div>
       <div class="card" style="margin-bottom:14px;padding:0;overflow:hidden"><canvas id="brainCanvas" style="width:100%;height:380px;display:block"></canvas><div class="row small muted" style="justify-content:space-between;flex-wrap:wrap;gap:6px;padding:10px 16px;border-top:1px solid var(--border)"><span>${icon('brain',12)} <b>${fmtN(s.notes)}</b> neuroni = le note reali del vault · colori = aree</span><span id="brainCap">${d.persist?"collegamenti per vicinanza d'area — sinapsi reali in caricamento…":'backend Supabase non attivo'}</span></div></div>
       <div class="grid g-stats">
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div><div class="lbl">${icon('brain',13)} Neuroni (note)</div><div class="val" style="color:var(--magenta)">${fmtN(s.notes)}</div><div class="meta">nel vault</div></div>
@@ -655,14 +656,18 @@ const VIEWS={
         <div class="card"><div class="card-head"><div><h3>Esplora le note</h3><p>Ricerca su titolo e percorso — la ricerca semantica vive nella Chat</p></div></div><div class="row"><input id="bnQ" placeholder="Cerca nel cervello… (es. listino, onboarding)" style="flex:1;min-width:160px"><button class="btn primary" id="bnGo">Cerca</button></div><div id="bnOut" style="margin-top:12px"></div></div>
         <div class="card"><div class="card-head"><div><h3>Note recenti</h3><p>Le ultime note toccate nel vault</p></div><span class="pill">${rec.length}</span></div>${rec.length?rec.map(noteRow).join(''):emptyBox(icon('inbox',36),'Nessuna nota','Lancia una ingest col backend Supabase attivo')}</div>
       </div>`;
-      const doSearch=async()=>{const term=$('#bnQ').value.trim();const out=$('#bnOut');out.innerHTML=skeleton(2);try{const r=await api('engine','/admin/brain/notes?'+q({q:term,limit:20}));const ns=r.notes||[];out.innerHTML=ns.length?ns.map(noteRow).join(''):emptyBox(icon('target',36),'Nessun risultato','Prova con un termine diverso');}catch(e){out.innerHTML=errBox(e);}};
+      /* Orb del cervello (spec Brain Motion): respira in idle, «ragiona» mentre
+         carica il grafo o cerca. Stesso motore dell'orb in chat (initOrb). */
+      initOrb('brainOrbCv');setOrb('ragionando','divina');
+      const doSearch=async()=>{const term=$('#bnQ').value.trim();const out=$('#bnOut');out.innerHTML=skeleton(2);setOrb('ragionando');try{const r=await api('engine','/admin/brain/notes?'+q({q:term,limit:20}));const ns=r.notes||[];out.innerHTML=ns.length?ns.map(noteRow).join(''):emptyBox(icon('target',36),'Nessun risultato','Prova con un termine diverso');}catch(e){out.innerHTML=errBox(e);}setOrb('idle');};
       $('#bnGo').onclick=doSearch;$('#bnQ').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
       /* Sinapsi REALI ([[link]]) se il grafo è stato generato dall'ingest; altrimenti
          fallback alla costellazione per vicinanza d'area. */
       let g=null;try{g=await api('engine','/admin/brain/graph');}catch(_){}
-      const cap=$('#brainCap');
-      if(g&&(g.links||[]).length){if(cap)cap.textContent=`sinapsi REALI dai [[link]] · ${g.links.length} collegamenti · grafo ${timeAgoIso(g.generated_at)}`;startBrainCanvas(g.nodes||[],g.links);}
-      else{if(cap&&d.persist)cap.textContent="collegamenti per vicinanza d'area — le sinapsi reali arrivano con la prossima ingest completa";try{const r=await api('engine','/admin/brain/notes?'+q({limit:220}));startBrainCanvas(r.notes||[]);}catch(_){startBrainCanvas([]);}}
+      const cap=$('#brainCap'),sub=$('#brainOrbSub');
+      if(g&&(g.links||[]).length){if(cap)cap.textContent=`sinapsi REALI dai [[link]] · ${g.links.length} collegamenti · grafo ${timeAgoIso(g.generated_at)}`;if(sub)sub.textContent=`${fmtN(s.notes)} neuroni · ${fmtN(g.links.length)} sinapsi reali`;startBrainCanvas(g.nodes||[],g.links);}
+      else{if(cap&&d.persist)cap.textContent="collegamenti per vicinanza d'area — le sinapsi reali arrivano con la prossima ingest completa";if(sub)sub.textContent=`${fmtN(s.notes)} neuroni · collegamenti per vicinanza d'area`;try{const r=await api('engine','/admin/brain/notes?'+q({limit:220}));startBrainCanvas(r.notes||[]);}catch(_){startBrainCanvas([]);}}
+      setOrb('idle');
     }catch(e){C.innerHTML=errBox(e);}
   },
 
@@ -909,14 +914,17 @@ async function sendChat(){
    approvazione). Colori companion: Dante arancio · Virgilio ciano ·
    Beatrice magenta · Divina viola. */
 const ORB_COLS={dante:'#F8693C',virgilio:'#0ED4E4',beatrice:'#DD24F2',divina:'#a855f7',worker:'#89D41D'};
-function initOrb(){
-  const cv=document.getElementById('orbCv');if(!cv)return;
+function initOrb(cvId='orbCv'){
+  /* Un solo motore per tutti gli orb della console (chat, cervello vivo…):
+     il canvas si sceglie per id, lo stato resta il singleton state._orb —
+     le viste non coesistono mai (route() spegne l'orb quando si cambia). */
+  const cv=document.getElementById(cvId);if(!cv)return;
   state._orb={comp:'divina',mode:'idle',level:0,mic:0,on:true};
   const ctx=cv.getContext('2d');const DPR=window.devicePixelRatio||1;const S=72;cv.width=S*DPR;cv.height=S*DPR;ctx.scale(DPR,DPR);
   const reduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const t0=performance.now();
   const frame=now=>{
-    const o=state._orb;if(!o||!o.on||!document.getElementById('orbCv'))return;
+    const o=state._orb;if(!o||!o.on||!document.getElementById(cvId))return;
     const t=(now-t0)/1000;const col=ORB_COLS[o.comp]||ORB_COLS.divina;
     let target=0.10+(reduced?0:0.03*Math.sin(t*1.1));
     if(o.mode==='ascolto')target=0.16+Math.min(0.7,o.mic);
