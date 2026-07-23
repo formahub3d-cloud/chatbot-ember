@@ -194,3 +194,10 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Fix diagnosi deploy (collaudo 23-07): Railway espone lo sha del commit come
+# RAILWAY_GIT_COMMIT_SHA, non GIT_SHA → /version rispondeva {"commit": ""} e la
+# verifica "cosa gira in produzione?" era cieca. Fallback sul nome Railway.
+if not settings.git_sha.strip():
+    import os as _os
+    settings.git_sha = _os.getenv("RAILWAY_GIT_COMMIT_SHA", "")
