@@ -51,7 +51,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -182,6 +182,9 @@ class ChatIn(BaseModel):
     #                        la capability web è abilitata (WEB_SEARCH o branding.web_search)
     agent: bool = False    # richiesta esplicita di instradare a un agente Divina (COMPITO);
     #                        effettiva solo col ponte attivo (AGENTS_BRIDGE + DIVINA_URL/token)
+    companion: str = ""    # companion scelto ESPLICITAMENTE (selettore console):
+    #                        dante/virgilio/beatrice → implica agent:true e Divina smista
+    #                        tra le skill di QUEL companion. Valore ignoto → ignorato.
 
 
 class SearchIn(BaseModel):
@@ -387,9 +390,16 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     # RLS); i grant/il filtro Qdrant del RAG NON cambiano. Con ponte OFF o senza config il
     # blocco è saltato → /chat identico a oggi. Fallback pulito al RAG se Divina è inerte,
     # irraggiungibile o non instrada (routed:false) → mai un errore secco.
-    want_agent = body.agent or (settings.agents_auto and agents_bridge.is_task_like(body.message))
+    # Companion scelto esplicitamente dal selettore in console: implica l'instradamento
+    # agli agenti; un valore ignoto è ignorato (fail-open verso lo smistamento auto).
+    companion = (body.companion or "").strip().lower()
+    if companion not in ("dante", "virgilio", "beatrice"):
+        companion = ""
+    want_agent = bool(companion) or body.agent \
+        or (settings.agents_auto and agents_bridge.is_task_like(body.message))
     if want_agent and agents_bridge.enabled():
-        routed = agents_bridge.route(_tenant_code(tenant), body.message, body.history)
+        routed = agents_bridge.route(_tenant_code(tenant), body.message, body.history,
+                                     agent=companion or None)
         if routed and routed.get("routed"):
             return _agent_response(routed, _grants(tenant))
         # Divina inerte/irraggiungibile o non ha instradato → si prosegue col RAG.
@@ -1082,3 +1092,174 @@ def contracts_sign(body: SignIn, request: Request, x_tenant_key: str = Header(de
     return {"signature": record,
             "pdf_sha256": doc_hash,
             "pdf_base64": base64.b64encode(signed_pdf).decode("ascii")}
+
+
+# ── Accessi console CLIENTE, gestiti da FORMA (app/clientauth.py) ─────────────
+# Modello: FORMA provisiona account + chiave tenant (server-side, mai al client);
+# primo accesso email+password, poi SOLO codice a 6 cifre generato da FORMA.
+# Sessione = cookie HttpOnly firmato (mai token in localStorage per i clienti).
+_CLIENT_COOKIE = "dv_client"
+
+
+class ClientLoginIn(BaseModel):
+    email: str
+    credential: str        # password al PRIMO accesso; poi il codice a 6 cifre
+
+
+class ClientNewIn(BaseModel):
+    email: str
+    name: str = ""
+    tenant_key: str        # resta server-side: il cliente non la vedrà mai
+    password: str          # password del primo accesso (min 8)
+
+
+class ClientIdIn(BaseModel):
+    id: str
+
+
+class ClientStatusIn(BaseModel):
+    id: str
+    status: str            # attivo | sospeso | rimosso (mai DELETE)
+
+
+def _client_feature_on() -> None:
+    """Fail-closed come gli /admin/*: senza segreto la feature non esiste."""
+    if not clientauth.enabled():
+        raise HTTPException(503, "Accessi cliente disabilitati: imposta CLIENT_SESSION_SECRET.")
+
+
+def _client_session_or_401(request: Request) -> dict:
+    _client_feature_on()
+    sess = clientauth.check_session(request.cookies.get(_CLIENT_COOKIE, ""))
+    if not sess:
+        raise HTTPException(401, "Sessione cliente assente o scaduta.")
+    return sess
+
+
+def _set_client_cookie(response: Response, token: str, request: Request,
+                       kind: str = "client") -> None:
+    response.set_cookie(_CLIENT_COOKIE, token, httponly=True, samesite="lax",
+                        secure=request.url.scheme == "https",
+                        max_age=clientauth.SESSION_TTL.get(kind, 3600), path="/")
+
+
+@app.post("/client/login")
+def client_login(body: ClientLoginIn, request: Request, response: Response):
+    """Login del cliente. Un campo solo per le due fasi (password → codice);
+    risposta identica per OGNI fallimento: niente oracoli su email/blocchi."""
+    _client_feature_on()
+    if not rate_ok("client-login:" + (body.email or "").strip().lower()):
+        raise HTTPException(429, "Troppi tentativi. Riprova tra un minuto.",
+                            headers={"Retry-After": "60"})
+    acc = clientauth.login(body.email, body.credential)
+    if not acc:
+        raise HTTPException(401, "Credenziali non valide. Se l'accesso è bloccato, "
+                                 "chiedi a FORMA un nuovo codice.")
+    _set_client_cookie(response, clientauth.make_session(acc["id"]), request)
+    tenants.log_access("client:" + acc["email"], "client-login")
+    return {"ok": True, "account": acc}
+
+
+@app.post("/client/logout")
+def client_logout(response: Response):
+    response.delete_cookie(_CLIENT_COOKIE, path="/")
+    return {"ok": True}
+
+
+@app.get("/client/me")
+def client_me(request: Request):
+    """Chi sono (per la console in modalità cliente). `kind` è 'ghost' quando
+    dentro c'è FORMA: la console mostra il banner di cortesia."""
+    sess = _client_session_or_401(request)
+    return {"account": sess["account"], "kind": sess["kind"]}
+
+
+class ClientChatIn(BaseModel):
+    message: str
+    history: list = []
+    lang: str = ""
+    agent: bool = False
+    companion: str = ""
+
+
+@app.post("/client/chat")
+def client_chat(body: ClientChatIn, request: Request,
+                origin: str = Header(default="")):
+    """Chat del cliente autenticato: la chiave tenant è recuperata SERVER-SIDE
+    (il browser non la conosce). Riusa il flusso COMPLETO di /chat: quote,
+    rate limit, guardie origin/master, ponte agenti — nessuna scorciatoia."""
+    sess = _client_session_or_401(request)
+    try:
+        key = clientauth.tenant_key_of(sess["account"]["id"])
+    except KeyError:
+        raise HTTPException(401, "Accesso cliente non più valido.")
+    chat_body = ChatIn(message=body.message, history=body.history, lang=body.lang,
+                       agent=body.agent, companion=body.companion)
+    return do_chat(chat_body, x_tenant_key=key, origin=origin)
+
+
+@app.get("/admin/clients")
+def admin_clients(authorization: str = Header(default="")):
+    """Elenco accessi cliente per il pannello FORMA — mai segreti né chiavi."""
+    _require_admin(authorization)
+    _client_feature_on()
+    return {"clients": clientauth.list_accounts()}
+
+
+@app.post("/admin/clients")
+def admin_clients_new(body: ClientNewIn, authorization: str = Header(default="")):
+    """FORMA crea l'accesso: email + nome + chiave tenant (server-side) +
+    password del primo accesso. La chiave master è rifiutata."""
+    _require_admin(authorization)
+    _client_feature_on()
+    try:
+        acc = clientauth.create(body.email, body.name, body.tenant_key, body.password)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    tenants.log_access("client:" + acc["email"], "client-create")
+    return {"ok": True, "account": acc}
+
+
+@app.post("/admin/clients/pin")
+def admin_clients_pin(body: ClientIdIn, authorization: str = Header(default="")):
+    """Genera/RIGENERA il codice a 6 cifre — SOLO FORMA. Il codice appare UNA
+    volta qui e non è recuperabile dopo: si rigenera. Sblocca anche l'account."""
+    _require_admin(authorization)
+    _client_feature_on()
+    try:
+        code = clientauth.set_pin(body.id)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    return {"ok": True, "code": code}
+
+
+@app.post("/admin/clients/status")
+def admin_clients_status(body: ClientStatusIn, authorization: str = Header(default="")):
+    """Attiva/sospendi/rimuovi (status, mai DELETE). La sospensione taglia
+    fuori anche le sessioni già emesse (check ad ogni richiesta)."""
+    _require_admin(authorization)
+    _client_feature_on()
+    try:
+        acc = clientauth.set_status(body.id, body.status)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return {"ok": True, "account": acc}
+
+
+@app.post("/admin/clients/ghost")
+def admin_clients_ghost(body: ClientIdIn, request: Request, response: Response,
+                        authorization: str = Header(default="")):
+    """FORMA entra nel pannello del cliente: sessione GHOST breve (30 min) con
+    la STESSA vista del cliente, tracciata nell'audit. Dopo, aprire /panel/."""
+    _require_admin(authorization)
+    _client_feature_on()
+    try:
+        clientauth.tenant_key_of(body.id)          # esiste? (KeyError se no)
+    except KeyError as e:
+        raise HTTPException(404, str(e))
+    _set_client_cookie(response, clientauth.make_session(body.id, "ghost"),
+                       request, "ghost")
+    tenants.log_access("admin", "client-ghost", detail=f"account={body.id}")
+    return {"ok": True}

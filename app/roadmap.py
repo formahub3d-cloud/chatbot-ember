@@ -84,7 +84,10 @@ TASKS = [
                      "/agents/route; la chat mostra il chip agente·skill·confidenza "
                      "e, DURANTE l'attesa, il cervello vivo: chi sta lavorando "
                      "compare in tempo reale nella bolla (polling della regia). "
-                     "Resta il fallback esplicito quando la confidenza è bassa.")},
+                     "Resta il fallback esplicito quando la confidenza è bassa. "
+                     "19-07: SELETTORE companion in chat (Divina/Dante/Virgilio/"
+                     "Beatrice) — la scelta umana forza l'agente, l'orb ne prende "
+                     "il colore, il classificatore sceglie solo la skill.")},
 
     # ── automazioni ──────────────────────────────────────────────────────
     {"id": "coda-task-persistente", "area": "automazioni", "priority": "alta",
@@ -314,6 +317,202 @@ TASKS = [
      "divina_note": ("I tier esistono già (starter/pro/enterprise nei template, "
                      "billing in Fase 4): aggiungere la chiave provider per-tenant "
                      "in providers.py/config, mai nel repo (regola 6).")},
+
+    # ── Audit generale 21-07 (Code): gap emersi dal giro completo su motore,
+    #    console e orchestratore — capacità già costruite ma non esposte,
+    #    robustezza, sicurezza, prodotto. ──────────────────────────────────
+    {"id": "chat-streaming-console", "area": "workspace", "priority": "alta",
+     "status": "da-fare", "effort": "S", "repo": "entrambi",
+     "title": "Risposta in streaming nella console",
+     "description": ("La chat della console aspetta la risposta intera; il motore "
+                     "sa già rispondere token-per-token (SSE). Collegare i due: "
+                     "percezione di velocità radicalmente migliore, specie da "
+                     "mobile."),
+     "zoey_ref": "La chat di Zoey scrive mentre pensa: la latenza percepita è zero.",
+     "divina_note": ("/chat con {stream:true} è già SSE collaudato (event sources → "
+                     "delta → done): sendChat deve consumarlo con fetch+reader e "
+                     "aggiornare la bolla in progress. L'orb «parlando» si aggancia "
+                     "allo stream invece che al TTS.")},
+    {"id": "conversazioni-persistenti", "area": "memoria", "priority": "alta",
+     "status": "da-fare", "effort": "M", "repo": "motore",
+     "title": "Conversazioni salvate (riprendi da dove eri)",
+     "description": ("Oggi la chat della console vive in memoria: un refresh e "
+                     "sparisce tutto. Salvare i thread per tenant (Supabase), "
+                     "riaprirli, dare un titolo automatico — la memoria del "
+                     "quotidiano, non solo del vault."),
+     "zoey_ref": "«Your context accumulates» — le conversazioni SONO memoria.",
+     "divina_note": ("Tabella conversations+messages con RLS per tenant; la "
+                     "console lista i thread e ricarica history (già supportata "
+                     "da /chat). Passo successivo naturale verso "
+                     "memoria-persistente e preferenze-apprese.")},
+    {"id": "upload-console", "area": "workspace", "priority": "alta",
+     "status": "da-fare", "effort": "M", "repo": "motore",
+     "title": "Upload documenti in console (OCR → conferma → vault)",
+     "description": ("L'API /upload con OCR Mistral ed estrazione campi esiste da "
+                     "Fase 2, ma la console non ha una vista per usarla: caricare "
+                     "un PDF dal telefono, vedere i campi estratti, confermare, "
+                     "write-back nel vault."),
+     "zoey_ref": "In Zoey trascini un file nel world e diventa contesto.",
+     "divina_note": ("Vista Upload: drag&drop/foto da mobile → /upload → anteprima "
+                     "campi (UniLav + generico) → conferma umana (regola 5) → "
+                     "writeback. Tutto già server-side, manca SOLO la UI.")},
+    {"id": "notifiche-owner", "area": "automazioni", "priority": "alta",
+     "status": "da-fare", "effort": "M", "repo": "entrambi",
+     "title": "Notifiche all'owner (approvazioni e fallimenti)",
+     "description": ("Quando un'azione entra in-approvazione o una task fallisce, "
+                     "oggi bisogna accorgersene aprendo la console. Serve un "
+                     "canale attivo: email o Telegram/WhatsApp all'owner con link "
+                     "diretto alla decisione."),
+     "zoey_ref": "Zoey ti raggiunge lei: «needs your approval» arriva, non si cerca.",
+     "divina_note": ("Hook nel transition di braintasks (in-approvazione, fallita): "
+                     "provider pluggabile (SMTP/Telegram bot), opt-in via env, "
+                     "MAI contenuti sensibili nel messaggio — solo titolo+link. "
+                     "Si sposa con le quote: alert soglia già calcolato in usage.")},
+    {"id": "backup-programmato", "area": "memoria", "priority": "alta",
+     "status": "parziale", "effort": "S", "repo": "motore",
+     "title": "Backup programmato + prova di restore",
+     "description": ("scripts/backup.py (snapshot Qdrant + export Supabase) esiste "
+                     "ma nessuno lo lancia: schedularlo e documentare il restore. "
+                     "Il cervello è l'asset: senza backup provato non è protetto."),
+     "zoey_ref": "Un AI OS custodisce il world: la memoria non si perde.",
+     "divina_note": ("Workflow schedulato (come eval del lunedì e retention "
+                     "notturna già attivi) + runbook di restore in OVYON-SETUP; "
+                     "esito nel pannello Stato & audit (ultima esecuzione, ok/ko).")},
+    {"id": "csp-sessioni-owner", "area": "workspace", "priority": "alta",
+     "status": "da-fare", "effort": "M", "repo": "entrambi",
+     "title": "Hardening console: CSP + sessione owner",
+     "description": ("La console tiene i token admin in localStorage e il motore "
+                     "non manda Content-Security-Policy: un XSS ruberebbe le "
+                     "chiavi del regno. CSP severa subito; poi login owner con "
+                     "sessione breve al posto del token incollato."),
+     "zoey_ref": "Prodotto vendibile = sicurezza da prodotto, non da prototipo.",
+     "divina_note": ("Oggi ci sono solo nosniff+X-Frame-Options. CSP: "
+                     "default-src 'self' + connect-src verso i due servizi (la "
+                     "console è inline: serve nonce o hash). Sessione: cookie "
+                     "HttpOnly+SameSite con scadenza, magic-link o passkey; "
+                     "prerequisito sano per multi-utente.")},
+    {"id": "azioni-estese-persona", "area": "integrazioni", "priority": "alta",
+     "status": "in-corso", "effort": "M", "repo": "orchestratore",
+     "title": "Azioni estese + identità Composio per-tenant",
+     "description": ("Oltre la bozza Gmail: invio email vero, evento calendario, "
+                     "messaggio Slack — sempre dietro approvazione. E ogni tenant "
+                     "con la SUA identità Composio (user-id = tenant), mai account "
+                     "condivisi."),
+     "zoey_ref": "Le azioni di Zoey escono davvero (mail, calendar, CRM).",
+     "divina_note": ("Catalogo Z1 già pronto (gmail/calendar/slack, param_map "
+                     "collaudato); manca l'entity per-tenant in composio_exec "
+                     "(user_id=tenant_code), la verifica scope gmail.compose/"
+                     "modify sull'Auth Config, e le skill-azione «invio» gated "
+                     "requires_approval=True (§4 del piano).")},
+    {"id": "audit-trail-azioni", "area": "automazioni", "priority": "media",
+     "status": "da-fare", "effort": "M", "repo": "entrambi",
+     "title": "Timeline completa per ogni azione",
+     "description": ("Per ogni azione fidata: chi l'ha proposta, chi ha approvato "
+                     "e quando, quando è partita, esito, risposta del connettore. "
+                     "Oggi i pezzi esistono sparsi (task, regia, access_logs) — "
+                     "serve la vista unica che li cuce."),
+     "zoey_ref": "Approval history per-azione: la fiducia si costruisce col registro.",
+     "divina_note": ("Le fonti ci sono già tutte (brain_tasks con approved_by/"
+                     "error, dispatches con esito, audit RLS): endpoint "
+                     "/admin/actions/{id}/timeline che aggrega + drawer in "
+                     "console dalla card della task.")},
+    {"id": "eval-qualita-console", "area": "memoria", "priority": "media",
+     "status": "parziale", "effort": "S", "repo": "motore",
+     "title": "Qualità delle risposte nel pannello (eval RAG)",
+     "description": ("L'eval RAG gira ogni lunedì in CI (eval_rag.py) ma il "
+                     "punteggio non si vede: portarlo in console con lo storico — "
+                     "il cervello dichiara quanto è affidabile, e si vede subito "
+                     "se un ingest lo peggiora."),
+     "zoey_ref": "Un AI OS misura sé stesso, non si autodichiara bravo.",
+     "divina_note": ("Persistere l'esito dell'eval (Supabase o artifact→endpoint) "
+                     "e mostrarlo in Dashboard/Stato: punteggio, trend, ultima "
+                     "run. Gancio naturale con proposals: eval in calo → proposta "
+                     "automatica all'owner.")},
+    {"id": "pwa-installabile", "area": "workspace", "priority": "media",
+     "status": "da-fare", "effort": "S", "repo": "entrambi",
+     "title": "Console installabile (PWA)",
+     "description": ("manifest + icone + service worker minimo: Divina si installa "
+                     "sul telefono come app vera, a schermo intero, con la sua "
+                     "icona — il passo finale dell'esperienza mobile."),
+     "zoey_ref": "Zoey vive nel desktop: Divina vive in tasca.",
+     "divina_note": ("La console è già un file solo con bottom bar da app: "
+                     "manifest.json + icone FORMA + SW cache-first SOLO per lo "
+                     "shell statico (mai per le API: il no-cache resta). Occhio "
+                     "a non ricreare il problema cache appena risolto.")},
+    {"id": "gdpr-console", "area": "business", "priority": "media",
+     "status": "parziale", "effort": "S", "repo": "motore",
+     "title": "Export e oblio GDPR dalla console",
+     "description": ("gdpr.py (export + diritto all'oblio su Supabase+Qdrant) "
+                     "esiste: esporlo in console per-tenant. Per vendere in UE è "
+                     "un requisito, non un extra — e per ATS serve già."),
+     "zoey_ref": "Zoey è US-centrica: il GDPR fatto bene è fossato UE di Divina.",
+     "divina_note": ("Vista in Tenant: «Esporta dati» (zip) e «Cancella» con "
+                     "doppia conferma + nome di chi decide (stesso pattern delle "
+                     "contraddizioni). Audit dell'operazione in access_logs.")},
+    {"id": "billing-live", "area": "business", "priority": "media",
+     "status": "parziale", "effort": "M", "repo": "motore",
+     "title": "Billing Stripe attivo per i primi clienti",
+     "description": ("billing.py con Stripe è scritto e inerte (si attiva con la "
+                     "chiave): checkout per i tier, webhook già verificato, stato "
+                     "abbonamento visibile in Tenant. ATS pilota = primo test "
+                     "reale."),
+     "zoey_ref": "Zoey fattura dal giorno uno: $45-170/mese per world.",
+     "divina_note": ("Il grosso c'è (webhook firmato, quota mensile per-tenant): "
+                     "mancano i price ID nei tier, il link checkout in console e "
+                     "il blocco morbido a quota scaduta (mai il duro: il "
+                     "cervello non sparisce, si degrada).")},
+    {"id": "onboarding-wizard", "area": "business", "priority": "media",
+     "status": "da-fare", "effort": "M", "repo": "motore",
+     "title": "Onboarding nuovo cliente in 5 minuti",
+     "description": ("Wizard in console: nome cliente → scope (aree del cervello) "
+                     "→ branding (colori, lingua, tier) → quota → chiave emessa + "
+                     "snippet widget pronto da incollare. Oggi è un giro tra "
+                     "tab e curl."),
+     "zoey_ref": "Zoey: signup → world pronto. Divina: chiave → cliente attivo.",
+     "divina_note": ("Le API ci sono tutte (manage_tenants/manage_apikeys, "
+                     "branding jsonb): è orchestrazione UI in un flusso unico "
+                     "con anteprima. Include il widget embeddabile (Fase 1) come "
+                     "output finale: quello è il pezzo davvero nuovo.")},
+    {"id": "test-console-ci", "area": "workspace", "priority": "media",
+     "status": "da-fare", "effort": "M", "repo": "entrambi",
+     "title": "Smoke test della console in CI",
+     "description": ("La console è ~1.500 righe di JS senza un test: ogni tocco è "
+                     "un atto di fede + screenshot manuale. Smoke Playwright in "
+                     "CI (demo mode): le viste chiave si aprono, chat/selettore/"
+                     "approvazione funzionano, zero errori console."),
+     "zoey_ref": "La qualità percepita di un OS è che non si rompe mai.",
+     "divina_note": ("Playwright su file:// in demo mode già collaudato a mano "
+                     "(19-07): formalizzarlo in .github/workflows/ci.yml con "
+                     "3-4 scenari + check console.error. Copre ANCHE la copia "
+                     "orchestratore (diff byte-identico dei due panel).")},
+    {"id": "accessi-clienti", "area": "business", "priority": "alta",
+     "status": "fatto", "effort": "M", "repo": "motore",
+     "title": "Accessi cliente gestiti da FORMA (password → codice a 6 cifre)",
+     "description": ("Il cliente entra nel SUO pannello (solo chat) con email+"
+                     "password al primo accesso, poi col codice a 6 cifre che "
+                     "solo FORMA genera/rigenera. Chiavi e token restano sul "
+                     "server: il cliente non li vede mai. FORMA aggiunge/"
+                     "sospende/rimuove gli accessi e può entrare nel pannello "
+                     "di ogni cliente (sessione breve, tracciata)."),
+     "zoey_ref": "Ogni utente il suo world; da Divina: l'owner governa gli accessi.",
+     "divina_note": ("21-07: app/clientauth.py + /client/* + tab Tenant in "
+                     "console (crea, codice, sospendi, rimuovi=archivio, "
+                     "«Entra» ghost 30min con banner). Sessioni HMAC in cookie "
+                     "HttpOnly, lockout 5 tentativi, chiave tenant cifrata a "
+                     "riposo con CONTENT_ENC_KEY, master vietata, fail-closed "
+                     "senza CLIENT_SESSION_SECRET. Login cliente: "
+                     "/panel/#cliente. DDL: db/ovyon_client_access.sql.")},
+    {"id": "i18n-console", "area": "business", "priority": "bassa",
+     "status": "da-fare", "effort": "M", "repo": "entrambi",
+     "title": "Console bilingue (IT/EN)",
+     "description": ("La console parla solo italiano; i tenant hanno già la "
+                     "lingua nel branding e il motore risponde in lang. Per "
+                     "vendere white-label fuori dall'Italia serve l'inglese "
+                     "anche nell'interfaccia."),
+     "zoey_ref": "Zoey è EN-only: Divina bilingue vende in due mercati.",
+     "divina_note": ("Dizionario stringhe + lang dal branding del tenant (già in "
+                     "/chat): partire dalle viste cliente (chat, home), le viste "
+                     "owner possono restare IT. Dopo multi-utente ha più senso.")},
 ]
 
 
