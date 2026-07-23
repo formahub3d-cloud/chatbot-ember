@@ -40,6 +40,28 @@ def test_create(monkeypatch):
     assert called["name"] == "Cliente X" and called["branding"] == {"title": "X"}
 
 
+def test_create_accetta_liste_e_quota_null(monkeypatch):
+    """Fix collaudo 23-07: la console invia orgs/tenants come LISTE e quota null —
+    il 422 «Input should be a valid string» bloccava l'onboarding dalla UI."""
+    _en(monkeypatch)
+    called = {}
+
+    def fake_create(name, orgs, tenants_, subs, origins, quota, branding):
+        called.update(orgs=orgs, tenants=tenants_, quota=quota)
+        return "ovy_DEF456"
+    monkeypatch.setattr(M, "create_key", fake_create)
+    r = client.post("/admin/tenants",
+                    json={"name": "test", "orgs": ["forma"], "tenants": ["ats"],
+                          "subs": [], "origins": [], "quota": None, "branding": {}},
+                    headers=_h())
+    assert r.status_code == 200 and r.json()["key"] == "ovy_DEF456"
+    assert called["orgs"] == ["forma"] and called["tenants"] == ["ats"]
+    assert called["quota"] is None            # create_key: int(quota or 0) → 0
+    # la normalizzazione a lista resta in manage_apikeys._arr (entrambe le forme)
+    assert M._arr(["forma"]) == ["forma"] == M._arr("forma")
+    assert M._arr(None) == [] and M._arr(" a , b ") == ["a", "b"]
+
+
 def test_revoke(monkeypatch):
     _en(monkeypatch)
     monkeypatch.setattr(M, "revoke", lambda n: 2)
