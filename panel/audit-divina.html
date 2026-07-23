@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FORMA · Divina — Audit Ecosistema &amp; Punteggi</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cyan:#0ED4E4; --magenta:#DD24F2; --green:#89D41D; --orange:#F8693C; --dark:#050505;
+    --done:#89D41D; --wip:#F8693C; --todo:#5b5f6b;
+    --txt:#ECEFF4; --muted:#8b8f99; --border:#222226; --panel:#0d0d0f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Montserrat',sans-serif;background:var(--dark);color:var(--txt);
+    padding:32px 20px 64px;
+    background-image:
+      radial-gradient(900px 480px at 0% -10%, rgba(14,212,228,0.08), transparent 60%),
+      radial-gradient(900px 480px at 100% 0%, rgba(221,36,242,0.07), transparent 55%);
+    min-height:100vh;
+  }
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-family:'Orbitron',sans-serif;font-weight:800;font-size:1.9rem;line-height:1.15;
+     background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{color:var(--muted);margin-top:6px;font-size:.95rem}
+  .topbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:8px}
+  .badge{font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--green);border:1px solid var(--green);
+    background:rgba(137,212,29,.1);padding:5px 12px;border-radius:20px;text-transform:uppercase}
+
+  .overall{margin:22px 0 26px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
+  .overall .lbl{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);margin-bottom:8px;font-weight:600;letter-spacing:.03em}
+  .bar{height:14px;border-radius:10px;background:#15151a;overflow:hidden;border:1px solid var(--border)}
+  .bar>span{display:block;height:100%;border-radius:10px;background:linear-gradient(90deg,var(--green),var(--cyan))}
+  .pct{font-family:'Orbitron',sans-serif;font-weight:800;color:var(--cyan)}
+  .legend{display:flex;gap:18px;margin-top:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+
+  .scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:0 0 28px}
+  .score{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:15px 16px}
+  .score h3{font-family:'Orbitron';font-size:.78rem;font-weight:600;margin-bottom:8px;letter-spacing:.03em}
+  .score .val{font-family:'Orbitron';font-weight:800;font-size:1.5rem;margin-bottom:8px}
+  .score .mini{height:8px;border-radius:6px;background:#15151a;border:1px solid var(--border);overflow:hidden}
+  .score .mini>span{display:block;height:100%;border-radius:6px}
+  .score p{font-size:.76rem;color:var(--muted);margin-top:8px;line-height:1.5}
+
+  .phase{background:var(--panel);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;overflow:hidden}
+  .phase h2{font-family:'Orbitron',sans-serif;font-size:1.05rem;font-weight:600;padding:14px 18px;
+    border-left:3px solid var(--cyan);color:var(--cyan);display:flex;justify-content:space-between;align-items:center}
+  .phase.p-green h2{border-color:var(--green);color:var(--green)}
+  .phase.p-orange h2{border-color:var(--orange);color:var(--orange)}
+  .phase.p-magenta h2{border-color:var(--magenta);color:var(--magenta)}
+  .phase .mini{font-family:'Montserrat';font-size:.72rem;color:var(--muted);font-weight:600}
+  ul{list-style:none;padding:6px 18px 16px}
+  li.step{display:flex;align-items:flex-start;gap:11px;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.05);font-size:.92rem}
+  li.step:last-child{border-bottom:none}
+  .chip{flex:0 0 auto;font-size:.62rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    padding:3px 8px;border-radius:20px;border:1px solid;margin-top:1px;min-width:74px;text-align:center}
+  .st-done .chip{color:var(--done);border-color:var(--done);background:rgba(137,212,29,.12)}
+  .st-wip .chip{color:var(--wip);border-color:var(--wip);background:rgba(248,105,60,.12)}
+  .st-todo .chip{color:var(--todo);border-color:var(--todo)}
+  .st-done .t{color:var(--txt)} .st-todo .t{color:var(--muted)}
+  .t small{display:block;color:var(--muted);font-size:.78rem;font-weight:400;margin-top:2px}
+  .foot{color:var(--muted);font-size:.78rem;text-align:center;margin-top:30px;line-height:1.6}
+  .foot b{color:var(--txt)}
+</style>
+</head>
+<body><div class="wrap">
+
+  <div class="topbar">
+    <div>
+      <h1>DIVINA — Audit ecosistema</h1>
+      <div class="sub">Motore (chatbot-ember) + Orchestratore (ovy-orchestrator) + Console /panel/ · benchmark <b>Zoey OS</b></div>
+    </div>
+    <span class="badge">436 test verdi · 16-07-2026</span>
+  </div>
+
+  <div class="overall">
+    <div class="lbl"><span>MATURITÀ COMPLESSIVA VERSO L'«AI OPERATING SYSTEM»</span><span class="pct">62%</span></div>
+    <div class="bar"><span style="width:62%"></span></div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--done)"></span>Fatto</span>
+      <span><span class="dot" style="background:var(--wip)"></span>In corso (prima tranche live)</span>
+      <span><span class="dot" style="background:var(--todo)"></span>Da fare</span>
+      <span>Fonte viva: console → tab <b>Roadmap</b> (GET /admin/roadmap)</span>
+    </div>
+  </div>
+
+  <div class="scores">
+    <div class="score"><h3 style="color:var(--green)">MOTORE RAG MULTI-TENANT</h3><div class="val" style="color:var(--green)">9.0<small style="font-size:.8rem;color:var(--muted)">/10</small></div><div class="mini"><span style="width:90%;background:var(--green)"></span></div><p>In produzione. Scope server-side su Qdrant, fonti citate, quote e costi per tenant, 302 test.</p></div>
+    <div class="score"><h3 style="color:var(--green)">SICUREZZA &amp; GDPR</h3><div class="val" style="color:var(--green)">9.0<small style="font-size:.8rem;color:var(--muted)">/10</small></div><div class="mini"><span style="width:90%;background:var(--green)"></span></div><p>RLS Postgres, audit su ogni azione, cifratura, retention UE, mai DELETE, conferma umana sui write-back.</p></div>
+    <div class="score"><h3 style="color:var(--cyan)">CONSOLE «IL TUO MONDO»</h3><div class="val" style="color:var(--cyan)">8.0<small style="font-size:.8rem;color:var(--muted)">/10</small></div><div class="mini"><span style="width:80%;background:var(--cyan)"></span></div><p>Home AI-OS col brand FORMA, task del cervello, regia live, voce in chat, badge vivi. Mancano push e SSE.</p></div>
+    <div class="score"><h3 style="color:var(--cyan)">ORCHESTRATORE &amp; COMPANION</h3><div class="val" style="color:var(--cyan)">7.5<small style="font-size:.8rem;color:var(--muted)">/10</small></div><div class="mini"><span style="width:75%;background:var(--cyan)"></span></div><p>3 agenti, 42 skill, pipeline auto-miglioramento, router, regia. Mancano companion custom e scheduler.</p></div>
+    <div class="score"><h3 style="color:var(--orange)">VOCE</h3><div class="val" style="color:var(--orange)">6.5<small style="font-size:.8rem;color:var(--muted)">/10</small></div><div class="mini"><span style="width:65%;background:var(--orange)"></span></div><p>Dettatura + lettura in console (Web Speech, it-IT). Mancano provider server-side e voce nel widget.</p></div>
+    <div class="score"><h3 style="color:var(--orange)">INTEGRAZIONI</h3><div class="val" style="color:var(--orange)">5.5<small style="font-size:.8rem;color:var(--muted)">/10</small></div><div class="mini"><span style="width:55%;background:var(--orange)"></span></div><p>MCP 5 tool, webhook connettori, Tavily. Da fare: CRM FORMA, Gmail/Calendar/Notion, azioni in uscita.</p></div>
+    <div class="score"><h3 style="color:var(--magenta)">MEMORIA</h3><div class="val" style="color:var(--magenta)">5.0<small style="font-size:.8rem;color:var(--muted)">/10</small></div><div class="mini"><span style="width:50%;background:var(--magenta)"></span></div><p>agent_memory lato orchestratore. Da fare: memoria episodica delle chat per tenant, richiamata dal RAG.</p></div>
+  </div>
+
+  <div class="phase p-green">
+    <h2>Fondamenta (fatte) <span class="mini">motore + orchestratore in produzione</span></h2>
+    <ul>
+      <li class="step st-done"><span class="chip">fatto</span><div class="t">RAG multi-tenant sul cervello OVY <small>un solo motore, molte chiavi · scope dal path della nota</small></div></li>
+      <li class="step st-done"><span class="chip">fatto</span><div class="t">RLS + audit + cifratura + GDPR <small>ciò che Zoey Business promette, Divina lo ha già</small></div></li>
+      <li class="step st-done"><span class="chip">fatto</span><div class="t">3 companion (Dante/Virgilio/Beatrice) e pipeline auto-miglioramento <small>contraddizioni chiuse solo da umani, mai DELETE</small></div></li>
+      <li class="step st-done"><span class="chip">fatto</span><div class="t">Console unica /panel/ con tab Roadmap (benchmark Zoey OS) <small>14→17 task curate con stati vivi</small></div></li>
+    </ul>
+  </div>
+
+  <div class="phase p-orange">
+    <h2>Verso l'AI OS — prima tranche live <span class="mini">aggiornata 16-07-2026</span></h2>
+    <ul>
+      <li class="step st-done"><span class="chip">fatto</span><div class="t">Home «Il tuo mondo» col brand FORMA <small>hero, companion card, stat vive, claim "Il tuo mondo. La tua AI."</small></div></li>
+      <li class="step st-wip"><span class="chip">in corso</span><div class="t">Coda task persistente (brain_tasks) <small>codice e tab pronti — <b>applicare db/ovyon_tasks.sql su Supabase</b></small></div></li>
+      <li class="step st-wip"><span class="chip">in corso</span><div class="t">Regia live dei dispatch <small>vista + endpoint fatti · resta SSE al posto del polling</small></div></li>
+      <li class="step st-wip"><span class="chip">in corso</span><div class="t">Voce e testo in un'unica conversazione <small>console fatta · restano provider server-side e widget</small></div></li>
+      <li class="step st-wip"><span class="chip">in corso</span><div class="t">Divina regista in chat <small>chip agente·skill·confidenza fatto · resta il fallback esplicito</small></div></li>
+    </ul>
+  </div>
+
+  <div class="phase p-magenta">
+    <h2>Prossime — FORMA al centro <span class="mini">poi distribuzione a OVYON, ATS, hospitality…</span></h2>
+    <ul>
+      <li class="step st-todo"><span class="chip">da fare</span><div class="t">Memoria episodica per tenant <small>la conversazione che si accumula — priorità alta</small></div></li>
+      <li class="step st-todo"><span class="chip">da fare</span><div class="t">Sincronizzazione col CRM FORMA su Railway <small>webhook forma-crm → cervello · il funnel esiste già</small></div></li>
+      <li class="step st-todo"><span class="chip">da fare</span><div class="t">Console raggiungibile dalla piattaforma FORMA <small>link dedicato, poi SSO con seat e ruoli</small></div></li>
+      <li class="step st-todo"><span class="chip">da fare</span><div class="t">Companion personalizzati per tenant <small>ruolo, personalità, strumenti — le tabelle ci sono già</small></div></li>
+      <li class="step st-todo"><span class="chip">da fare</span><div class="t">Rebrand repo → forma-orchestrator <small>rename GitHub con redirect + Railway + remoti</small></div></li>
+      <li class="step st-todo"><span class="chip">da fare</span><div class="t">Task programmate, skill-playbook, multi-utente, listino a tier <small>la coda lunga della roadmap</small></div></li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    Punteggi e stati derivano dalla tab <b>Roadmap</b> della console (fonte: <b>app/roadmap.py</b> del motore, GET /admin/roadmap).<br>
+    Test: <b>302</b> motore + <b>134</b> orchestratore · Confronto completo: <b>docs/confronto-divina-zoey.md</b> · nota del cervello: <b>doc-divina-vs-zoey</b><br>
+    DIVINA · un prodotto <b>FORMA</b> — Il tuo mondo. La tua AI.
+  </div>
+
+</div></body>
+</html>
