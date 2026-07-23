@@ -14,8 +14,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Montserrat:wght@400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
+  /* Palette FORMA (design system 22-07, estratto dal codice del sito):
+     6 colori servizio + regola «dark mai #000, sempre #050505». */
   --cyan:#0ED4E4; --magenta:#DD24F2; --green:#89D41D; --orange:#F8693C;
-  --pos:#89D41D; --warn:#F8693C; --neg:#ef4444; --info:#0ED4E4; --accent:#DD24F2;
+  --yellow:#EAB308; --red:#F63E3D;
+  --pos:#89D41D; --warn:#F8693C; --neg:#F63E3D; --info:#0ED4E4; --accent:#DD24F2;
+  --forma-gradient:linear-gradient(90deg,#89D41D,#0ED4E4,#DD24F2,#F8693C,#EAB308,#F63E3D,#89D41D);
   --bg:#050505; --bg-grad-1:rgba(221,36,242,.08); --bg-grad-2:rgba(14,212,228,.06);
   --surface:#0d0f13; --surface-2:#14171d; --surface-3:#1b1f27;
   --border:#232833; --border-strong:#333a48;
@@ -26,6 +30,11 @@
   --neg-bg:rgba(239,68,68,.12); --info-bg:rgba(14,212,228,.12); --accent-bg:rgba(221,36,242,.12);
 }
 [data-theme="light"]{
+  /* WCAG AA (design system §1.3): i colori saturi falliscono il contrasto su
+     chiaro → shade scuri in light, colori pieni solo in dark. */
+  --green:#4D7610; --cyan:#0E7490; --magenta:#A11CB3; --orange:#B84F2D;
+  --yellow:#946300; --red:#B91C1C;
+  --pos:#4D7610; --warn:#B84F2D; --neg:#B91C1C; --info:#0E7490; --accent:#A11CB3;
   --bg:#f5f4f9; --bg-grad-1:rgba(221,36,242,.10); --bg-grad-2:rgba(14,212,228,.07);
   --surface:#ffffff; --surface-2:#f3f3f8; --surface-3:#e9e9f2;
   --border:#e5e3ee; --border-strong:#d2cede;
@@ -35,6 +44,11 @@
   --neg-bg:rgba(239,68,68,.12); --info-bg:rgba(14,212,228,.14); --accent-bg:rgba(221,36,242,.13);
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* ── Design system FORMA: gradiente a 7 stop, focus AA, tocco ≥44px ── */
+@keyframes gradient-flow{0%{background-position:0% 50%}100%{background-position:300% 50%}}
+.gradient-line{height:3px;background:var(--forma-gradient);background-size:300% 100%;animation:gradient-flow 11.5s linear infinite}
+.cta-brand{background:var(--forma-gradient)!important;background-size:300% 100%!important;animation:gradient-flow 9s linear infinite;color:#fff!important;font-weight:700;border-color:transparent!important}
+:focus-visible{outline:2px solid #0ED4E4;outline-offset:2px}
 html,body{height:100%}
 body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;
   background-image:radial-gradient(1100px 520px at 100% -6%,var(--bg-grad-2),transparent 60%),radial-gradient(1000px 500px at -6% 0%,var(--bg-grad-1),transparent 58%);
@@ -80,7 +94,7 @@ button{font-family:inherit}
 .conn-chip.err{color:var(--neg);border-color:rgba(239,68,68,.4);background:var(--neg-bg)}
 .conn-chip.err .dot{background:var(--neg)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-.icon-btn{width:38px;height:38px;border-radius:11px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:16px;transition:color .15s,border-color .15s}
+.icon-btn{width:44px;height:44px;border-radius:11px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);cursor:pointer;display:grid;place-items:center;font-size:16px;transition:color .15s,border-color .15s}
 .icon-btn:hover{color:var(--text);border-color:var(--magenta)}
 .content{padding:26px;max-width:1320px;width:100%;overflow-y:auto;flex:1}
 .content.chatmode{padding:0;max-width:none;display:flex;flex-direction:column}
@@ -120,7 +134,7 @@ tbody tr{transition:background .12s}tbody tr:hover{background:var(--surface-2)}
 .mini-row .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;font-size:12.5px}
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)}
 .scope-chip{font-family:"SF Mono",Menlo,monospace;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--info-bg);color:var(--cyan);border:1px solid rgba(14,212,228,.22)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 18px;border-radius:11px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;transition:transform .12s,border-color .15s,filter .15s}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:11px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;transition:transform .12s,border-color .15s,filter .15s}
 .btn:hover{border-color:var(--magenta)}.btn:active{transform:translateY(1px)}
 .btn.primary{border:none;color:#fff;background:linear-gradient(135deg,var(--magenta),var(--cyan));box-shadow:0 6px 18px -8px rgba(221,36,242,.55)}
 .btn.primary:hover{filter:brightness(1.07)}
@@ -283,6 +297,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 </style>
 </head>
 <body>
+<div class="gradient-line" style="position:fixed;top:0;left:0;right:0;z-index:120"></div>
 <div class="app">
   <aside class="side" id="side">
     <div class="brand">
@@ -296,6 +311,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 
     <div class="nav-label"><span class="ld" style="background:var(--cyan)"></span> Cervello · motore</div>
     <button class="nav-item" data-view="dashboard"><span class="ic" data-ic="dash" data-ics="17"></span> Dashboard</button>
+    <button class="nav-item" data-view="cruscotto"><span class="ic" data-ic="coins" data-ics="17"></span> Cruscotto FORMA</button>
     <button class="nav-item" data-view="brain"><span class="ic" data-ic="brain" data-ics="17"></span> Cervello vivo</button>
     <button class="nav-item" data-view="scopes"><span class="ic" data-ic="layers" data-ics="17"></span> Scope</button>
     <button class="nav-item" data-view="insights"><span class="ic" data-ic="signal" data-ics="17"></span> Segnali</button>
@@ -318,7 +334,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 23-07b · orb nel cervello vivo</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 24-07 · stile FORMA + cruscotto</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -582,7 +598,7 @@ const VIEWS={
       <div style="flex:1;min-width:230px">
         <h1><span class="grad">Il tuo mondo. La tua AI.</span></h1>
         <div class="sub">Divina — il prodotto AI di <b>FORMA</b> — unisce il cervello OVY, il motore di risposta e i tuoi companion in un unico posto: fai una domanda, affida un compito, guarda il lavoro accadere.</div>
-        <div class="cta"><button class="btn primary" onclick="route('chat')">${icon('chat',16)} Parla con Divina</button><button class="btn" onclick="route('router')">${icon('swap',16)} Affida un compito</button>${!connected?`<button class="btn" onclick="openConn()">${icon('plug',16)} Connetti i servizi</button>`:''}</div>
+        <div class="cta"><button class="btn cta-brand" onclick="route('chat')">${icon('chat',16)} Parla con Divina</button><button class="btn" onclick="route('router')">${icon('swap',16)} Affida un compito</button>${!connected?`<button class="btn" onclick="openConn()">${icon('plug',16)} Connetti i servizi</button>`:''}</div>
       </div></div></div>
     ${an?`<div class="sec">Oggi nel cervello</div><div class="grid g-stats">
       <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">${icon('chat',13)} Conversazioni</div><div class="val" style="color:var(--cyan)">${fmtN(t.chat)}</div><div class="meta">dal boot</div></div>
@@ -611,6 +627,36 @@ const VIEWS={
     $('#chatSend').onclick=sendChat;initVoice();initOrb();
     $$('#orbPicks .orb-pick').forEach(b=>b.onclick=()=>pickComp(b.dataset.oc));
     pickComp(state._compSel||'divina');ta.focus();
+  },
+
+  /* ---------- CRUSCOTTO FORMA (migrato dal portale cervello.formahub.it) ----------
+     SOLO i dati marcati REALE nel cruscotto originale (snapshot giu 2026):
+     la parte DEMO (ARR stimato, classifica finanziaria) NON è migrata — regola
+     FORMA «niente contenuti inventati». I numeri vivi arriveranno dal CRM. */
+  async cruscotto(){
+    const K=[
+      {l:'Preventivi generati',v:'500+',c:'var(--cyan)',m:'+136% · era 212+ a maggio 2026'},
+      {l:'Clienti (sito)',v:'200+',c:'var(--green)',m:'4 nominati nel canon interno'},
+      {l:'Soddisfazione',v:'98%',c:'var(--green)',m:'era 96% · benchmark interno'},
+      {l:'Security rating',v:'A+',c:'var(--magenta)',m:'securityheaders.com · CSP nonce · 2FA'},
+      {l:'Partner ufficiali',v:'10',c:'var(--orange)',m:'Stripe ✓ live · Treedom · Bambu Lab +7'}];
+    const LISTINO=[['Stampa 3D','da €15/pz','var(--orange)'],['Modellazione 3D','su preventivo','var(--orange)'],['Servizi Digitali','da €600','var(--cyan)'],['AI Custom','da €350','var(--magenta)'],['Startup Builder','tier in definizione','var(--yellow)'],['Sostenibilità B2B','interno','var(--green)']];
+    const CLIENTI=[['Home Restaurant Hotel','Social eating · Firenze','Attivo','pos'],['Al Tuo Servizio (ATS)','Servizi locali · Benevento · cliente strategico','Attivo','pos'],['Dr. Parbonetti','Sanità · Neurochirurgia','Scheda da completare','warn'],['Libero Pensiero 1550','Benevento · settore da definire','Scheda da completare','warn']];
+    const OKR=[['O1 — Lancio pubblico',[['Mobile UX score','5.8 → 8.0',0],['Pagina marketing live','0 / 1',0],['1° cliente via organico','0 / 1',0]]],
+      ['O3 — Brand & contenuto',[['Case study pubblicati','0 / 1',0],['Gap brand P1 chiusi','0 / 6',0]]],
+      ['O4 — Sostenibilità B2B',[['1° report CO₂ B2B','No → Sì',0],['Carbon calculator B2B','in sviluppo',30],['Piantumazione automatizzata','da definire',0]]]];
+    const PARTNER=['Stripe ✓','Treedom','Bambu Lab','Creality','Kickstarter','WordPress','Emergent','Anthropic / Claude','Invitalia','Startup Building'];
+    C.innerHTML=`
+      <div class="grid g-stats" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">${K.map(k=>`<div class="stat"><div class="glow" style="background:${k.c}"></div><div class="lbl">${esc(k.l)} <span class="tag pos" style="font-size:8.5px">REALE</span></div><div class="val" style="color:${k.c}">${esc(k.v)}</div><div class="meta">${esc(k.m)}</div></div>`).join('')}</div>
+      <div class="grid g-2" style="margin-top:14px;align-items:start">
+        <div class="card"><div class="card-head"><div><h3>Servizi a listino</h3><p>4 servizi core · prezzi d'ingresso dal sito formahub.it</p></div></div>${LISTINO.map(([n,p,c])=>`<div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--border)"><span style="font-size:13px;font-weight:600;color:${c}">${esc(n)}</span><span class="small muted">${esc(p)}</span></div>`).join('')}</div>
+        <div class="card"><div class="card-head"><div><h3>Clienti nominati</h3><p>Le 4 schede del canon — i dati finanziari arriveranno dal CRM</p></div><span class="pill">4</span></div>${CLIENTI.map(([n,d,st,t])=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600">${esc(n)}</div><div class="small muted">${esc(d)}</div></div><span class="tag ${t}" style="flex-shrink:0">${esc(st)}</span></div>`).join('')}</div>
+      </div>
+      <div class="sec">OKR Q3 2026 · owner Andrea Aloia · 1 lug – 30 set</div>
+      <div class="grid g-3" style="align-items:start">${OKR.map(([t,ks])=>`<div class="card"><div class="card-head"><div><h3 style="font-size:14px">${esc(t)}</h3></div></div>${ks.map(([k,v,p])=>`<div style="padding:7px 0"><div class="row" style="justify-content:space-between"><span class="small">${esc(k)}</span><b class="small">${esc(v)}</b></div><div class="bar-track" style="margin-top:5px"><div class="bar-fill" style="width:${p}%;background:var(--forma-gradient);background-size:300% 100%"></div></div></div>`).join('')}</div>`).join('')}</div>
+      <div class="sec">Partner & audit</div>
+      <div class="card"><div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:12px">${PARTNER.map(p=>`<span class="pill">${esc(p)}</span>`).join('')}</div><p class="small muted" style="margin-bottom:14px">Solo Stripe è verificato sul sito pubblico (giu 2026); gli altri provengono dal materiale interno. Organico: 16 aree funzionali + CEO, ogni area coperta da un agente AI dedicato.</p><div class="row"><a class="btn sm" href="audit-divina.html" target="_blank" rel="noopener">Audit ecosistema Divina</a><a class="btn sm" href="audit-chatbot-jarvis.html" target="_blank" rel="noopener">Audit motore (storico)</a></div></div>
+      <p class="small muted" style="margin-top:14px;line-height:1.7">Snapshot curato a mano (giu 2026), migrato dal cruscotto del portale cervello — qui vive d'ora in poi. La parte DEMO del vecchio cruscotto (ARR stimato, classifica finanziaria) non è stata migrata: i numeri veri arriveranno dall'integrazione CRM (vedi Roadmap).</p>`;
   },
 
   /* ---------- DASHBOARD (engine) ---------- */
@@ -1086,7 +1132,7 @@ function newClientForm(){
 }
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 function route(view){
   if(state.clientMode)view='chat';   /* modalità cliente: esiste solo la chat */
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
@@ -1154,7 +1200,7 @@ function renderClientLogin(){
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px"><div class="login-logo">DV</div><div><h1>Divina</h1><div class="small muted">Accesso cliente · un prodotto FORMA</div></div></div>
     <label class="fld"><span class="lt">Email</span><input id="clEmail" type="email" autocomplete="username" placeholder="nome@azienda.it"></label>
     <label class="fld"><span class="lt">Password (primo accesso) o codice a 6 cifre</span><input id="clCred" type="password" autocomplete="current-password" placeholder="••••••••"></label>
-    <button class="btn primary" id="clGo" style="width:100%;margin-top:10px">Entra</button>
+    <button class="btn cta-brand" id="clGo" style="width:100%;margin-top:10px">Entra</button>
     <div id="clErr" class="small" style="color:var(--neg);margin-top:12px;min-height:16px"></div>
     <div class="small muted" style="margin-top:8px;line-height:1.7">Il primo accesso usa la password fornita da FORMA. Poi si entra col <b>codice a 6 cifre</b>: se lo smarrisci o l'accesso si blocca, FORMA lo rigenera.</div>
   </div></div>`;
