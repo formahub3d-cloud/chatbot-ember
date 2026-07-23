@@ -318,7 +318,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 21-07 · accessi clienti</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 23-07 · fix onboarding</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -763,13 +763,7 @@ const VIEWS={
       :`<div class="row" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px"><p class="small muted" style="line-height:1.6;max-width:560px">Primo accesso con email+password; poi SOLO il codice a 6 cifre, che generi e rigeneri tu. La chiave tenant resta sul server: il cliente non la vede mai. «Entra» apre il suo pannello come FORMA (sessione breve, tracciata).</p><button class="btn sm primary" id="clNew">＋ Nuovo accesso</button></div>
       <div class="tbl-wrap"><table><thead><tr><th>Email</th><th>Nome</th><th>Stato</th><th>Codice</th><th>Ultimo accesso</th><th></th></tr></thead><tbody>${cls.length?cls.map(c=>`<tr><td><b>${esc(c.email)}</b></td><td>${esc(c.display_name)}</td><td><span class="tag ${c.status==='attivo'?'pos':'mut'}">${esc(c.status)}</span>${c.locked?' <span class="tag neg">bloccato</span>':''}</td><td>${c.pin_set?'<span class="tag info">attivo</span>':'<span class="tag mut">da generare</span>'}</td><td class="small muted" style="white-space:nowrap">${esc((c.last_login_at||'—').slice(0,16).replace('T',' '))}</td><td class="num" style="white-space:nowrap"><button class="btn sm" data-clpin="${esc(c.id)}">Codice</button> <button class="btn sm" data-clghost="${esc(c.id)}">Entra</button> <button class="btn sm" data-clst="${esc(c.id)}" data-to="${c.status==='attivo'?'sospeso':'attivo'}">${c.status==='attivo'?'Sospendi':'Riattiva'}</button> <button class="btn sm danger" data-clst="${esc(c.id)}" data-to="rimosso">Rimuovi</button></td></tr>`).join(''):`<tr><td colspan="6">${emptyBox(icon('key',36),'Nessun accesso cliente','Creane uno: email, password iniziale e chiave del tenant')}</td></tr>`}</tbody></table></div>`}</div>`;
       $('#newTenant').onclick=newTenantForm;$$('[data-revoke]').forEach(b=>b.onclick=()=>revokeTenant(b.dataset.revoke));
-      const nb=$('#clNew');if(nb)nb.onclick=async()=>{
-        const email=prompt('Email del cliente:');if(!email)return;
-        const name=prompt('Nome (opzionale):')||'';
-        const tk=prompt('Chiave tenant (resterà sul server, il cliente non la vedrà):');if(!tk)return;
-        const pw=prompt('Password del PRIMO accesso (min 8 caratteri):');if(!pw)return;
-        try{await api('engine','/admin/clients',{method:'POST',body:{email,name,tenant_key:tk,password:pw}});toast('Accesso creato: il cliente entra su /panel/#cliente','ok');route('tenants');}catch(e){toast(e.message,'bad');}
-      };
+      const nb=$('#clNew');if(nb)nb.onclick=newClientForm;
       $$('[data-clpin]').forEach(x=>x.onclick=async()=>{
         if(!confirm('Generare un NUOVO codice a 6 cifre? Il precedente smette di valere e l\'account si sblocca.'))return;
         try{const r=await api('engine','/admin/clients/pin',{method:'POST',body:{id:x.dataset.clpin}});prompt('Codice per il cliente — visibile SOLO ora (poi si rigenera):',r.code);route('tenants');}catch(e){toast(e.message,'bad');}
@@ -1069,6 +1063,19 @@ function newTenantForm(){
   $('#ntSave').onclick=async()=>{const body={name:$('#ntName').value.trim(),tenants:$('#ntScopes').value.split(',').map(s=>s.trim()).filter(Boolean),orgs:$('#ntOrgs').value.split(',').map(s=>s.trim()).filter(Boolean),subs:[],origins:[],quota:$('#ntQuota').value?Number($('#ntQuota').value):null,branding:{}};if(!body.name){toast('Nome obbligatorio','bad');return;}try{const r=await api('engine','/admin/tenants',{method:'POST',body});$('#ntCard').innerHTML=`<div class="card-head"><h3 style="color:var(--green)">✓ Tenant creato</h3></div><p class="small muted" style="margin-bottom:8px">Copia la chiave ora:</p><div class="mono" style="padding:12px;background:var(--surface-2);border:1px solid var(--cyan);border-radius:10px;word-break:break-all;user-select:all">${esc(r.key||'—')}</div><div class="row" style="margin-top:12px"><button class="btn" onclick="navigator.clipboard.writeText('${esc(r.key||'')}').then(()=>toast('Copiata','ok'))">Copia</button><button class="btn ghost" onclick="route('tenants')">Chiudi</button></div>`;toast('Tenant creato','ok');}catch(e){toast(e.message,'bad');}};
 }
 async function revokeTenant(name){if(!confirm(`Revocare le chiavi di "${name}"?`))return;try{const r=await api('engine','/admin/tenants/revoke',{method:'POST',body:{name}});toast(`Revocate ${r.revoked??0} chiavi`,'ok');route('tenants');}catch(e){toast(e.message,'bad');}}
+/* Form inline «Nuovo accesso cliente» (fix collaudo 23-07): niente prompt() —
+   su mobile erano scomodi e sotto automazione bloccavano il renderer. Il campo
+   chiave chiede esplicitamente il VALORE (non il nome della chiave). */
+function newClientForm(){
+  if(document.getElementById('caCard'))return;
+  C.insertAdjacentHTML('afterbegin',`<div class="card" id="caCard" style="border-color:var(--magenta)"><div class="card-head"><div><h3>＋ Nuovo accesso cliente</h3><p>Serve il VALORE della chiave tenant (ovy_… / ember_…), non il nome — resterà sul server</p></div></div><div class="grid g-2"><label class="fld"><span class="lt">Email del cliente</span><input id="caEmail" type="email" placeholder="nome@azienda.it" autocomplete="off"></label><label class="fld"><span class="lt">Nome (opzionale)</span><input id="caName" placeholder="ATS Reception"></label><label class="fld"><span class="lt">Chiave tenant (VALORE completo)</span><input id="caKey" type="password" placeholder="ovy_… / ember_…" autocomplete="off"></label><label class="fld"><span class="lt">Password del primo accesso (min 8)</span><input id="caPw" type="password" autocomplete="new-password"></label></div><div class="row"><button class="btn primary" id="caSave">Crea accesso</button><button class="btn ghost" id="caCancel">Annulla</button></div><p class="small muted" style="margin-top:10px;line-height:1.6">Non hai il valore della chiave? Creane una nuova con «＋ Nuovo» qui sopra e incollala subito: si vede UNA sola volta.</p></div>`);
+  $('#caCancel').onclick=()=>$('#caCard').remove();
+  $('#caSave').onclick=async()=>{
+    const email=$('#caEmail').value.trim(),name=$('#caName').value.trim(),tk=$('#caKey').value.trim(),pw=$('#caPw').value;
+    if(!email||!tk||pw.length<8){toast('Servono email, chiave tenant e una password di almeno 8 caratteri','bad');return;}
+    try{await api('engine','/admin/clients',{method:'POST',body:{email,name,tenant_key:tk,password:pw}});toast('Accesso creato: il cliente entra su /panel/#cliente','ok');route('tenants');}catch(e){toast(e.message,'bad');}
+  };
+}
 
 /* ══════════ ROUTER ══════════ */
 const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};

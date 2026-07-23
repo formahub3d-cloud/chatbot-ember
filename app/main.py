@@ -228,12 +228,16 @@ class CheckoutIn(BaseModel):
 
 
 class TenantCreateIn(BaseModel):
+    # Fix collaudo 23-07 («Nuovo tenant» → 422): la console invia LISTE
+    # (["forma"], ["ats"]) e quota null; curl/API storiche inviano stringhe
+    # comma-separated. Il modello accetta ENTRAMBE le forme — la persistenza
+    # (manage_apikeys._arr) già le normalizza.
     name: str
-    orgs: str = ""             # code separati da virgola
-    tenants: str = ""
-    subs: str = ""
-    origins: str = ""
-    quota: int = 0
+    orgs: str | list[str] = ""             # "a,b" oppure ["a","b"]
+    tenants: str | list[str] = ""
+    subs: str | list[str] = ""
+    origins: str | list[str] = ""
+    quota: int | None = 0                  # null dalla console = senza quota
     branding: dict | None = None
 
 

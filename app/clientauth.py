@@ -175,7 +175,9 @@ def create(email: str, display_name: str, tenant_key: str, password: str) -> dic
     from . import tenants
     t = tenants.get_tenant_by_key(tenant_key)
     if not t:
-        raise ValueError("chiave tenant sconosciuta: creala prima in Tenant")
+        raise ValueError("chiave tenant sconosciuta: serve il VALORE della chiave "
+                         "(ovy_…/ember_…), non il nome. Se non lo hai, crea una "
+                         "nuova chiave in Tenant → ＋ Nuovo e usala subito.")
     scopes = t.get("allowed_scopes") or []
     if scopes == "*" or "*" in (scopes if isinstance(scopes, (list, tuple)) else []):
         raise ValueError("la chiave master non può essere data a un cliente")
