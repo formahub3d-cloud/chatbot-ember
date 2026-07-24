@@ -234,6 +234,12 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 /* ── Orb «Brain Motion» (spec artifact v2): la sfera reagisce alla voce e cambia col companion ── */
 .orbbar{display:flex;align-items:center;gap:14px;padding:8px 22px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface) 55%,transparent);flex-shrink:0}
 .orbbar canvas{width:72px;height:72px;flex-shrink:0}
+/* Fallback P1.5: canvas bloccato (anti-fingerprint/Lockdown) → orb in CSS puro */
+.orb-css{--oc:#a855f7;width:72px;height:72px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 38% 32%,rgba(255,255,255,.72) 0%,var(--oc) 44%,transparent 76%);animation:orbBreath 3.2s ease-in-out infinite}
+.orb-css[data-mode="ragionando"]{animation-duration:1.6s}
+.orb-css[data-mode="ascolto"]{animation-duration:1.2s}
+.orb-css[data-mode="azione"]{animation-duration:.8s}
+@keyframes orbBreath{0%,100%{transform:scale(.86);opacity:.85}50%{transform:scale(1);opacity:1}}
 .orb-state{font-family:'Orbitron','Montserrat',sans-serif;font-size:13px;font-weight:700;letter-spacing:.02em}
 .orb-agent{font-size:11px;color:var(--text-2);margin-top:3px}
 .orb-picks{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
@@ -270,6 +276,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
   .hero .cta .btn{flex:1 1 auto;min-width:132px}
   .orbbar{padding:7px 12px;gap:10px;flex-wrap:wrap}
   .orbbar canvas{width:52px;height:52px}
+  .orb-css{width:52px;height:52px}
   .orb-gov{display:none}
   .orb-picks{flex:1 1 100%;margin-left:0;justify-content:flex-start;padding-bottom:2px;overflow-x:auto}
   .orb-pick{min-height:34px;flex-shrink:0}
@@ -334,7 +341,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 24-07 · stile FORMA + cruscotto</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 24-07b · orb corazzato</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -626,7 +633,9 @@ const VIEWS={
     ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
     $('#chatSend').onclick=sendChat;initVoice();initOrb();
     $$('#orbPicks .orb-pick').forEach(b=>b.onclick=()=>pickComp(b.dataset.oc));
-    pickComp(state._compSel||'divina');ta.focus();
+    pickComp(state._compSel||'divina');
+    if(!state.demo&&!state.tenantKey&&!state.clientMode){const st=$('#orbState');if(st)st.textContent='In attesa di connessione';}
+    ta.focus();
   },
 
   /* ---------- CRUSCOTTO FORMA (migrato dal portale cervello.formahub.it) ----------
@@ -904,7 +913,7 @@ const VIEWS={
 function renderChat(){
   const inner=$('#chatInner');if(!inner)return;
   if(!state.chat.length){
-    inner.innerHTML=`<div class="chat-hint"><div class="big" style="color:var(--magenta)">${icon('spark',46)}</div><h2>Ciao, sono Divina</h2><p>Il tuo mondo. La tua AI. Rispondo attingendo al cervello OVY, nel rispetto dello scope del tuo tenant — scrivimi o dettami a voce col microfono.</p><div style="margin-top:18px">${['Quali servizi offre FORMA?','Prezzi della stampa 3D?','Orari e sede'].map(s=>`<span class="chip-suggest" data-s="${esc(s)}">${esc(s)}</span>`).join('')}</div>${!state.tenantKey&&!state.demo&&!state.clientMode?`<p class="small" style="margin-top:20px;color:var(--orange)">${icon('alert',12)} Per chattare serve una <b>chiave tenant</b> (X-Tenant-Key) nelle impostazioni di connessione.</p>`:''}</div>`;
+    inner.innerHTML=`<div class="chat-hint"><div class="big" style="color:var(--magenta)">${icon('spark',46)}</div><h2>Ciao, sono Divina</h2><p>Il tuo mondo. La tua AI. Rispondo attingendo al cervello OVY, nel rispetto dello scope del tuo tenant — scrivimi o dettami a voce col microfono.</p><div style="margin-top:18px">${['Quali servizi offre FORMA?','Prezzi della stampa 3D?','Orari e sede'].map(s=>`<span class="chip-suggest" data-s="${esc(s)}">${esc(s)}</span>`).join('')}</div>${!state.tenantKey&&!state.demo&&!state.clientMode?`<p class="small" style="margin-top:20px;color:var(--orange)">${icon('alert',12)} Per chattare serve una <b>chiave tenant</b>.</p><button class="btn" style="margin-top:10px" onclick="openConn()">${icon('plug',15)} Configura chiave tenant</button>`:''}</div>`;
     inner.querySelectorAll('.chip-suggest').forEach(c=>c.onclick=()=>{$('#chatMsg').value=c.dataset.s;sendChat();});
     return;
   }
@@ -961,16 +970,42 @@ async function sendChat(){
    Beatrice magenta · Divina viola. */
 const ORB_COLS={dante:'#F8693C',virgilio:'#0ED4E4',beatrice:'#DD24F2',divina:'#a855f7',worker:'#89D41D'};
 function initOrb(cvId='orbCv'){
-  /* Un solo motore per tutti gli orb della console (chat, cervello vivo…):
-     il canvas si sceglie per id, lo stato resta il singleton state._orb —
-     le viste non coesistono mai (route() spegne l'orb quando si cambia). */
+  /* Orb «a prova di bomba» (fix P1, collaudo Cowork 24-07): un solo motore per
+     tutti gli orb (chat, cervello vivo…), MAI un rettangolo vuoto.
+     1) mai backing 0×0 (fallback 72px, DPR con cap 3);
+     2) ResizeObserver → ri-misura e ridisegna quando il layout si stabilizza;
+     3) riavvio del loop su resize/load/visibilitychange (il browser pausa il
+        rAF in background) e a ogni cambio vista;
+     4) con prefers-reduced-motion resta comunque UN frame statico disegnato;
+     5) canvas bloccato (Brave/anti-fingerprint/Lockdown: getContext null o
+        probe di disegno vuoto) → orb in CSS puro, stessi colori companion;
+     6) diagnostica sempre attiva: [orb] init / [orb] fallback in console. */
   const cv=document.getElementById(cvId);if(!cv)return;
-  state._orb={comp:'divina',mode:'idle',level:0,mic:0,on:true};
-  const ctx=cv.getContext('2d');const DPR=window.devicePixelRatio||1;const S=72;cv.width=S*DPR;cv.height=S*DPR;ctx.scale(DPR,DPR);
+  state._orb={comp:(state._orb&&state._orb.comp)||'divina',mode:'idle',level:0,mic:0,on:true,cvId};
   const reduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const t0=performance.now();
-  const frame=now=>{
-    const o=state._orb;if(!o||!o.on||!document.getElementById(cvId))return;
+  const DPR=Math.min(3,Math.max(1,window.devicePixelRatio||1));
+  let ctx=null,probeOk=false;
+  try{
+    ctx=cv.getContext('2d');
+    if(ctx){ctx.fillStyle='#fff';ctx.fillRect(0,0,2,2);probeOk=(ctx.getImageData(0,0,1,1).data[3]||0)>0;}
+  }catch(_){probeOk=false;}
+  if(!ctx||!probeOk){
+    console.warn('[orb] fallback CSS',{cvId,ctxOk:!!ctx,probeOk});
+    const div=document.createElement('div');div.className='orb-css';div.id=cvId;
+    const w=cv.clientWidth||72;div.style.width=div.style.height=w+'px';
+    cv.replaceWith(div);state._orb.fallback=true;setOrb(null,state._orb.comp);return;
+  }
+  let S=72;
+  const size=()=>{
+    const el=document.getElementById(cvId);if(!el)return;
+    const w=el.clientWidth;
+    S=(Number.isFinite(w)&&w>8)?Math.max(40,Math.min(160,w)):72;   // mai 0/NaN
+    el.width=Math.round(S*DPR);el.height=Math.round(S*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  };
+  const t0=performance.now();let raf=0;
+  const draw=now=>{
+    const o=state._orb;const k=S/72;
     const t=(now-t0)/1000;const col=ORB_COLS[o.comp]||ORB_COLS.divina;
     let target=0.10+(reduced?0:0.03*Math.sin(t*1.1));
     if(o.mode==='ascolto')target=0.16+Math.min(0.7,o.mic);
@@ -979,14 +1014,37 @@ function initOrb(cvId='orbCv'){
     else if(o.mode==='azione')target=0.52+0.18*Math.sin(t*9);
     o.level+=(target-o.level)*0.16;
     ctx.clearRect(0,0,S,S);
-    const cx=S/2,cy=S/2,r=15+15*o.level;
-    const g=ctx.createRadialGradient(cx-4,cy-5,2,cx,cy,r+12);
+    const cx=S/2,cy=S/2,r=k*(15+15*o.level);
+    const g=ctx.createRadialGradient(cx-4*k,cy-5*k,2*k,cx,cy,r+12*k);
     g.addColorStop(0,'#ffffffbb');g.addColorStop(0.28,col);g.addColorStop(1,col+'00');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,Math.min(r+12,S/2),0,6.283);ctx.fill();
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,Math.min(r+12*k,S/2),0,6.283);ctx.fill();
     ctx.globalAlpha=.92;ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy,r*0.6,0,6.283);ctx.fill();ctx.globalAlpha=1;
-    if(!reduced)requestAnimationFrame(frame);
   };
-  requestAnimationFrame(frame);
+  const frame=now=>{
+    const o=state._orb;if(!o||!o.on||o.cvId!==cvId||!document.getElementById(cvId))return;
+    draw(now);
+    if(!reduced)raf=requestAnimationFrame(frame);
+  };
+  const kick=()=>{
+    cancelAnimationFrame(raf);
+    const o=state._orb;if(!o||!o.on||o.cvId!==cvId||!document.getElementById(cvId))return;
+    size();raf=requestAnimationFrame(frame);
+  };
+  if(window.ResizeObserver){
+    if(state._orbRO)state._orbRO.disconnect();
+    state._orbRO=new ResizeObserver(es=>{if(es.some(e=>e.contentRect&&e.contentRect.width>0))kick();});
+    state._orbRO.observe(cv);
+  }
+  state._orbKick=kick;
+  if(!state._orbEvts){                       // wiring globale, una volta sola
+    state._orbEvts=true;
+    addEventListener('resize',()=>state._orbKick&&state._orbKick());
+    addEventListener('load',()=>state._orbKick&&state._orbKick());
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&state._orbKick)state._orbKick();});
+  }
+  size();
+  console.info('[orb] init',{cvId,cssW:cv.clientWidth,dpr:DPR,backingW:cv.width,backingH:cv.height,reduced,ctxOk:true,usedFallback:false});
+  kick();
 }
 /* Selettore companion: 'divina' = smistamento automatico; un companion esplicito
    colora subito l'orb e viaggia in /chat come `companion` (che implica agent:true). */
@@ -997,6 +1055,10 @@ function pickComp(c){
 }
 function setOrb(mode,comp){
   const o=state._orb;if(!o)return;if(mode)o.mode=mode;if(comp)o.comp=comp;
+  if(o.fallback){                       // orb CSS puro: colore e ritmo via attributi
+    const el=document.getElementById(o.cvId||'orbCv');
+    if(el&&el.classList.contains('orb-css')){el.style.setProperty('--oc',ORB_COLS[o.comp]||ORB_COLS.divina);el.dataset.mode=o.mode;}
+  }
   const L={idle:'Inattivo',ascolto:'In ascolto…',parlando:'Sto parlando…',ragionando:'Sto ragionando…',azione:'In azione…'};
   const s=document.getElementById('orbState');if(s)s.textContent=L[o.mode]||'Inattivo';
   const a=document.getElementById('orbAgent');if(a){const c=o.comp||'divina';a.textContent='agente attivo · '+c.charAt(0).toUpperCase()+c.slice(1);a.style.color=ORB_COLS[o.comp]||'';}
@@ -1114,7 +1176,7 @@ async function resolveContra(id,status){const by=($('#rb-'+id)||{}).value?.trim(
 function newTenantForm(){
   C.insertAdjacentHTML('afterbegin',`<div class="card" id="ntCard" style="border-color:var(--cyan)"><div class="card-head"><div><h3>＋ Nuovo tenant</h3><p>La chiave è mostrata UNA sola volta</p></div></div><div class="grid g-2"><label class="fld"><span class="lt">Nome</span><input id="ntName" placeholder="Cliente ACME"></label><label class="fld"><span class="lt">Scope (virgola)</span><input id="ntScopes" placeholder="ats"></label><label class="fld"><span class="lt">Org</span><input id="ntOrgs" placeholder="forma"></label><label class="fld"><span class="lt">Quota/gg</span><input id="ntQuota" type="number" placeholder="2000"></label></div><div class="row"><button class="btn primary" id="ntSave">Crea chiave</button><button class="btn ghost" id="ntCancel">Annulla</button></div></div>`);
   $('#ntCancel').onclick=()=>$('#ntCard').remove();
-  $('#ntSave').onclick=async()=>{const body={name:$('#ntName').value.trim(),tenants:$('#ntScopes').value.split(',').map(s=>s.trim()).filter(Boolean),orgs:$('#ntOrgs').value.split(',').map(s=>s.trim()).filter(Boolean),subs:[],origins:[],quota:$('#ntQuota').value?Number($('#ntQuota').value):null,branding:{}};if(!body.name){toast('Nome obbligatorio','bad');return;}try{const r=await api('engine','/admin/tenants',{method:'POST',body});$('#ntCard').innerHTML=`<div class="card-head"><h3 style="color:var(--green)">✓ Tenant creato</h3></div><p class="small muted" style="margin-bottom:8px">Copia la chiave ora:</p><div class="mono" style="padding:12px;background:var(--surface-2);border:1px solid var(--cyan);border-radius:10px;word-break:break-all;user-select:all">${esc(r.key||'—')}</div><div class="row" style="margin-top:12px"><button class="btn" onclick="navigator.clipboard.writeText('${esc(r.key||'')}').then(()=>toast('Copiata','ok'))">Copia</button><button class="btn ghost" onclick="route('tenants')">Chiudi</button></div>`;toast('Tenant creato','ok');}catch(e){toast(e.message,'bad');}};
+  $('#ntSave').onclick=async()=>{const body={name:$('#ntName').value.trim(),tenants:$('#ntScopes').value.split(',').map(s=>s.trim()).filter(Boolean),orgs:$('#ntOrgs').value.split(',').map(s=>s.trim()).filter(Boolean),subs:[],origins:[],quota:$('#ntQuota').value?Number($('#ntQuota').value):null,branding:{}};if(!body.name){toast('Nome obbligatorio','bad');return;}try{const r=await api('engine','/admin/tenants',{method:'POST',body});state._lastKey={name:body.name,key:r.key||''};$('#ntCard').innerHTML=`<div class="card-head"><h3 style="color:var(--green)">✓ Tenant creato</h3></div><p class="small muted" style="margin-bottom:8px">Copia la chiave ora:</p><div class="mono" style="padding:12px;background:var(--surface-2);border:1px solid var(--cyan);border-radius:10px;word-break:break-all;user-select:all">${esc(r.key||'—')}</div><div class="row" style="margin-top:12px"><button class="btn" onclick="navigator.clipboard.writeText('${esc(r.key||'')}').then(()=>toast('Copiata','ok'))">Copia</button><button class="btn ghost" onclick="route('tenants')">Chiudi</button></div>`;toast('Tenant creato','ok');}catch(e){toast(e.message,'bad');}};
 }
 async function revokeTenant(name){if(!confirm(`Revocare le chiavi di "${name}"?`))return;try{const r=await api('engine','/admin/tenants/revoke',{method:'POST',body:{name}});toast(`Revocate ${r.revoked??0} chiavi`,'ok');route('tenants');}catch(e){toast(e.message,'bad');}}
 /* Form inline «Nuovo accesso cliente» (fix collaudo 23-07): niente prompt() —
@@ -1123,6 +1185,14 @@ async function revokeTenant(name){if(!confirm(`Revocare le chiavi di "${name}"?`
 function newClientForm(){
   if(document.getElementById('caCard'))return;
   C.insertAdjacentHTML('afterbegin',`<div class="card" id="caCard" style="border-color:var(--magenta)"><div class="card-head"><div><h3>＋ Nuovo accesso cliente</h3><p>Serve il VALORE della chiave tenant (ovy_… / ember_…), non il nome — resterà sul server</p></div></div><div class="grid g-2"><label class="fld"><span class="lt">Email del cliente</span><input id="caEmail" type="email" placeholder="nome@azienda.it" autocomplete="off"></label><label class="fld"><span class="lt">Nome (opzionale)</span><input id="caName" placeholder="ATS Reception"></label><label class="fld"><span class="lt">Chiave tenant (VALORE completo)</span><input id="caKey" type="password" placeholder="ovy_… / ember_…" autocomplete="off"></label><label class="fld"><span class="lt">Password del primo accesso (min 8)</span><input id="caPw" type="password" autocomplete="new-password"></label></div><div class="row"><button class="btn primary" id="caSave">Crea accesso</button><button class="btn ghost" id="caCancel">Annulla</button></div><p class="small muted" style="margin-top:10px;line-height:1.6">Non hai il valore della chiave? Creane una nuova con «＋ Nuovo» qui sopra e incollala subito: si vede UNA sola volta.</p></div>`);
+  /* P2 (collaudo Cowork): un select delle chiavi NON è possibile per design —
+     dei valori esiste solo l'hash sul server. La scorciatoia onesta: se una
+     chiave è appena stata creata in QUESTA pagina, la si può riusare al volo. */
+  if(state._lastKey&&state._lastKey.key){
+    $('#caSave').insertAdjacentHTML('beforebegin',`<button class="btn sm" id="caUseLast" type="button">Usa la chiave appena creata («${esc(state._lastKey.name)}»)</button> `);
+    const ul=document.getElementById('caUseLast');
+    if(ul)ul.onclick=()=>{$('#caKey').value=state._lastKey.key;toast('Chiave inserita (resta solo in questa pagina)','info');};
+  }
   $('#caCancel').onclick=()=>$('#caCard').remove();
   $('#caSave').onclick=async()=>{
     const email=$('#caEmail').value.trim(),name=$('#caName').value.trim(),tk=$('#caKey').value.trim(),pw=$('#caPw').value;
