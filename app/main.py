@@ -83,6 +83,13 @@ app.add_middleware(
 )
 
 
+_PANEL_CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+              "font-src https://fonts.gstatic.com; img-src 'self' data:; "
+              "connect-src 'self' https:; object-src 'none'; "
+              "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+
+
 @app.middleware("http")
 async def _security_headers(request: Request, call_next):
     """request_id per richiesta + header di sicurezza + trasparenza AI (EU AI Act)."""
@@ -101,6 +108,17 @@ async def _security_headers(request: Request, call_next):
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         resp.headers.setdefault("Permissions-Policy", "geolocation=(), camera=()")
         resp.headers.setdefault("X-AI-Generated", "true")
+        # P4 (collaudo 24-07): HSTS su tutto + CSP sulla console. NOTA ONESTA:
+        # la SPA è un file unico con JS/CSS inline e handler onclick nei template
+        # → serve 'unsafe-inline' (una CSP a nonce/hash richiede il refactor della
+        # console, già in roadmap csp-sessioni-owner). Questa policy blocca
+        # comunque script/oggetti ESTERNI, il framing e i form verso terzi.
+        # connect-src https:: la console parla anche con l'orchestratore, il cui
+        # URL è configurabile (railway.app o dominio custom).
+        resp.headers.setdefault("Strict-Transport-Security",
+                                "max-age=31536000; includeSubDomains")
+        if request.url.path.startswith("/panel"):
+            resp.headers.setdefault("Content-Security-Policy", _PANEL_CSP)
     return resp
 
 

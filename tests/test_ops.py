@@ -66,3 +66,17 @@ def test_metrics_prometheus(monkeypatch):
     assert "divina_chat_total 1" in body
     assert 'divina_gap_by_scope_total{scope="ats"} 1' in body
     metrics.reset()
+
+
+def test_hsts_e_csp_console():
+    """P4 (collaudo 24-07): HSTS su tutte le risposte; CSP SOLO sulla console
+    /panel/ (la SPA inline richiede 'unsafe-inline' — la versione stretta a
+    nonce è in roadmap). Niente CSP sulle API: non serve e romperebbe i client."""
+    r = client.get("/health")
+    assert "max-age=31536000" in r.headers.get("Strict-Transport-Security", "")
+    assert "Content-Security-Policy" not in r.headers
+    p = client.get("/panel/")
+    assert "max-age=31536000" in p.headers.get("Strict-Transport-Security", "")
+    csp = p.headers.get("Content-Security-Policy", "")
+    assert "default-src 'self'" in csp and "frame-ancestors 'none'" in csp
+    assert "fonts.googleapis.com" in csp          # i font della console
