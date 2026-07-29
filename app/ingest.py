@@ -112,7 +112,21 @@ def sync_vault(vault_path: str, url: str, token: str = "") -> bool:
 # vive nei generatori del vault (build*.py di ovy-cervello): se diverge, i due
 # grafi non combaceranno mai.
 SKIP_DIRS = {".git", ".obsidian", "_showcase", "_templates", "_bozze",
-             "contratti", "chatbot-jarvis"}
+             "contratti", "chatbot-jarvis", "chatbot-ember"}
+
+
+def is_note_included(rel: Path) -> bool:
+    """LA regola del perimetro, in un posto solo (usata da iter_notes, dal
+    percorso incrementale e dallo script di parità scripts/count_notes.py).
+    Oltre alle cartelle escluse: NIENTE note nella RADICE del vault (rilievo
+    revisione 29-07 — README.md e simili sono metadati del repo, non
+    conoscenza; e una nota in radice non ha org/tenant → nessuno scope
+    sensato). `_index` restano fuori come sempre."""
+    if rel.suffix != ".md" or rel.stem == "_index":
+        return False
+    if len(rel.parts) < 2:                     # file nella radice del vault
+        return False
+    return not any(p in SKIP_DIRS or p.startswith(".") for p in rel.parts)
 
 
 def segments_for(rel: Path) -> dict:
@@ -240,11 +254,8 @@ def ensure_collection(c: QdrantClient, fresh: bool = False) -> None:
 def iter_notes(vault: Path):
     for md in sorted(vault.rglob("*.md")):
         rel = md.relative_to(vault)
-        if any(p in SKIP_DIRS or p.startswith(".") for p in rel.parts):
-            continue
-        if md.stem == "_index":
-            continue
-        yield md, rel
+        if is_note_included(rel):
+            yield md, rel
 
 
 def run() -> dict:
@@ -305,12 +316,15 @@ def run() -> dict:
     # P0-bis parte 4: i [[link]] risolti diventano il campo `links` di OGNI
     # frammento della nota. Risoluzione sull'insieme degli slug reali:
     # link rotti e auto-riferimenti scartati in silenzio, archi deduplicati.
-    slug_by_lower = {n["slug"].lower(): n["slug"] for n in notes_meta}
+    # Forma UNICA dei link (rilievo revisione 29-07): slug MINUSCOLI ovunque,
+    # identica al percorso incrementale — la stessa nota deve avere lo stesso
+    # campo `links` da qualunque percorso sia stata indicizzata.
+    slug_lower = {n["slug"].lower() for n in notes_meta}
     links_by_slug: dict[str, list[str]] = {}
     for n in notes_meta:
         me = n["slug"].lower()
-        resolved = sorted({slug_by_lower[t] for t in wikilink_targets(n["raw"])
-                           if t in slug_by_lower and t != me})
+        resolved = sorted({t for t in wikilink_targets(n["raw"])
+                           if t in slug_lower and t != me})
         links_by_slug[n["slug"]] = resolved
         n["links"] = resolved
     for m in metas:
@@ -370,9 +384,7 @@ def run() -> dict:
 # collection: per ogni nota si cancellano i suoi punti (filtro per `path`) e si
 # ricaricano i chunk aggiornati. Path sparito/fuori-scope → sola rimozione.
 def _is_note(rel: Path) -> bool:
-    if any(p in SKIP_DIRS or p.startswith(".") for p in rel.parts):
-        return False
-    return rel.suffix == ".md" and rel.stem != "_index"
+    return is_note_included(rel)               # UNA regola sola, mai due copie
 
 
 def _points_for_note(md: Path, rel: Path):
@@ -387,8 +399,10 @@ def _points_for_note(md: Path, rel: Path):
     tags = meta.get("tags", "")
     # Nel percorso INCREMENTALE non abbiamo l'insieme completo degli slug, quindi
     # i target NON vengono filtrati sui link rotti (lo fa l'ingest completo, che
-    # rigenera anche il grafo). Meglio un link in più che un grafo che diverge.
-    links = [t for t in wikilink_targets(raw) if t != md.stem.lower()]
+    # rigenera anche il grafo). FORMA identica al percorso completo (rilievo
+    # revisione 29-07): minuscoli, dedup, ordinati — così la stessa nota ha lo
+    # stesso campo `links` da qualunque percorso sia stata indicizzata.
+    links = sorted({t for t in wikilink_targets(raw) if t != md.stem.lower()})
     note_meta = {
         "org": seg["org"], "tenant": seg["tenant"], "sub_tenant": seg["sub_tenant"],
         "slug": md.stem, "title": title, "path": str(rel), "tags": tags, "content": body,

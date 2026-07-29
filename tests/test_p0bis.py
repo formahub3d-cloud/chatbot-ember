@@ -156,3 +156,68 @@ def test_conteggio_archi_allineato_al_generatore_del_vault():
     g = brain.build_graph([{"slug": s, "title": s, "tenant": "forma-core", "raw": t}
                            for s, t in notes.items()])
     assert len(g["links"]) == 2
+
+
+# ── rilievi revisione A1 (29-07) ──────────────────────────────────────────────
+def test_radice_e_chatbot_ember_esclusi(tmp_path):
+    """Rilievo 1: i file nella RADICE del vault (README, PANNELLI-CLIENTE…) non
+    sono conoscenza e non hanno scope: fuori dal perimetro, come nei generatori."""
+    _vault(tmp_path, {
+        "README.md": "x", "PANNELLI-CLIENTE.md": "x",
+        "forma/nota.md": "x", "chatbot-ember/codice.md": "x",
+    })
+    inclusi = {str(rel) for _, rel in ingest.iter_notes(tmp_path)}
+    assert inclusi == {"forma/nota.md"}
+    # stessa risposta dal percorso incrementale (una regola sola)
+    from pathlib import Path
+    assert ingest._is_note(Path("README.md")) is False
+    assert ingest._is_note(Path("forma/nota.md")) is True
+
+
+def test_parita_perimetro_motore_generatori(tmp_path):
+    """Rilievo 1, criterio di completamento: le due implementazioni della regola
+    (motore e trascrizione dei generatori del vault) contano le STESSE note."""
+    import importlib.util, sys
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location(
+        "count_notes", Path(__file__).parent.parent / "scripts" / "count_notes.py")
+    cn = importlib.util.module_from_spec(spec)
+    sys.modules["count_notes"] = cn
+    spec.loader.exec_module(cn)
+    _vault(tmp_path, {
+        "README.md": "x", "PANNELLI-CLIENTE.md": "x", "forma/a.md": "x",
+        "workspace/runbook.md": "x", "sources/f.md": "x", "_templates/t.md": "x",
+        "_bozze/b.md": "x", "contratti/c.md": "x", "chatbot-jarvis/l.md": "x",
+        "chatbot-ember/e.md": "x", "andrea-aloia/n.md": "x", "forma/_index.md": "x",
+        "ovyon/deep/nested.md": "x",
+    })
+    engine, gen = cn.count(tmp_path)
+    assert engine == gen
+    assert "workspace/runbook.md" in engine and "README.md" not in engine
+
+
+def test_links_identici_fra_percorso_completo_e_incrementale(tmp_path, monkeypatch):
+    """Rilievo 2: stessa nota, stesso campo `links`, da qualunque percorso —
+    forma unica: slug minuscoli, dedup, ordinati (anche con slug Maiuscoli)."""
+    _vault(tmp_path, {
+        "forma/Alfa.md": "contenuto di alfa",
+        "forma/beta.md": "cito [[Alfa]] e ancora [[alfa]] e me [[beta]]",
+    })
+    fake = FakeQdrant()
+    captured = {}
+    def fake_upsert(name, points=None, wait=True):
+        captured.setdefault("all", []).extend(points or [])
+    fake.upsert = fake_upsert
+    monkeypatch.setattr(settings, "vault_path", str(tmp_path))
+    monkeypatch.setattr(settings, "vault_git_url", "")
+    monkeypatch.setattr(settings, "ingest_min_notes", 1)
+    monkeypatch.setattr(ingest, "client", lambda: fake)
+    monkeypatch.setattr(ingest, "embed", lambda texts: [[0.0] * 8 for _ in texts])
+    ingest.run()
+    full_links = [p.payload["links"] for p in captured["all"]
+                  if p.payload["slug"] == "beta"]
+    from pathlib import Path
+    points, _ = ingest._points_for_note(tmp_path / "forma/beta.md", Path("forma/beta.md"))
+    incr_links = [p.payload["links"] for p in points]
+    assert full_links and incr_links
+    assert full_links[0] == incr_links[0] == ["alfa"]     # minuscolo, dedup, no self
