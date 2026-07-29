@@ -326,7 +326,10 @@
     if (sources && sources.length){
       var wrap = document.createElement("div"); wrap.className = "em-srcs";
       sources.forEach(function(sname){
-        var c = document.createElement("span"); c.className = "em-chip"; c.textContent = sname; c.title = sname;
+        // fonti come oggetti {slug,title} (fix B1); stringhe legacy tollerate
+        var label = (sname && typeof sname === "object")
+          ? (sname.title || sname.slug || sname.url || "nota") : String(sname);
+        var c = document.createElement("span"); c.className = "em-chip"; c.textContent = label; c.title = label;
         wrap.appendChild(c);
       });
       msg.appendChild(wrap);

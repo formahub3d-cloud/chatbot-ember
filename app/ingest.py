@@ -104,7 +104,29 @@ def sync_vault(vault_path: str, url: str, token: str = "") -> bool:
 # Cartelle non utili al chatbot (derivati, scratch, fonti grezze).
 # 'contratti' è escluso PER DEFAULT (dati personali): per farli interrogare dal
 # consulente, togli "contratti" da questo set quando hai DPA + region Qdrant UE a posto.
-SKIP_DIRS = {".git", ".obsidian", "_showcase", "workspace", "sources", "contratti"}
+# Perimetro del cervello interrogabile — UNA lista sola, decisione di prodotto
+# 29-07 (P0-bis parte 3): `workspace/` e `sources/` sono DENTRO (contengono i
+# runbook: è esattamente ciò che si vuole poter chiedere a Divina); fuori
+# restano template, bozze, artefatti generati, materiale legacy e SOPRATTUTTO
+# `contratti/` (dati personali — esclusione NON negoziabile). La stessa lista
+# vive nei generatori del vault (build*.py di ovy-cervello): se diverge, i due
+# grafi non combaceranno mai.
+SKIP_DIRS = {".git", ".obsidian", "_showcase", "_templates", "_bozze",
+             "contratti", "chatbot-jarvis", "chatbot-ember"}
+
+
+def is_note_included(rel: Path) -> bool:
+    """LA regola del perimetro, in un posto solo (usata da iter_notes, dal
+    percorso incrementale e dallo script di parità scripts/count_notes.py).
+    Oltre alle cartelle escluse: NIENTE note nella RADICE del vault (rilievo
+    revisione 29-07 — README.md e simili sono metadati del repo, non
+    conoscenza; e una nota in radice non ha org/tenant → nessuno scope
+    sensato). `_index` restano fuori come sempre."""
+    if rel.suffix != ".md" or rel.stem == "_index":
+        return False
+    if len(rel.parts) < 2:                     # file nella radice del vault
+        return False
+    return not any(p in SKIP_DIRS or p.startswith(".") for p in rel.parts)
 
 
 def segments_for(rel: Path) -> dict:
@@ -140,7 +162,7 @@ def scope_for(rel: Path) -> str:
 
 # Campi di permesso attesi nel payload Qdrant dopo la re-ingest a tre livelli.
 # `sub_tenant` può essere None (nota non annidata): la sua CHIAVE deve comunque esserci.
-REQUIRED_PAYLOAD_FIELDS = ("scope", "org", "tenant", "sub_tenant")
+REQUIRED_PAYLOAD_FIELDS = ("scope", "org", "tenant", "sub_tenant", "links")
 
 
 def check_payload(payload: dict) -> list[str]:
@@ -160,9 +182,8 @@ def chunk(text: str, size: int = 1200, overlap: int = 200) -> list[str]:
     return out
 
 
-def _parse_note(path: Path):
+def _parse_text(text: str):
     """Mini-parser frontmatter YAML (niente dipendenze esterne). Ritorna (meta, body)."""
-    text = path.read_text("utf-8")
     meta, body = {}, text
     if text.startswith("---"):
         end = text.find("\n---", 3)
@@ -174,6 +195,30 @@ def _parse_note(path: Path):
                 if m:
                     meta[m.group(1)] = m.group(2).strip()
     return meta, body
+
+
+def _parse_note(path: Path):
+    return _parse_text(path.read_text("utf-8"))
+
+
+# [[wikilink]] — la STESSA grammatica di brain._LINK_RE e del LINK_RE dei
+# generatori del vault (alias '[[x|label]]' e ancore '[[x#sez]]' comprese).
+# P0-bis parte 4: l'estrazione avviene sul testo COMPLETO del file, frontmatter
+# INCLUSO — le liste di link nel frontmatter prima si perdevano perché il
+# parser lo staccava prima dell'analisi.
+_LINK_RE = re.compile(r"\[\[([^\]|#\n]+?)(?:[|#][^\]\n]*)?\]\]")
+
+
+def wikilink_targets(full_text: str) -> list[str]:
+    """Slug (normalizzati lowercase, deduplicati, in ordine) citati nel testo
+    completo di una nota — frontmatter incluso."""
+    seen, out = set(), []
+    for m in _LINK_RE.finditer(full_text or ""):
+        slug = m.group(1).strip().lower()
+        if slug and slug not in seen:
+            seen.add(slug)
+            out.append(slug)
+    return out
 
 
 def client() -> QdrantClient:
@@ -209,11 +254,8 @@ def ensure_collection(c: QdrantClient, fresh: bool = False) -> None:
 def iter_notes(vault: Path):
     for md in sorted(vault.rglob("*.md")):
         rel = md.relative_to(vault)
-        if any(p in SKIP_DIRS or p.startswith(".") for p in rel.parts):
-            continue
-        if md.stem == "_index":
-            continue
-        yield md, rel
+        if is_note_included(rel):
+            yield md, rel
 
 
 def run() -> dict:
@@ -231,7 +273,8 @@ def run() -> dict:
     notes_meta: list[dict] = []   # una voce per NOTA (per il sync metadati su Supabase)
     n_notes = 0
     for md, rel in iter_notes(vault):
-        meta, body = _parse_note(md)
+        raw = md.read_text("utf-8")
+        meta, body = _parse_text(raw)
         body = body.strip()
         if not body:
             continue
@@ -245,6 +288,7 @@ def run() -> dict:
             "org": seg["org"], "tenant": seg["tenant"], "sub_tenant": seg["sub_tenant"],
             "slug": md.stem, "title": title, "path": str(rel), "tags": tags,
             "content": body,   # per la cifratura a riposo su Supabase (content_encrypted)
+            "raw": raw,        # testo COMPLETO (frontmatter incluso) per il grafo
         })
         for ci, ch in enumerate(chunk(body)):
             metas.append({
@@ -255,6 +299,36 @@ def run() -> dict:
                 "path": str(rel), "tags": tags, "chunk": ci, "text": ch,
             })
             texts.append(ch)
+
+    # GUARD anti-svuotamento (P0-bis parte 2, sintesi 29-07): se il vault è
+    # mancante o incompleto (clone fallito, cartella sbagliata, disco vuoto)
+    # la scansione NON solleva eccezioni — restituisce zero note. Senza questo
+    # controllo il passo 3 azzererebbe comunque la collection: cervello
+    # svuotato, nessun errore, exit code zero. Sotto soglia si INTERROMPE
+    # PRIMA di ogni chiamata di rete e la collection esistente resta intatta.
+    if n_notes < settings.ingest_min_notes:
+        raise RuntimeError(
+            f"ingest annullato: trovate solo {n_notes} note nel vault "
+            f"(soglia minima {settings.ingest_min_notes}, INGEST_MIN_NOTES). "
+            "La collection esistente NON è stata toccata. Vault mancante, "
+            "clone fallito o percorso sbagliato?")
+
+    # P0-bis parte 4: i [[link]] risolti diventano il campo `links` di OGNI
+    # frammento della nota. Risoluzione sull'insieme degli slug reali:
+    # link rotti e auto-riferimenti scartati in silenzio, archi deduplicati.
+    # Forma UNICA dei link (rilievo revisione 29-07): slug MINUSCOLI ovunque,
+    # identica al percorso incrementale — la stessa nota deve avere lo stesso
+    # campo `links` da qualunque percorso sia stata indicizzata.
+    slug_lower = {n["slug"].lower() for n in notes_meta}
+    links_by_slug: dict[str, list[str]] = {}
+    for n in notes_meta:
+        me = n["slug"].lower()
+        resolved = sorted({t for t in wikilink_targets(n["raw"])
+                           if t in slug_lower and t != me})
+        links_by_slug[n["slug"]] = resolved
+        n["links"] = resolved
+    for m in metas:
+        m["links"] = links_by_slug.get(m["slug"], [])
 
     # 2) Embedding in BATCH: poche richieste invece di una per nota → molto meno
     #    rate-limit. Se Mistral risponde 429, embed() ritenta da solo (backoff).
@@ -269,7 +343,7 @@ def run() -> dict:
             id=m["id"], vector=v,
             payload={k: m[k] for k in
                      ("scope", "org", "tenant", "sub_tenant",
-                      "slug", "title", "path", "tags", "chunk", "text")},
+                      "slug", "title", "path", "tags", "chunk", "text", "links")},
         )
         for m, v in zip(metas, vectors)
     ]
@@ -310,23 +384,29 @@ def run() -> dict:
 # collection: per ogni nota si cancellano i suoi punti (filtro per `path`) e si
 # ricaricano i chunk aggiornati. Path sparito/fuori-scope → sola rimozione.
 def _is_note(rel: Path) -> bool:
-    if any(p in SKIP_DIRS or p.startswith(".") for p in rel.parts):
-        return False
-    return rel.suffix == ".md" and rel.stem != "_index"
+    return is_note_included(rel)               # UNA regola sola, mai due copie
 
 
 def _points_for_note(md: Path, rel: Path):
     """(points, note_meta) per UNA nota; None se la nota è vuota. Rete solo in embed()."""
-    meta, body = _parse_note(md)
+    raw = md.read_text("utf-8")
+    meta, body = _parse_text(raw)
     body = body.strip()
     if not body:
         return [], None
     seg = segments_for(rel)
     title = meta.get("title", md.stem)
     tags = meta.get("tags", "")
+    # Nel percorso INCREMENTALE non abbiamo l'insieme completo degli slug, quindi
+    # i target NON vengono filtrati sui link rotti (lo fa l'ingest completo, che
+    # rigenera anche il grafo). FORMA identica al percorso completo (rilievo
+    # revisione 29-07): minuscoli, dedup, ordinati — così la stessa nota ha lo
+    # stesso campo `links` da qualunque percorso sia stata indicizzata.
+    links = sorted({t for t in wikilink_targets(raw) if t != md.stem.lower()})
     note_meta = {
         "org": seg["org"], "tenant": seg["tenant"], "sub_tenant": seg["sub_tenant"],
         "slug": md.stem, "title": title, "path": str(rel), "tags": tags, "content": body,
+        "raw": raw, "links": links,
     }
     chunks = chunk(body)
     vectors = embed(chunks)
@@ -335,7 +415,8 @@ def _points_for_note(md: Path, rel: Path):
             id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"{rel}::{ci}")), vector=v,
             payload={"scope": seg["tenant"], "org": seg["org"], "tenant": seg["tenant"],
                      "sub_tenant": seg["sub_tenant"], "slug": md.stem, "title": title,
-                     "path": str(rel), "tags": tags, "chunk": ci, "text": ch},
+                     "path": str(rel), "tags": tags, "chunk": ci, "text": ch,
+                     "links": links},
         )
         for ci, (ch, v) in enumerate(zip(chunks, vectors))
     ]

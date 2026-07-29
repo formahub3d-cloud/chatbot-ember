@@ -341,7 +341,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 24-07b · orb corazzato</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 30-07 · un solo renderer</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -390,6 +390,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 </div></div>
 <div class="toasts" id="toasts"></div>
 
+<script src="brain3d.js"></script>
 <script>
 /* ══════════ STATO ══════════ */
 const LS={engBase:'dv_eng_base',engTok:'dv_eng_tok',tenantKey:'dv_tenant_key',orchBase:'dv_orch_base',orchTok:'dv_orch_tok',tenant:'dv_tenant',demo:'dv_demo',theme:'dv_theme',tts:'dv_tts',comp:'dv_comp'};
@@ -1121,30 +1122,31 @@ async function chatApprove(tid,to){
 
 /* ---- CERVELLO VIVO: costellazione animata dei neuroni (note reali per area) ---- */
 function startBrainCanvas(notes,realLinks){
+  /* B1 (30-07): il renderer «povero» (costellazione piatta + 70 NODI A CASO come
+     fallback) è sostituito dal modulo brain3d.js — lo STESSO renderer 3D della
+     vetrina, estratto una volta sola. SENZA DATI: stato vuoto onesto, mai nodi
+     inventati (un cervello finto mostrato come vero è peggio di uno schermo vuoto). */
   const cv=document.getElementById('brainCanvas');if(!cv)return;
-  const ctx=cv.getContext('2d');const DPR=window.devicePixelRatio||1;
-  const W=cv.clientWidth||900,H=cv.clientHeight||380;cv.width=W*DPR;cv.height=H*DPR;ctx.scale(DPR,DPR);
+  if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}
+  const src=(notes||[]).slice(0,220);
+  if(!src.length||typeof createBrain!=='function'){
+    const cx2=cv.getContext('2d');if(cx2)cx2.clearRect(0,0,cv.width,cv.height);
+    if(document.getElementById('brainEmpty'))return;
+    const box=cv.parentElement;
+    if(box)box.insertAdjacentHTML('afterbegin',`<div class="empty" id="brainEmpty" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0"><span class="ic">${icon('brain',36)}</span><h4>Nessun dato dal cervello</h4><p>Lancia una ingest col backend Supabase attivo: qui si accende il grafo reale.</p></div>`);
+    if(box)box.style.position='relative';
+    return;
+  }
   const cols={'ats':'#0ED4E4','forma-core':'#89D41D','andrea':'#DD24F2','ovyon':'#F8693C'};
-  const colFor=t=>cols[t]||'#8b91a0';
-  const src=notes.slice(0,220);
-  const tset=[...new Set(src.map(n=>n.tenant||'∅'))];
-  const centers={};tset.forEach((t,i)=>{const a=(i/Math.max(1,tset.length))*6.283-0.8;centers[t]=[W/2+Math.cos(a)*W*0.26,H/2+Math.sin(a)*H*0.27];});
-  let nodes=src.map(n=>{const c=centers[n.tenant||'∅']||[W/2,H/2];const a=Math.random()*6.283,r=Math.pow(Math.random(),0.6)*Math.min(W,H)*0.22;return {x:c[0]+Math.cos(a)*r,y:c[1]+Math.sin(a)*r*0.72,ph:Math.random()*6.283,sp:0.4+Math.random()*0.9,t:n.tenant||'∅'};});
-  if(!nodes.length)nodes=Array.from({length:70},()=>({x:20+Math.random()*(W-40),y:20+Math.random()*(H-40),ph:Math.random()*6.283,sp:0.6,t:'∅'}));
-  let links,real=false;
-  if(realLinks&&realLinks.length){links=realLinks.filter(([a,b])=>a<nodes.length&&b<nodes.length);real=true;}
-  else{links=[];nodes.forEach((n,i)=>{nodes.map((m,j)=>({j,d:(n.x-m.x)**2+(n.y-m.y)**2,t:m.t})).filter(o=>o.j!==i&&o.t===n.t).sort((a,b)=>a.d-b.d).slice(0,2).forEach(o=>{if(o.j>i)links.push([i,o.j]);});});}
-  const reduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  state._brainOn=true;const t0=performance.now();
-  const frame=now=>{
-    if(!state._brainOn||!document.getElementById('brainCanvas'))return;
-    const t=(now-t0)/1000;ctx.clearRect(0,0,W,H);ctx.lineWidth=real?0.8:0.6;
-    links.forEach(([a,b])=>{const na=nodes[a],nb=nodes[b];ctx.strokeStyle=colFor(na.t)+(real?'46':'30');ctx.beginPath();ctx.moveTo(na.x,na.y);ctx.lineTo(nb.x,nb.y);ctx.stroke();});
-    nodes.forEach(n=>{const p=reduced?1:(0.72+0.28*Math.sin(t*n.sp+n.ph));ctx.globalAlpha=0.45+0.55*p;ctx.fillStyle=colFor(n.t);ctx.beginPath();ctx.arc(n.x,n.y,2.1*p+0.7,0,6.283);ctx.fill();});
-    ctx.globalAlpha=1;
-    if(!reduced)requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
+  const nodes=src.map(n=>({id:n.slug,title:n.title||n.slug,cat:n.tenant||'∅',
+                           color:cols[n.tenant]||'#8b91a0'}));
+  const idx=new Map(nodes.map((n,i)=>[i,n.id]));
+  const links=(realLinks||[]).filter(([a,b])=>idx.has(a)&&idx.has(b)).map(([a,b])=>[a,b]);
+  state._brainOn=true;
+  state._brain3d=createBrain(cv,{
+    onHover:(n)=>{const cap=$('#brainCap');if(cap&&n)cap.textContent=`${n.title} · ${n.cat} · ${n.deg} sinapsi`;}
+  });
+  state._brain3d.setData(nodes,links);
 }
 
 /* ---- shared actions ---- */
@@ -1206,6 +1208,7 @@ const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat co
 function route(view){
   if(state.clientMode)view='chat';   /* modalità cliente: esiste solo la chat */
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
+  if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}   /* B1: mai animazioni accumulate */
   state._brainOn=false;
   if(state._orb)state._orb.on=false;
   stopOrbMic();

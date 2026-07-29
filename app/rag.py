@@ -178,10 +178,18 @@ def _web_source(r) -> dict:
 
 
 def _merge_sources(hits, web_results) -> list:
-    """Fonti mostrate all'utente: gli slug del cervello (stringhe, come da sempre) e,
-    IN CODA, le fonti web come dict con `type: web`. Senza risultati web la lista è
-    identica a quella storica (solo stringhe) → retro-compatibile."""
-    sources = sorted({h.payload["slug"] for h in hits})
+    """Fonti mostrate all'utente. Fix B1 (difetto adiacente, 30-07): le fonti del
+    cervello erano STRINGHE (slug) ma la console le tratta da oggetti con titolo —
+    ogni etichetta stampava la parola generica «nota». Ora sono dict
+    `{slug, title}` (il titolo è già nel payload). Le fonti web restano in coda
+    con `type: web`. Il widget è aggiornato in pari (stesso deploy)."""
+    titles: dict[str, str] = {}
+    for h in hits:
+        p = h.payload or {}
+        slug = p.get("slug")
+        if slug and slug not in titles:
+            titles[slug] = p.get("title") or slug
+    sources: list = [{"slug": s, "title": titles[s]} for s in sorted(titles)]
     if web_results:
         sources = sources + [_web_source(r) for r in web_results]
     return sources

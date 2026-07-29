@@ -111,7 +111,7 @@ def test_answer_capability_off_nessun_web_e_prompt_invariato(monkeypatch):
 
     out = rag.answer("q", {"allowed_scopes": ["ats"]})       # web/web_enabled default = False
     assert out["answer"] == "risposta"
-    assert out["sources"] == ["nota-x"]                       # solo stringhe, come oggi
+    assert out["sources"] == [{"slug": "nota-x", "title": "nota-x"}]      # fix B1: oggetti con titolo
     assert "FONTI WEB" not in seen["user"]                    # nessun contesto web
     assert seen["system"] == rag._system("it")               # prompt storico (nessuna nota web)
 
@@ -129,8 +129,8 @@ def test_answer_capability_on_web_nel_contesto_e_sources(monkeypatch):
     # system prompt: nota d'uso non fidato delle fonti web aggiunta
     assert rag._WEB_NOTE_IT in seen["system"]
     # sources: slug del cervello (stringa) + fonte web come dict con type 'web'
-    assert "nota-x" in out["sources"]
-    web_src = [s for s in out["sources"] if isinstance(s, dict)]
+    assert {"slug": "nota-x", "title": "nota-x"} in out["sources"]
+    web_src = [s for s in out["sources"] if s.get("type") == "web"]
     assert web_src == [{"type": "web", "title": "Titolo Web", "url": "https://esempio.com/x"}]
 
 
@@ -212,7 +212,7 @@ def test_chat_web_off_default_nessuna_chiamata(monkeypatch):
 
     r = client.post("/chat", json={"message": "q", "web": True}, headers={"X-Tenant-Key": "K"})
     assert r.status_code == 200
-    assert r.json()["sources"] == ["nota-x"]            # pure stringhe → identico a oggi
+    assert r.json()["sources"] == [{"slug": "nota-x", "title": "nota-x"}]   # fix B1: oggetti con titolo
 
 
 def test_chat_web_on_da_branding_produce_fonte_web(monkeypatch):
