@@ -159,7 +159,7 @@ def test_chat_ponte_off_default_nessuna_chiamata_a_divina(monkeypatch):
     assert r.status_code == 200
     body = r.json()
     assert body["answer"] == "risposta-rag"
-    assert body["sources"] == ["nota-x"]                       # pure stringhe → identico a oggi
+    assert body["sources"] == [{"slug": "nota-x", "title": "nota-x"}]      # fix B1: oggetti con titolo
 
 
 def test_chat_ponte_attivo_ma_senza_config_e_inerte(monkeypatch):
@@ -299,7 +299,7 @@ def test_chat_senza_flag_agent_resta_rag(monkeypatch):
     r = client.post("/chat", json={"message": "scrivi un contratto"},
                     headers={"X-Tenant-Key": "K"})
     assert r.status_code == 200
-    assert r.json()["sources"] == ["nota-x"]                             # RAG puro
+    assert r.json()["sources"] == [{"slug": "nota-x", "title": "nota-x"}]                    # RAG puro
 
 
 # ── AGENTS_AUTO: auto-instradamento sui messaggi task-like ────────────────────
