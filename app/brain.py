@@ -112,7 +112,10 @@ def build_graph(notes: list[dict]) -> dict:
     seen: set[tuple] = set()
     links: list[list[int]] = []
     for i, n in enumerate(notes):
-        for m in _LINK_RE.finditer(n.get("content") or ""):
+        # P0-bis parte 4: si analizza il testo COMPLETO (frontmatter incluso,
+        # campo `raw` da ingest) — le liste di link nel frontmatter contano.
+        # `content` resta il fallback per i chiamanti storici.
+        for m in _LINK_RE.finditer(n.get("raw") or n.get("content") or ""):
             j = idx.get(m.group(1).strip().lower())
             if j is None or j == i:
                 continue

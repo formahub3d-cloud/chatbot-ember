@@ -34,6 +34,10 @@ class Settings(BaseSettings):
 
     # cervello
     vault_path: str = ""
+    # GUARD anti-svuotamento (P0-bis, sintesi 29-07): sotto questa soglia di note
+    # trovate l'ingest completo si INTERROMPE senza toccare la collection —
+    # un vault mancante/mezzo clonato non deve mai azzerare il cervello.
+    ingest_min_notes: int = 20
     # auto-ingest da git (opzionale): se valorizzato, PRIMA di indicizzare il vault
     # viene aggiornato dal repo (git pull --ff-only se già clonato, altrimenti git
     # clone --depth 1). Serve su Railway, dove il vault non si aggiorna da solo: il
