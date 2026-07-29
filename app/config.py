@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # trovate l'ingest completo si INTERROMPE senza toccare la collection —
     # un vault mancante/mezzo clonato non deve mai azzerare il cervello.
     ingest_min_notes: int = 20
+    # GUARD gemello anti-STANTIO (fix A0, 29-07): se l'ultimo commit del vault è
+    # più vecchio di N ore l'ingest si interrompe con errore esplicito — un vault
+    # fermo da giorni è un sintomo, non una condizione normale. 0 = disattivato
+    # (es. vault che legittimamente cambia di rado).
+    ingest_max_vault_age_h: int = 48
     # auto-ingest da git (opzionale): se valorizzato, PRIMA di indicizzare il vault
     # viene aggiornato dal repo (git pull --ff-only se già clonato, altrimenti git
     # clone --depth 1). Serve su Railway, dove il vault non si aggiorna da solo: il
@@ -47,6 +52,11 @@ class Settings(BaseSettings):
     # token per repo PRIVATO (iniettato nell'URL come x-access-token, MAI loggato).
     # Vuoto = repo pubblico. È un segreto: solo segnaposto in .env.example.
     vault_git_token: str = ""
+    # Fix A0 (secondo problema, separato dallo stantio): il codice NON aveva un
+    # ref → clone/fetch usavano il branch di DEFAULT del repo del vault, che per
+    # ovy-cervello è feature/wave-01, NON main. La produzione ha quindi
+    # fotografato il branch sbagliato. Ora il ramo è esplicito e configurabile.
+    vault_git_ref: str = "main"
     # Realtime: dopo un write-back confermato, re-indicizza SUBITO (incrementale) la
     # nota appena scritta → il cervello la riflette "man mano", senza attendere un
     # ingest completo. OFF di default (opt-in). Best-effort: un errore non blocca mai

@@ -42,14 +42,17 @@ def test_clone_quando_manca_git(monkeypatch, tmp_path):
 
 
 # ── pull: cartella con .git → git pull --ff-only ──────────────────────────────
-def test_pull_quando_git_esiste(monkeypatch, tmp_path):
+def test_fetch_reset_quando_git_esiste(monkeypatch, tmp_path):
+    """Fix A0: la via primaria è fetch --depth 1 + reset --hard FETCH_HEAD —
+    deterministica sugli shallow (il pull --ff-only ci falliva) e innocua per
+    i file non tracciati (contratti/, write-back)."""
     (tmp_path / ".git").mkdir()
     calls = []
     monkeypatch.setattr(ingest.subprocess, "run", _fake_run(calls))
     assert ingest.sync_vault(str(tmp_path), "https://github.com/acme/ovy-cervello.git", "") is True
-    assert len(calls) == 1
-    argv = calls[0][0]
-    assert argv == ["git", "-C", str(tmp_path), "pull", "--ff-only"]
+    assert len(calls) == 2
+    assert calls[0][0][:5] == ["git", "-C", str(tmp_path), "fetch", "--depth"]
+    assert calls[1][0] == ["git", "-C", str(tmp_path), "reset", "--hard", "FETCH_HEAD"]
     assert calls[0][1].get("shell") is not True
 
 
@@ -60,8 +63,11 @@ def test_token_iniettato_nell_url_del_clone(monkeypatch, tmp_path):
     dest = tmp_path / "vault"
     ingest.sync_vault(str(dest), "https://github.com/acme/cervello.git", "SECRETTOKEN")
     argv = calls[0][0]
-    clone_url = argv[4]
-    assert clone_url == "https://x-access-token:SECRETTOKEN@github.com/acme/cervello.git"
+    urls = [a for a in argv if a.startswith("https://")]
+    assert urls == ["https://x-access-token:SECRETTOKEN@github.com/acme/cervello.git"]
+    # A0: il clone punta ESPLICITAMENTE al ref configurato, mai al default-branch del repo
+    assert "--branch" in argv
+    assert argv[argv.index("--branch") + 1] == "main"
 
 
 def test_token_non_compare_nei_log_su_errore(monkeypatch, tmp_path, caplog):
@@ -82,16 +88,19 @@ def test_token_non_compare_nei_log_su_errore(monkeypatch, tmp_path, caplog):
 
 
 # ── politica errori: pull best-effort (prosegue), clone fatale (solleva) ──────
-def test_pull_fallito_prosegue_senza_sollevare(monkeypatch, tmp_path, caplog):
+def test_fetch_fallito_NON_prosegue_in_silenzio(monkeypatch, tmp_path, caplog):
+    """Fix A0: il vecchio comportamento («proseguo con la copia locale») ha
+    tenuto in produzione un cervello di settimane fa con workflow verde. Ora:
+    fetch giù → si tenta il clone pulito; tutto giù → RuntimeError."""
     (tmp_path / ".git").mkdir()
 
     def boom(cmd, **kw):
         raise subprocess.CalledProcessError(1, cmd, stderr="network blip")
     monkeypatch.setattr(ingest.subprocess, "run", boom)
     with caplog.at_level(logging.WARNING, logger="ember.ingest"):
-        # NON solleva: c'è già una copia locale, si prosegue con quella.
-        assert ingest.sync_vault(str(tmp_path), "https://github.com/acme/c.git", "") is True
-    assert "proseguo con la copia locale" in caplog.text
+        with pytest.raises(RuntimeError, match="MAI indicizzare in silenzio"):
+            ingest.sync_vault(str(tmp_path), "https://github.com/acme/c.git", "")
+    assert "proseguo con la copia locale" not in caplog.text
 
 
 def test_clone_fallito_solleva_runtimeerror(monkeypatch, tmp_path):

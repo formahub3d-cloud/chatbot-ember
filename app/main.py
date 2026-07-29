@@ -576,8 +576,10 @@ def admin_brain(authorization: str = Header(default="")):
     l'ingest sincronizza su Supabase (`documents`). Bearer ADMIN_TOKEN.
     `persist:false` (e dati vuoti) se il backend non è configurato."""
     _require_admin(authorization)
+    # Fix A0: commit e data del vault locale («cervello allineato al commit X
+    # del giorno Y») — la spia che rende VISIBILE un cervello stantio.
     return {"persist": brain.enabled(), "stats": brain.stats(),
-            "recent": brain.notes(limit=10)}
+            "recent": brain.notes(limit=10), "vault": ingest.vault_info()}
 
 
 @app.get("/admin/brain/graph")
