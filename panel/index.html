@@ -236,6 +236,17 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 /* ── Orb «Brain Motion» (spec artifact v2): la sfera reagisce alla voce e cambia col companion ── */
 .orbbar{display:flex;align-items:center;gap:14px;padding:8px 22px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface) 55%,transparent);flex-shrink:0}
 .orbbar canvas{width:72px;height:72px;flex-shrink:0}
+/* ── V3 · modo vocale a tutto schermo: l'orb diventa presenza ── */
+.voxmode{position:fixed;inset:0;z-index:520;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(16px)}
+.voxmode.open{display:flex}
+.voxmode canvas,.voxmode .orb-css{width:min(64vw,300px);height:min(64vw,300px)}
+.vox-x{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:18px;font-size:20px;line-height:1;min-width:44px;min-height:44px}
+.vox-state{font-family:Orbitron,Montserrat,sans-serif;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
+.vox-log{width:min(92vw,560px);max-height:24vh;overflow-y:auto;font-size:12.5px;line-height:1.65;color:var(--text-3);text-align:center;scrollbar-width:thin}
+.vox-log .vox-u{color:var(--cyan)}
+.vox-log .vox-b{color:var(--text-2)}
+.vox-log .interim{opacity:.55;font-style:italic}
+@media (prefers-reduced-motion: reduce){.voxmode{backdrop-filter:none}}
 /* Fallback P1.5: canvas bloccato (anti-fingerprint/Lockdown) → orb in CSS puro */
 .orb-css{--oc:#a855f7;width:72px;height:72px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 38% 32%,rgba(255,255,255,.72) 0%,var(--oc) 44%,transparent 76%);animation:orbBreath 3.2s ease-in-out infinite}
 .orb-css[data-mode="ragionando"]{animation-duration:1.6s}
@@ -316,7 +327,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 
     <div class="nav-label"><span class="ld" style="background:linear-gradient(90deg,var(--magenta),var(--cyan))"></span> Conversa</div>
     <button class="nav-item active" data-view="home"><span class="ic" data-ic="world" data-ics="17"></span> Il tuo mondo</button>
-    <button class="nav-item" data-view="chat"><span class="ic" data-ic="chat" data-ics="17"></span> Chat col cervello</button>
+    <button class="nav-item" data-view="chat"><span class="ic" data-ic="chat" data-ics="17"></span> Comunica col cervello</button>
 
     <div class="nav-label"><span class="ld" style="background:var(--cyan)"></span> Cervello · motore</div>
     <button class="nav-item" data-view="dashboard"><span class="ic" data-ic="dash" data-ics="17"></span> Dashboard</button>
@@ -343,7 +354,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 30-07d · la voce continua</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07a · voce naturale</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -357,7 +368,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
   <div class="main">
     <header class="topbar">
       <button class="icon-btn burger" id="burger" aria-label="Menu" data-ic="menu" data-ics="19"></button>
-      <div><div class="page-title" id="pageTitle">Chat col cervello</div><div class="page-sub" id="pageSub">Parla con Divina</div></div>
+      <div><div class="page-title" id="pageTitle">Comunica col cervello</div><div class="page-sub" id="pageSub">Parla con Divina</div></div>
       <div class="top-actions">
         <button class="tenant-chip" id="tenantChip" title="Cambia tenant"><span class="tlabel">tenant:</span> <b id="tenantText">forma</b></button>
         <button class="conn-chip" id="connChip" title="Connessione"><span class="dot"></span><span id="connText">Non connesso</span></button>
@@ -391,6 +402,20 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
   <div class="modal-foot"><button class="btn ghost" id="connCancel">Annulla</button><button class="btn primary" id="connSave">Connetti</button></div>
 </div></div>
 <div class="toasts" id="toasts"></div>
+
+<!-- V3 · Modo vocale a tutto schermo: l'orb come PRESENZA, non accessorio.
+     La chat scritta resta com'è: due modi distinti. Dialogo modale vero:
+     focus trap, Escape chiude, tutto raggiungibile da tastiera. -->
+<div class="voxmode" id="voxMode" role="dialog" aria-modal="true" aria-label="Modo vocale — parla con Divina" hidden>
+  <button class="icon-btn vox-x" id="voxClose" title="Chiudi e torna alla chat scritta (Esc)" aria-label="Chiudi il modo vocale">✕</button>
+  <canvas id="voxOrb"></canvas>
+  <div class="vox-state" id="voxState" aria-live="polite">pronta</div>
+  <div class="vox-log" id="voxLog" aria-label="Trascritto della conversazione"></div>
+  <div class="row" style="gap:10px">
+    <button class="btn" id="voxMic">In pausa / riprendi</button>
+    <span class="small muted">Esc per chiudere</span>
+  </div>
+</div>
 
 <script src="brain3d.js"></script>
 <script>
@@ -503,7 +528,7 @@ function demoData(service, path, opts){
     const D={
       '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123'},
       '/health':{status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
-      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it'},
+      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it'},
       '/admin/analytics':{uptime_s:186420,totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.'}]},
@@ -630,6 +655,7 @@ const VIEWS={
     C.innerHTML=`<div class="chat"><div class="orbbar"><canvas id="orbCv"></canvas><div><div class="orb-state" id="orbState">Inattivo</div><div class="orb-agent" id="orbAgent">agente attivo · Divina</div></div><div class="orb-picks" id="orbPicks"><button class="orb-pick" data-oc="divina" title="Smistamento automatico">${icon('spark',12)} Divina</button><button class="orb-pick" data-oc="dante" title="Finanza & numeri">Dante</button><button class="orb-pick" data-oc="virgilio" title="Legale & operazioni">Virgilio</button><button class="orb-pick" data-oc="beatrice" title="Marketing & contenuti">Beatrice</button></div><div class="orb-gov">${icon('lock',12)} ogni azione con effetto esterno passa dalla tua approvazione</div></div><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
       <div class="composer"><div class="composer-inner">
         <textarea id="chatMsg" placeholder="Scrivi o detta al cervello OVY… (Invio per inviare, Shift+Invio a capo)" rows="1"></textarea>
+        <button class="btn" id="voxBtn" title="Modo vocale a tutto schermo — parla con Divina" style="white-space:nowrap">${icon('mic',15)} Parla</button>
         <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">${icon('mic',18)}</button>
         <button class="icon-btn" id="chatTts" title="Lettura vocale delle risposte">${icon(state.tts?'speakon':'speakoff',18)}</button>
         <button class="btn primary" id="chatSend" style="min-width:52px">${icon('send',18)}</button></div></div></div>`;
@@ -638,6 +664,7 @@ const VIEWS={
     ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(160,ta.scrollHeight)+'px';});
     ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
     $('#chatSend').onclick=sendChat;initVoice();initOrb();
+    const vb=$('#voxBtn');if(vb)vb.onclick=voxOpen;
     $$('#orbPicks .orb-pick').forEach(b=>b.onclick=()=>pickComp(b.dataset.oc));
     pickComp(state._compSel||'divina');
     if(!state.demo&&!state.tenantKey&&!state.clientMode){const st=$('#orbState');if(st)st.textContent='In attesa di connessione';}
@@ -694,7 +721,7 @@ const VIEWS={
         <div class="card"><div class="card-head"><div><h3>Volume chat per tenant</h3><p>Conversazioni per area del cervello</p></div></div>
           ${scopes.length?`<div class="mini-bars">${scopes.map(([s,d])=>`<div class="mini-row"><div class="top"><span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span><b>${fmtN(d.chat)}</b></div><div class="bar-track"><div class="bar-fill" style="width:${pct(d.chat,maxChat)}%;background:${scopeColor(s)}"></div></div></div>`).join('')}</div>`:emptyBox(icon('inbox',36),'Nessun dato','')}</div>
         <div class="card"><div class="card-head"><div><h3>Salute motore</h3><p>Provider &amp; funzioni</p></div></div>
-          <table><tbody><tr><td class="muted">LLM</td><td class="num"><span class="pill">${esc(h.llm||'—')}</span></td></tr><tr><td class="muted">Embeddings</td><td class="num"><span class="pill">${esc(h.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr><tr><td class="muted">Analytics persist</td><td class="num">${st.analytics_persist?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Cifratura</td><td class="num">${st.content_encryption?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr></tbody></table></div>
+          <table><tbody><tr><td class="muted">LLM</td><td class="num"><span class="pill">${esc(h.llm||'—')}</span></td></tr><tr><td class="muted">Embeddings</td><td class="num"><span class="pill">${esc(h.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr><tr><td class="muted">Analytics persist</td><td class="num">${st.analytics_persist?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Cifratura</td><td class="num">${st.content_encryption?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Voce</td><td class="num"><span class="pill">${esc(st.voice_provider||'browser')}</span></td></tr>${st.voice_provider?`<tr><td class="muted">Voce italiana impostata</td><td class="num">${st.voice_id_set?'<span class="tag pos">SÌ</span>':'<span class="tag neg">NO — timbro inglese</span>'}</td></tr><tr><td class="muted">Modello voce</td><td class="num"><span class="pill">${esc(st.voice_tts_model||'—')}</span></td></tr>`:''}</tbody></table></div>
       </div>`;
     }catch(e){C.innerHTML=errBox(e);}
   },
@@ -957,23 +984,32 @@ async function sendChat(){
     if(el&&e&&e.at>=t0-2&&e.routed){const col=AG_COLORS[e.agent]||'var(--magenta)';el.innerHTML=`<b style="color:${col}">${icon('spark',12)} ${esc(e.agent)}</b> · ${esc(e.role||e.skill||'')} sta lavorando…`;setOrb('ragionando',e.agent);}
   }catch(_){}},1500);}
   try{
-    /* Modalità cliente: la chiave tenant vive sul SERVER — si chatta con la
-       sessione (cookie HttpOnly) su /client/chat, stesso flusso e guardie. */
-    const payload={message:text,history,...(comp?{agent:true,companion:comp}:{})};
-    const r=state.clientMode
-      ?await (async()=>{const res=await fetch('/client/chat',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(res.status===401){toast('Sessione scaduta: entra di nuovo','bad');setTimeout(()=>location.reload(),1200);throw new Error('sessione scaduta');}if(!res.ok)throw new Error(res.status+' · '+(await res.text()).slice(0,160));return res.json();})()
-      :await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:payload});
+    const r=await chatTurn(text,history);
     state.chat.pop();
-    const answer=r.answer||r.text||r.message||(typeof r==='string'?r:'(nessuna risposta)');
-    state.chat.push({role:'bot',text:answer,sources:r.sources||[]});
-    const used=(r.sources||[]).filter(x=>x&&typeof x==='object'&&x.slug&&!x.type).map(x=>x.slug);
-    if(used.length){state._recentFires.push(...used);state._recentFires=state._recentFires.slice(-40);}
-    const ag=(r.sources||[]).find(s=>s.type==='agent');
-    setOrb(state.tts?null:'idle',ag?ag.agent:(comp||'divina'));
-    speak(answer);
+    state.chat.push({role:'bot',text:r.answer,sources:r.sources});
+    setOrb(state.tts?null:'idle',r.agent||comp||'divina');
+    speak(r.answer);
   }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'✕ '+e.message,sources:[]});setOrb('idle');}
   if(brainTimer)clearInterval(brainTimer);
   renderChat();
+}
+
+/* Il CUORE di un turno di chat, condiviso tra chat scritta e modo vocale (V3):
+   payload col companion, via cliente (chiave sul SERVER, cookie HttpOnly) o
+   via chiave tenant, fonti → neuroni recenti. NON tocca state.chat: la
+   memoria/il rendering restano ai chiamanti. */
+async function chatTurn(text,history){
+  const comp=(state._compSel&&state._compSel!=='divina')?state._compSel:null;
+  const payload={message:text,history,...(comp?{agent:true,companion:comp}:{})};
+  const r=state.clientMode
+    ?await (async()=>{const res=await fetch('/client/chat',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(res.status===401){toast('Sessione scaduta: entra di nuovo','bad');setTimeout(()=>location.reload(),1200);throw new Error('sessione scaduta');}if(!res.ok)throw new Error(res.status+' · '+(await res.text()).slice(0,160));return res.json();})()
+    :await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:payload});
+  const answer=r.answer||r.text||r.message||(typeof r==='string'?r:'(nessuna risposta)');
+  const sources=r.sources||[];
+  const used=sources.filter(x=>x&&typeof x==='object'&&x.slug&&!x.type).map(x=>x.slug);
+  if(used.length){state._recentFires.push(...used);state._recentFires=state._recentFires.slice(-40);}
+  const ag=sources.find(s=>s.type==='agent');
+  return {answer,sources,agent:ag?ag.agent:null,comp};
 }
 
 /* ---- ORB «Brain Motion» (spec artifact v2) ----
@@ -982,7 +1018,7 @@ async function sendChat(){
    approvazione). Colori companion: Dante arancio · Virgilio ciano ·
    Beatrice magenta · Divina viola. */
 const ORB_COLS={dante:'#F8693C',virgilio:'#0ED4E4',beatrice:'#DD24F2',divina:'#a855f7',worker:'#89D41D'};
-function initOrb(cvId='orbCv'){
+function initOrb(cvId='orbCv',maxPx=160){
   /* Orb «a prova di bomba» (fix P1, collaudo Cowork 24-07): un solo motore per
      tutti gli orb (chat, cervello vivo…), MAI un rettangolo vuoto.
      1) mai backing 0×0 (fallback 72px, DPR con cap 3);
@@ -1012,7 +1048,7 @@ function initOrb(cvId='orbCv'){
   const size=()=>{
     const el=document.getElementById(cvId);if(!el)return;
     const w=el.clientWidth;
-    S=(Number.isFinite(w)&&w>8)?Math.max(40,Math.min(160,w)):72;   // mai 0/NaN
+    S=(Number.isFinite(w)&&w>8)?Math.max(40,Math.min(maxPx,w)):72;   // mai 0/NaN (V3: l'orb grande passa maxPx)
     el.width=Math.round(S*DPR);el.height=Math.round(S*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
   };
@@ -1074,6 +1110,10 @@ function setOrb(mode,comp){
   }
   const L={idle:'Inattivo',ascolto:'In ascolto…',parlando:'Sto parlando…',ragionando:'Sto ragionando…',azione:'In azione…'};
   const s=document.getElementById('orbState');if(s)s.textContent=L[o.mode]||'Inattivo';
+  if(state._vox&&state._vox.open){                 // V3: stato a colpo d'occhio nel modo vocale
+    const VL={idle:'pronta',ascolto:'in ascolto',parlando:'sto parlando',ragionando:'sto pensando',azione:'in azione'};
+    const vs=document.getElementById('voxState');if(vs)vs.textContent=VL[o.mode]||'pronta';
+  }
   const a=document.getElementById('orbAgent');if(a){const c=o.comp||'divina';a.textContent='agente attivo · '+c.charAt(0).toUpperCase()+c.slice(1);a.style.color=ORB_COLS[o.comp]||'';}
 }
 async function startOrbMic(){
@@ -1090,6 +1130,108 @@ function stopOrbMic(){
   try{state._orbStream&&state._orbStream.getTracks().forEach(t=>t.stop());}catch(_){}
   try{state._orbAC&&state._orbAC.close();}catch(_){}
   state._orbStream=null;state._orbAC=null;if(state._orb)state._orb.mic=0;
+}
+
+/* ── V3 · Modo vocale a tutto schermo ─────────────────────────────────────
+   «Parla» apre la conversazione a voce: orb GRANDE al centro (stesso motore
+   initOrb: stesso fallback CSS quando il canvas è bloccato, frame statico
+   con prefers-reduced-motion), trascritto piccolo sotto (serve a capire se
+   ha sentito bene, non a essere letto), stato a colpo d'occhio. Loop:
+   in ascolto (Web Speech API) → sto pensando (chatTurn: la STESSA memoria
+   della chat scritta) → sto parlando (speakPro: l'orb respira con
+   l'ampiezza reale) → riascolto. Escape o ✕ chiudono, il focus resta nel
+   dialogo. La chat scritta resta esattamente com'è. */
+function voxOpen(){
+  if(state._vox&&state._vox.open)return;
+  const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SRC){toast('Dettatura non supportata da questo browser','bad');return;}
+  if(!state.demo&&!state.tenantKey&&!state.clientMode){toast('Configura una chiave tenant (X-Tenant-Key) per parlare','bad');openConn();return;}
+  const M=document.getElementById('voxMode');if(!M)return;
+  state._vox={open:true,paused:false,rec:null,ret:document.activeElement};
+  M.hidden=false;M.classList.add('open');
+  const log=document.getElementById('voxLog');if(log)log.innerHTML='';
+  initOrb('voxOrb',320);startOrbMic();
+  setOrb('ascolto',state._compSel||'divina');
+  const micB=document.getElementById('voxMic');if(micB){micB.textContent='Pausa';micB.onclick=voxToggleMic;}
+  document.getElementById('voxClose').onclick=voxClose;
+  M.addEventListener('keydown',voxKeys);
+  (micB||document.getElementById('voxClose')).focus();
+  voxListen();
+}
+function voxKeys(e){
+  if(e.key==='Escape'){e.preventDefault();voxClose();return;}
+  if(e.key!=='Tab')return;
+  const M=document.getElementById('voxMode');
+  const f=[...M.querySelectorAll('button')].filter(b=>b.offsetParent!==null);
+  if(!f.length)return;
+  const first=f[0],last=f[f.length-1],ae=document.activeElement;
+  if(e.shiftKey&&ae===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&(ae===last||!M.contains(ae))){e.preventDefault();first.focus();}
+}
+function voxClose(){
+  const v=state._vox;if(!v||!v.open)return;
+  v.open=false;state._voxAfter=null;
+  try{v.rec&&v.rec.stop();}catch(_){}v.rec=null;
+  stopVoiceOut();stopOrbMic();
+  const M=document.getElementById('voxMode');
+  if(M){M.classList.remove('open');M.hidden=true;M.removeEventListener('keydown',voxKeys);}
+  state._vox=null;
+  if(document.getElementById('orbCv')){initOrb('orbCv');setOrb('idle',state._compSel||'divina');}
+  try{v.ret&&v.ret.focus();}catch(_){}
+}
+function voxToggleMic(){
+  const v=state._vox;if(!v||!v.open)return;
+  v.paused=!v.paused;
+  const b=document.getElementById('voxMic');if(b)b.textContent=v.paused?'Riprendi':'Pausa';
+  if(v.paused){try{v.rec&&v.rec.stop();}catch(_){}v.rec=null;setOrb('idle');}
+  else voxListen();
+}
+function voxLine(role,text,interim){
+  const log=document.getElementById('voxLog');if(!log)return;
+  let el=log.querySelector('.vox-line.interim');
+  if(interim){
+    if(!text){if(el)el.remove();return;}
+    if(!el){el=document.createElement('div');el.className='vox-line interim vox-u';log.appendChild(el);}
+    el.textContent='Tu: '+text;
+  }else{
+    if(el)el.remove();
+    const n=document.createElement('div');n.className='vox-line '+(role==='user'?'vox-u':'vox-b');
+    n.textContent=(role==='user'?'Tu: ':'Divina: ')+text;log.appendChild(n);
+  }
+  while(log.children.length>14)log.removeChild(log.firstChild);
+  log.scrollTop=log.scrollHeight;
+}
+function voxListen(){
+  const v=state._vox;if(!v||!v.open||v.paused)return;
+  const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SRC)return;
+  setOrb('ascolto');
+  const r=new SRC();v.rec=r;r.lang='it-IT';r.interimResults=true;r.continuous=false;
+  let fin='';
+  r.onresult=e=>{let tmp='';for(const res of e.results){if(res.isFinal)fin+=res[0].transcript;else tmp+=res[0].transcript;}voxLine('user',(fin+tmp).trim(),true);};
+  r.onerror=()=>{};
+  r.onend=()=>{if(v.rec===r)v.rec=null;const t=fin.trim();if(!v.open)return;if(t)voxSend(t);else if(!v.paused)voxListen();};
+  try{r.start();}catch(_){}
+}
+async function voxSend(text){
+  const v=state._vox;if(!v||!v.open)return;
+  voxLine('user',text);
+  setOrb('ragionando');
+  const history=state.chat.filter(m=>m.role==='user'||m.role==='bot').map(m=>({role:m.role==='bot'?'assistant':'user',content:m.text}));
+  state.chat.push({role:'user',text});
+  try{
+    const r=await chatTurn(text,history);
+    state.chat.push({role:'bot',text:r.answer,sources:r.sources});
+    if(!v.open)return;
+    voxLine('bot',r.answer.length>300?r.answer.slice(0,300)+'…':r.answer);
+    if(r.agent)setOrb(null,r.agent);
+    /* nel modo vocale la risposta si PARLA sempre (anche se la lettura è
+       spenta nella chat scritta): è il punto del modo vocale */
+    state._voxAfter=()=>{state._voxAfter=null;if(v.open&&!v.paused)voxListen();};
+    speak(r.answer,true);
+  }catch(e){
+    state.chat.pop();
+    if(v.open){voxLine('bot','✕ '+e.message);if(!v.paused)voxListen();}
+  }
 }
 
 /* ---- VOCE (dettatura + lettura) + PR4 «la voce continua»: la lettura va per
@@ -1157,15 +1299,18 @@ async function _voicePro(){
   catch(_){state._voiceProOk=false;}
   return state._voiceProOk;
 }
-function speak(text){
-  if(!state.tts)return;
+function speak(text,force){
+  if(!state.tts&&!force)return;                      // force: nel modo vocale si parla sempre
   stopVoiceOut();
   const gen=state._vGen;
   const frasi=[];
   const r=emSentenze(String(text).slice(0,2000),true);
   r.frasi.forEach(f=>{const t=emPulisci(f);if(t)frasi.push(t);});
-  if(!frasi.length)return;
+  if(!frasi.length){voxAfter();return;}              // niente da dire: il loop vocale riparte comunque
   _voicePro().then(pro=>{if(gen!==state._vGen)return;if(pro)speakPro(frasi,gen);else speakBrowser(frasi,gen);});
+}
+function voxAfter(){                                  // fine lettura → il modo vocale riascolta
+  const f=state._voxAfter;if(!f)return;state._voxAfter=null;f();
 }
 function speakPro(frasi,gen){
   /* Coda ORDINATA per frase su /voice/tts (max 2 sintesi in volo): la prima
@@ -1188,7 +1333,7 @@ function speakPro(frasi,gen){
     const o=state._orb;if(o){o.out=0;o.outLive=false;}
     try{ac&&ac.close();}catch(_){}if(state._outAC===ac)state._outAC=null;
     if(!anyOk){speakBrowser(frasi,gen);return;}          // PRO giù: rete di sicurezza browser
-    setOrb('idle');
+    setOrb('idle');voxAfter();
   };
   const avanti=()=>{
     if(gen!==state._vGen||playing)return;
@@ -1220,16 +1365,16 @@ function speakPro(frasi,gen){
   tick();pump();
 }
 function speakBrowser(frasi,gen){
-  if(!('speechSynthesis' in window))return;
+  if(!('speechSynthesis' in window)){voxAfter();return;}   // muto: il loop vocale non resta appeso
   try{
     speechSynthesis.cancel();
     frasi.forEach((t,i)=>{
       const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';
       if(i===0)u.onstart=()=>{if(gen===state._vGen)setOrb('parlando');};
-      u.onend=()=>{if(gen===state._vGen&&!speechSynthesis.pending&&!speechSynthesis.speaking)setOrb('idle');};
+      u.onend=()=>{if(gen===state._vGen&&!speechSynthesis.pending&&!speechSynthesis.speaking){setOrb('idle');voxAfter();}};
       speechSynthesis.speak(u);                            // la coda del browser è già ordinata
     });
-  }catch(_){}
+  }catch(_){voxAfter();}
 }
 function stopVoiceOut(){
   state._vGen=(state._vGen||0)+1;                          // invalida le code in corso
@@ -1365,7 +1510,7 @@ function newClientForm(){
 }
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Comunica col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 function route(view){
   if(state.clientMode)view='chat';   /* modalità cliente: esiste solo la chat */
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
