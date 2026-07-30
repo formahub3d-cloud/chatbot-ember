@@ -352,8 +352,11 @@ def do_tts(body: TTSIn, x_tenant_key: str = Header(default=""), origin: str = He
     if not text:
         raise HTTPException(422, "Testo vuoto.")
     try:
-        audio, ctype = voice.synthesize(text)
-        return Response(content=audio, media_type=ctype)
+        # V1: streaming — i byte partono appena il provider li produce. Gli errori
+        # esplodono PRIMA del primo byte (contratto di synthesize_stream), quindi
+        # il 502 → fallback voce del browser resta identico a prima.
+        stream, ctype = voice.synthesize_stream(text)
+        return StreamingResponse(stream, media_type=ctype)
     except Exception:
         log.exception("tts failed")
         raise HTTPException(502, "Sintesi vocale non riuscita.")

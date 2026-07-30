@@ -172,6 +172,15 @@ class Settings(BaseSettings):
     elevenlabs_voice_id: str = ""       # vuoto = voce di default (multilingua)
     elevenlabs_model: str = "eleven_flash_v2_5"   # multilingua, bassa latenza (~75ms)
     elevenlabs_stt_model: str = "scribe_v1"
+    # Espressività (V1 «voce naturale»): regolabili da Railway SENZA commit, per
+    # provare timbri diversi cambiando una variabile. stability bassa = più
+    # espressiva ma meno costante TRA le frasi — e noi sintetizziamo frase per
+    # frase, quindi la costanza pesa più del solito. style > 0 aggiunge latenza:
+    # misurarla con [voce] prima/dopo; se 0.25 costa più di 80ms → 0.15.
+    elevenlabs_stability: float = 0.45
+    elevenlabs_similarity: float = 0.80
+    elevenlabs_style: float = 0.25
+    elevenlabs_speaker_boost: bool = True
 
     # tenant: in cloud (Railway) il file tenants.json non c'è (gitignored).
     # Se valorizzata, questa variabile contiene la mappa tenant come stringa JSON

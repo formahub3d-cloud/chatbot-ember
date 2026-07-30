@@ -14,6 +14,7 @@ voce di libreria dal timbro INGLESE (il modello è multilingua ma l'accento
 resta straniero). La configurazione mancante è visibile in /admin/status
 (voice_id_set) e nei log a ogni sintesi: va impostata una voce italiana.
 """
+import itertools
 import logging
 
 import httpx
@@ -60,6 +61,11 @@ def status() -> dict:
         out["voice_id_set"] = bool(_clean(settings.elevenlabs_voice_id))
         out["voice_tts_model"] = settings.elevenlabs_model
         out["voice_stt_model"] = settings.elevenlabs_stt_model
+        # V1: i quattro valori di espressività DAVVERO in uso, senza aprire Railway
+        out["voice_stability"] = settings.elevenlabs_stability
+        out["voice_similarity"] = settings.elevenlabs_similarity
+        out["voice_style"] = settings.elevenlabs_style
+        out["voice_speaker_boost"] = settings.elevenlabs_speaker_boost
     elif p == "deepgram":
         out["voice_id_set"] = True   # la voce è nel nome del modello TTS
         out["voice_tts_model"] = settings.deepgram_tts_model
@@ -95,20 +101,46 @@ def transcribe(audio: bytes, mime: str = "audio/webm") -> str:
     raise RuntimeError("VOICE_PROVIDER non configurato per STT")
 
 
+def _el_voice() -> str:
+    vid = _clean(settings.elevenlabs_voice_id)
+    if not vid:
+        vid = _EL_FALLBACK_VOICE
+        log.warning("ELEVENLABS_VOICE_ID vuoto: uso la voce di riserva %s "
+                    "(timbro INGLESE). Imposta una voce italiana su Railway.", vid)
+    return vid
+
+
+def _el_tts_body(text: str) -> dict:
+    """Corpo della sintesi ElevenLabs. V1 «voce naturale»: senza voice_settings
+    la voce recita coi default di fabbrica — era QUESTA la causa principale del
+    suono innaturale, più del modello. I quattro valori arrivano dall'ambiente
+    (default 0.45/0.80/0.25/true) così si prova un timbro cambiando una
+    variabile su Railway, senza commit. language_code forza la pronuncia
+    italiana (flash_v2_5 e turbo_v2_5 lo accettano)."""
+    body = {
+        "text": text,
+        "model_id": settings.elevenlabs_model,
+        "voice_settings": {
+            "stability": settings.elevenlabs_stability,
+            "similarity_boost": settings.elevenlabs_similarity,
+            "style": settings.elevenlabs_style,
+            "use_speaker_boost": settings.elevenlabs_speaker_boost,
+        },
+    }
+    if settings.voice_lang:
+        body["language_code"] = settings.voice_lang
+    return body
+
+
 def synthesize(text: str) -> tuple[bytes, str]:
     """Testo → (audio, content_type). Solleva RuntimeError se non configurato."""
     p = settings.voice_provider
     if p == "elevenlabs":
-        vid = _clean(settings.elevenlabs_voice_id)
-        if not vid:
-            vid = _EL_FALLBACK_VOICE
-            log.warning("ELEVENLABS_VOICE_ID vuoto: uso la voce di riserva %s "
-                        "(timbro INGLESE). Imposta una voce italiana su Railway.", vid)
         r = httpx.post(
-            f"https://api.elevenlabs.io/v1/text-to-speech/{vid}",
+            f"https://api.elevenlabs.io/v1/text-to-speech/{_el_voice()}",
             params={"output_format": "mp3_44100_128"},
             headers={"xi-api-key": _el_key(), "accept": "audio/mpeg"},
-            json={"text": text, "model_id": settings.elevenlabs_model}, timeout=60,
+            json=_el_tts_body(text), timeout=60,
         )
         r.raise_for_status()
         return r.content, "audio/mpeg"
@@ -123,3 +155,35 @@ def synthesize(text: str) -> tuple[bytes, str]:
         r.raise_for_status()
         return r.content, "audio/mpeg"
     raise RuntimeError("VOICE_PROVIDER non configurato per TTS")
+
+
+def synthesize_stream(text: str):
+    """Testo → (iteratore di byte, content_type), coi byte che partono appena il
+    provider li produce (endpoint /stream di ElevenLabs) invece di aspettare
+    l'mp3 completo: con la sintesi per frase toglie altri ms al primo suono.
+
+    Contratto per il fallback: ogni errore (connessione, status, provider non
+    configurato) esplode QUI, prima che il chiamante inizi a rispondere — il
+    primo blocco viene forzato subito. Così /voice/tts può ancora rispondere
+    502 e il widget ripiegare sulla voce del browser, identico a prima."""
+    p = settings.voice_provider
+    if p != "elevenlabs":
+        audio, ctype = synthesize(text)       # deepgram/altro: nessuno /stream, un blocco unico
+        return iter([audio]), ctype
+
+    def _gen():
+        with httpx.stream(
+            "POST",
+            f"https://api.elevenlabs.io/v1/text-to-speech/{_el_voice()}/stream",
+            params={"output_format": "mp3_44100_128"},
+            headers={"xi-api-key": _el_key(), "accept": "audio/mpeg"},
+            json=_el_tts_body(text), timeout=60,
+        ) as r:
+            r.raise_for_status()
+            for chunk in r.iter_bytes():
+                if chunk:
+                    yield chunk
+
+    gen = _gen()
+    first = next(gen, b"")                    # forza connessione+status: gli errori esplodono ORA
+    return itertools.chain([first], gen), "audio/mpeg"
