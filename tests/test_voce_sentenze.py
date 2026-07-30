@@ -27,3 +27,18 @@ def test_marcatori_presenti_nel_widget():
     """Senza marcatori il test node non estrae nulla: guard esplicito."""
     src = (ROOT / "widget" / "embed.js").read_text(encoding="utf-8")
     assert "EM_SENTENZE_BEGIN" in src and "EM_SENTENZE_END" in src
+
+
+def _blocco(path: Path) -> str:
+    import re
+    src = path.read_text(encoding="utf-8")
+    m = re.search(r"EM_SENTENZE_BEGIN.*?\*/(.*?)/\* EM_SENTENZE_END", src, re.S)
+    assert m, f"blocco chunker non trovato in {path.name}"
+    # normalizza la sola indentazione (widget: dentro la IIFE; console: top-level)
+    return "\n".join(l.strip() for l in m.group(1).splitlines() if l.strip())
+
+
+def test_chunker_identico_widget_e_console():
+    """PR4: la console riusa lo STESSO chunker del widget (copiato, file unici
+    senza build). La parità è un contratto: se divergono, questo test esplode."""
+    assert _blocco(ROOT / "widget" / "embed.js") == _blocco(ROOT / "panel" / "index.html")
