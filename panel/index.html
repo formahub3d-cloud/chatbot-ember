@@ -327,7 +327,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 
     <div class="nav-label"><span class="ld" style="background:linear-gradient(90deg,var(--magenta),var(--cyan))"></span> Conversa</div>
     <button class="nav-item active" data-view="home"><span class="ic" data-ic="world" data-ics="17"></span> Il tuo mondo</button>
-    <button class="nav-item" data-view="chat"><span class="ic" data-ic="chat" data-ics="17"></span> Chat col cervello</button>
+    <button class="nav-item" data-view="chat"><span class="ic" data-ic="chat" data-ics="17"></span> Comunica col cervello</button>
 
     <div class="nav-label"><span class="ld" style="background:var(--cyan)"></span> Cervello · motore</div>
     <button class="nav-item" data-view="dashboard"><span class="ic" data-ic="dash" data-ics="17"></span> Dashboard</button>
@@ -354,7 +354,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 30-07d · la voce continua</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07a · voce naturale</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -368,7 +368,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
   <div class="main">
     <header class="topbar">
       <button class="icon-btn burger" id="burger" aria-label="Menu" data-ic="menu" data-ics="19"></button>
-      <div><div class="page-title" id="pageTitle">Chat col cervello</div><div class="page-sub" id="pageSub">Parla con Divina</div></div>
+      <div><div class="page-title" id="pageTitle">Comunica col cervello</div><div class="page-sub" id="pageSub">Parla con Divina</div></div>
       <div class="top-actions">
         <button class="tenant-chip" id="tenantChip" title="Cambia tenant"><span class="tlabel">tenant:</span> <b id="tenantText">forma</b></button>
         <button class="conn-chip" id="connChip" title="Connessione"><span class="dot"></span><span id="connText">Non connesso</span></button>
@@ -528,7 +528,7 @@ function demoData(service, path, opts){
     const D={
       '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123'},
       '/health':{status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
-      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it'},
+      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it'},
       '/admin/analytics':{uptime_s:186420,totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.'}]},
@@ -721,7 +721,7 @@ const VIEWS={
         <div class="card"><div class="card-head"><div><h3>Volume chat per tenant</h3><p>Conversazioni per area del cervello</p></div></div>
           ${scopes.length?`<div class="mini-bars">${scopes.map(([s,d])=>`<div class="mini-row"><div class="top"><span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span><b>${fmtN(d.chat)}</b></div><div class="bar-track"><div class="bar-fill" style="width:${pct(d.chat,maxChat)}%;background:${scopeColor(s)}"></div></div></div>`).join('')}</div>`:emptyBox(icon('inbox',36),'Nessun dato','')}</div>
         <div class="card"><div class="card-head"><div><h3>Salute motore</h3><p>Provider &amp; funzioni</p></div></div>
-          <table><tbody><tr><td class="muted">LLM</td><td class="num"><span class="pill">${esc(h.llm||'—')}</span></td></tr><tr><td class="muted">Embeddings</td><td class="num"><span class="pill">${esc(h.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr><tr><td class="muted">Analytics persist</td><td class="num">${st.analytics_persist?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Cifratura</td><td class="num">${st.content_encryption?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr></tbody></table></div>
+          <table><tbody><tr><td class="muted">LLM</td><td class="num"><span class="pill">${esc(h.llm||'—')}</span></td></tr><tr><td class="muted">Embeddings</td><td class="num"><span class="pill">${esc(h.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr><tr><td class="muted">Analytics persist</td><td class="num">${st.analytics_persist?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Cifratura</td><td class="num">${st.content_encryption?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Voce</td><td class="num"><span class="pill">${esc(st.voice_provider||'browser')}</span></td></tr>${st.voice_provider?`<tr><td class="muted">Voce italiana impostata</td><td class="num">${st.voice_id_set?'<span class="tag pos">SÌ</span>':'<span class="tag neg">NO — timbro inglese</span>'}</td></tr><tr><td class="muted">Modello voce</td><td class="num"><span class="pill">${esc(st.voice_tts_model||'—')}</span></td></tr>`:''}</tbody></table></div>
       </div>`;
     }catch(e){C.innerHTML=errBox(e);}
   },
@@ -1510,7 +1510,7 @@ function newClientForm(){
 }
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Chat col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Comunica col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 function route(view){
   if(state.clientMode)view='chat';   /* modalità cliente: esiste solo la chat */
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
