@@ -30,6 +30,8 @@
  *   data-lang       "it-IT"                   lingua voce/riconoscimento
  *   data-voice      "true" | "false"          abilita microfono + lettura (default true)
  *   data-voice-auto "false" | "true"          legge in automatico ogni risposta (default false)
+ *   data-barge      "true" | "false"          interruzione a voce mentre Divina parla (default true;
+ *                                             si attiva solo se il permesso microfono è già concesso)
  *   data-greeting   testo di benvenuto personalizzato
  *
  * Oppure: window.EMBER_CONFIG = { proxy | api,key, title, accent, ... } prima dello script.
@@ -556,9 +558,72 @@
     voutFeed(String(t), true);                 // stessa coda per frasi: parte prima
   }
 
-  // (PR2) segnaposto: l'interruzione a metà frase arriva col prossimo commit.
-  function vadArm(){}
-  function vadIdle(){}
+  // ── PR2 · interruzione a metà frase (barge-in) ──
+  // Mentre Divina parla, un analyser sul microfono rileva la voce dell'utente:
+  // RMS sopra la soglia ADATTIVA per 220ms consecutivi → stop IMMEDIATO di
+  // audio e generazione, e il microfono passa all'utente. I primi 350ms di ogni
+  // riproduzione sono un periodo cieco (transitorio + eco dell'altoparlante);
+  // echoCancellation tiene la voce di Divina fuori dal microfono. La soglia
+  // parte dal rumore di fondo misurato, non tarata a occhio: i numeri vivono in
+  // window.Divina.voiceStats.vad (rms, base, soglia) per la taratura sul campo.
+  var BARGE = String(CFG.barge != null ? CFG.barge : (d.barge != null ? d.barge : "true")) !== "false";
+  var vad = { stream:null, ac:null, an:null, buf:null, raf:0, base:0.008, over:0,
+              lastPlayAt:0, armed:false, micOk:false };
+  function vadArm(){
+    vad.lastPlayAt = performance.now();
+    if (!BARGE || !hasMR || vad.armed) return;
+    if (vad.micOk){ vadStart(); return; }
+    // senza permesso già concesso NON apriamo il microfono solo per riprodurre audio
+    if (navigator.permissions && navigator.permissions.query){
+      navigator.permissions.query({ name: "microphone" })
+        .then(function(st){ if (st.state === "granted") vadStart(); }).catch(function(){});
+    }
+  }
+  function vadStart(){
+    if (vad.armed) return; vad.armed = true;
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true } })
+      .then(function(st){
+        if (!vad.armed || !voutBusy()){ try{ st.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} vad.armed = false; return; }
+        vad.stream = st; vad.micOk = true;
+        var AC = window.AudioContext || window.webkitAudioContext; vad.ac = new AC();
+        vad.an = vad.ac.createAnalyser(); vad.an.fftSize = 1024;
+        vad.ac.createMediaStreamSource(st).connect(vad.an);
+        vad.buf = new Uint8Array(vad.an.fftSize);
+        vad.over = 0; vadLoop();
+      }).catch(function(){ vad.armed = false; });
+  }
+  function vadLoop(){
+    if (!vad.armed || !vad.an) return;
+    vad.an.getByteTimeDomainData(vad.buf);
+    var s = 0, i, v;
+    for (i = 0; i < vad.buf.length; i++){ v = (vad.buf[i] - 128) / 128; s += v * v; }
+    var rms = Math.sqrt(s / vad.buf.length);
+    var now = performance.now();
+    var blind = (now - vad.lastPlayAt) < 350;
+    if (!blind && rms < Math.max(0.004, vad.base) * 1.5) vad.base = vad.base * 0.995 + rms * 0.005;
+    var soglia = Math.max(0.045, vad.base * 4);
+    VSTATS.vad = { rms:+rms.toFixed(4), base:+vad.base.toFixed(4), soglia:+soglia.toFixed(4) };
+    if (!voutBusy()){ vadIdle(); return; }                 // la risposta è finita: microfono giù
+    if (!blind && rms > soglia){
+      if (!vad.over) vad.over = now;
+      else if (now - vad.over > 220){ vadTrigger(rms, soglia); return; }
+    } else vad.over = 0;
+    vad.raf = requestAnimationFrame(vadLoop);
+  }
+  function vadTrigger(rms, soglia){
+    VSTATS.interruptions++;
+    try{ console.info("[voce] interruzione a metà frase", { rms:+rms.toFixed(4), soglia:+soglia.toFixed(4) }); }catch(e){}
+    stopAudio();                                           // la voce di Divina si ferma ADESSO
+    if (askCtl){ try{ askCtl.abort(); }catch(e){} }        // …e anche la generazione in corso
+    toggleListen();                                        // la parola passa all'utente
+  }
+  function vadIdle(){
+    vad.armed = false; vad.over = 0;
+    if (vad.raf){ cancelAnimationFrame(vad.raf); vad.raf = 0; }
+    try{ vad.stream && vad.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+    try{ vad.ac && vad.ac.close(); }catch(e){}
+    vad.stream = null; vad.ac = null; vad.an = null;
+  }
 
   // ── SSE reader (token per token) ──
   async function readSSE(r, msg, q){
