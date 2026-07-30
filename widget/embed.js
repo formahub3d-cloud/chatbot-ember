@@ -736,23 +736,52 @@
   }
   function stopListen(){ listening = false; if(mic) mic.classList.remove("live"); input.placeholder = TT("ph"); }
 
-  // STT PRO: registra col microfono e manda l'audio a /voice/stt (chiavi lato server).
+  // STT PRO (PR3): registra e TRASCRIVE MENTRE PARLI — chiavi sempre sul server.
+  // MediaRecorder con timeslice: ogni ~1.2s l'audio accumulato va a /voice/stt e
+  // il parziale compare nell'input: si vede che il sistema ascolta davvero.
+  // Si rimanda sempre il blob COMPLETO (solo il primo chunk webm ha l'header del
+  // contenitore: i pezzi successivi da soli non si decodificano). Ultimo-vince:
+  // una risposta arrivata fuori ordine non sovrascrive un parziale più nuovo;
+  // una sola richiesta in volo (la successiva riparte col chunk dopo).
   async function proListenStart(){
     var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    vad.micOk = true;                        // permesso concesso: il barge-in può armarsi
     mr = new MediaRecorder(stream); var chunks = [];
-    mr.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
+    var pseq = 0, pshown = 0, pbusy = false, t0rec = performance.now();
+    async function parziale(){
+      if (pbusy || !listening) return;
+      pbusy = true; var mySeq = ++pseq;
+      try{
+        var blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+        if (blob.size < 1200) return;        // troppo poco audio: niente da trascrivere
+        var fd = new FormData(); fd.append("file", blob, "audio.webm");
+        var r = await fetch(VBASE + "/voice/stt", { method:"POST", headers: voiceHeaders({}), body: fd });
+        if (!r.ok) return;
+        var j = await r.json();
+        if (listening && j && j.text != null && mySeq > pshown){ pshown = mySeq; input.value = j.text; }
+      }catch(e){}
+      finally{ pbusy = false; }
+    }
+    mr.ondataavailable = function(e){
+      if (e.data && e.data.size) chunks.push(e.data);
+      // parziali per i primi 90s (oltre: solo la trascrizione finale, costi sotto controllo)
+      if (listening && (performance.now() - t0rec) < 90000) parziale();
+    };
     mr.onstop = async function(){
       try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
       stopListen();
+      pseq += 1000;                          // invalida ogni parziale ancora in volo
       try{
         var blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
         var fd = new FormData(); fd.append("file", blob, "audio.webm");
         var r = await fetch(VBASE + "/voice/stt", { method:"POST", headers: voiceHeaders({}), body: fd });
         if (!r.ok) throw new Error("stt " + r.status);
-        var j = await r.json(); if (j && j.text) ask(j.text);
+        var j = await r.json(); input.value = "";
+        if (j && j.text) ask(j.text);
       }catch(e){ input.placeholder = TT("dictFail"); }
     };
-    listening = true; mic.classList.add("live"); input.placeholder = TT("listening"); stopAudio(); mr.start();
+    listening = true; mic.classList.add("live"); input.placeholder = TT("listening"); stopAudio();
+    mr.start(1200);                          // timeslice: un pezzo ogni 1.2s → parziali live
   }
 
   function toggleListen(){
@@ -809,6 +838,7 @@
   // pre-carica le voci TTS (alcuni browser le popolano in modo asincrono)
   if (canSpeak && synth.onvoiceschanged !== undefined){ synth.onvoiceschanged = function(){}; }
 
-  // API pubblica minima
-  window.Divina = window.Divina || { open:function(){toggle(true);}, close:function(){toggle(false);}, ask:function(t){toggle(true);ask(t);} };
+  // API pubblica minima (+ voiceStats: le misure della voce continua — prima
+  // sillaba in ms, interruzioni, numeri del VAD — per il collaudo sul campo)
+  window.Divina = window.Divina || { open:function(){toggle(true);}, close:function(){toggle(false);}, ask:function(t){toggle(true);ask(t);}, voiceStats:VSTATS };
 })();
