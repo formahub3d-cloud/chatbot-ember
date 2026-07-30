@@ -20,6 +20,7 @@ Questo permette una re-ingest ADDITIVA (aggiunge org/sub_tenant al payload) senz
 rompere i filtri esistenti basati su `allowed_scopes`.
 """
 import logging
+import os
 import re
 import subprocess
 import uuid
@@ -56,24 +57,29 @@ def _authed_url(url: str, token: str) -> str:
     return url
 
 
-def sync_vault(vault_path: str, url: str, token: str = "") -> bool:
+def sync_vault(vault_path: str, url: str, token: str = "", ref: str = "main") -> bool:
     """Aggiorna il vault locale dal repo git PRIMA dell'ingest. Funzione pura/testabile.
 
     - `url` vuoto → no-op, ritorna False (comportamento storico: legge la cartella locale).
-    - `<vault_path>/.git` esiste → `git -C <vault_path> pull --ff-only`.
+    - `<vault_path>/.git` esiste → `git fetch --depth 1` + `git reset --hard FETCH_HEAD`.
     - altrimenti → `git clone --depth 1 <url> <vault_path>`.
+
+    FIX A0 (vault stantio, 29-07): la vecchia via era `pull --ff-only`, che su un
+    clone shallow fallisce con facilità; il fallimento veniva LOGGATO e si proseguiva
+    con la copia locale — così la produzione ha reindicizzato per settimane la stessa
+    fotografia del primo clone, con tutti i segnali del successo. Ora:
+    - la via primaria è fetch+reset: funziona sugli shallow, è DETERMINISTICA
+      (il vault locale coincide col remoto, sempre) e NON tocca i file non
+      tracciati/gitignorati — che qui sono dati del cliente (contratti/, note
+      private del write-back) e non vanno MAI persi;
+    - se fetch+reset fallisce → UNA ripartenza con clone pulito in cartella nuova
+      (_fresh_clone_swap, che trasloca il contenuto solo-locale prima dello swap);
+    - se anche il clone fallisce → RuntimeError, come il clone iniziale: MAI più
+      proseguire in silenzio su una copia che non si sa quanto sia vecchia.
 
     Usa subprocess con LISTA di argomenti (mai shell=True). Il token per repo privato è
     iniettato nell'URL (x-access-token) e non viene MAI loggato: nei log compare solo
-    l'URL redatto (host/path senza credenziali). Ritorna True se ha tentato un pull/clone.
-
-    GESTIONE ERRORI (scelta motivata):
-    - pull fallito ma esiste già una copia locale (.git) → si LOGGA e si PROSEGUE con la
-      copia esistente: meglio indicizzare note leggermente stantie che far esplodere
-      l'ingest per un blip di rete. La rete di sicurezza notturna riproverà.
-    - clone iniziale fallito → NON c'è alcuna copia locale da cui partire: si solleva
-      RuntimeError (→ /ingest risponde 500 con messaggio chiaro), perché senza vault non
-      c'è nulla da indicizzare e proseguire indicizzerebbe il vuoto azzerando il cervello.
+    l'URL redatto. Ritorna True se ha sincronizzato.
     """
     if not url:
         return False
@@ -81,24 +87,84 @@ def sync_vault(vault_path: str, url: str, token: str = "") -> bool:
     safe = _redact_url(url)
     if (vp / ".git").exists():
         try:
-            subprocess.run(["git", "-C", str(vp), "pull", "--ff-only"],
+            subprocess.run(["git", "-C", str(vp), "fetch", "--depth", "1",
+                            _authed_url(url, token), ref],
                            check=True, capture_output=True, text=True)
-            log.info("vault: git pull --ff-only ok (%s)", safe)
+            subprocess.run(["git", "-C", str(vp), "reset", "--hard", "FETCH_HEAD"],
+                           check=True, capture_output=True, text=True)
+            log.info("vault: fetch+reset ok (%s)", safe)
         except (subprocess.CalledProcessError, OSError) as e:
-            # copia locale già presente: si prosegue con quella (non blocchiamo l'ingest).
-            log.warning("vault: git pull fallito (%s), proseguo con la copia locale: %s",
+            log.warning("vault: fetch+reset fallito (%s): %s — riprovo con un clone pulito",
                         safe, _redact_url(str(e)))
+            _fresh_clone_swap(vp, url, token, safe, ref)  # solleva se fallisce anche lui
         return True
     vp.parent.mkdir(parents=True, exist_ok=True)
     try:
-        subprocess.run(["git", "clone", "--depth", "1", _authed_url(url, token), str(vp)],
+        subprocess.run(["git", "clone", "--depth", "1", "--branch", ref,
+                        _authed_url(url, token), str(vp)],
                        check=True, capture_output=True, text=True)
-        log.info("vault: git clone --depth 1 ok (%s → %s)", safe, vp)
+        log.info("vault: git clone --depth 1 --branch %s ok (%s → %s)", ref, safe, vp)
     except (subprocess.CalledProcessError, OSError) as e:
         # nessuna copia locale da cui ripartire: senza vault non c'è ingest → errore chiaro.
         log.error("vault: git clone fallito (%s): %s", safe, _redact_url(str(e)))
         raise RuntimeError(f"Impossibile clonare il vault da {safe}") from e
     return True
+
+
+def _fresh_clone_swap(vp: Path, url: str, token: str, safe: str, ref: str = "main") -> None:
+    """Ripartenza pulita quando fetch+reset fallisce: clone in una cartella NUOVA,
+    trasloco del contenuto SOLO-LOCALE (gitignorato: `contratti/` annidati, note
+    private del write-back — dati del cliente, mai perderli), poi swap atomico
+    per rename. Se il clone fallisce → RuntimeError: mai indicizzare una copia
+    di cui non si conosce l'età."""
+    import shutil
+    tmp = vp.parent / (vp.name + ".fresh")
+    stale = vp.parent / (vp.name + ".stale")
+    shutil.rmtree(tmp, ignore_errors=True)
+    try:
+        subprocess.run(["git", "clone", "--depth", "1", "--branch", ref,
+                        _authed_url(url, token), str(tmp)],
+                       check=True, capture_output=True, text=True)
+    except (subprocess.CalledProcessError, OSError) as e:
+        log.error("vault: anche il clone pulito è fallito (%s): %s", safe, _redact_url(str(e)))
+        raise RuntimeError(
+            f"Vault non sincronizzabile da {safe}: né fetch+reset né un clone pulito "
+            "sono riusciti. Ingest interrotto: MAI indicizzare in silenzio una copia "
+            "locale di età ignota (fix A0).") from e
+    # trasloco RICORSIVO di ogni file presente solo nella copia vecchia (fuori da
+    # .git): copre i gitignorati ovunque siano annidati.
+    for root, dirs, files in os.walk(vp):
+        rel_root = Path(root).relative_to(vp)
+        if ".git" in rel_root.parts or rel_root.name == ".git":
+            dirs[:] = []
+            continue
+        dirs[:] = [d for d in dirs if d != ".git"]
+        for f in files:
+            src = Path(root) / f
+            dst = tmp / rel_root / f
+            if not dst.exists():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(src), str(dst))
+    vp.rename(stale)
+    tmp.rename(vp)
+    shutil.rmtree(stale, ignore_errors=True)
+    log.info("vault: clone pulito + swap ok (%s)", safe)
+
+
+def vault_info(vault_path: str | None = None) -> dict:
+    """Commit e data del vault locale — la SPIA del fix A0: senza questi due campi
+    in /ingest e /admin/brain nessuno può accorgersi di un cervello stantio
+    guardando. Dict vuoto se la cartella non è un repo git (dev locale)."""
+    vp = Path(vault_path or settings.vault_path)
+    if not (vp / ".git").exists():
+        return {}
+    try:
+        out = subprocess.run(["git", "-C", str(vp), "log", "-1", "--format=%H|%cI"],
+                             check=True, capture_output=True, text=True).stdout.strip()
+        sha, date = out.split("|", 1)
+        return {"vault_commit": sha[:12], "vault_commit_date": date}
+    except Exception:
+        return {}
 
 
 # Cartelle non utili al chatbot (derivati, scratch, fonti grezze).
@@ -263,7 +329,27 @@ def run() -> dict:
         raise RuntimeError("VAULT_PATH non impostato nel .env")
     # Auto-ingest: se VAULT_GIT_URL è impostato, aggiorna il vault dal repo del cervello
     # PRIMA di leggerlo. Vuoto = no-op → legge la cartella locale (comportamento storico).
-    sync_vault(settings.vault_path, settings.vault_git_url, settings.vault_git_token)
+    sync_vault(settings.vault_path, settings.vault_git_url, settings.vault_git_token,
+               settings.vault_git_ref)
+    # GUARD anti-STANTIO (fix A0): dopo la sincronizzazione, l'età dell'ultimo
+    # commit del vault deve stare sotto soglia — un vault fermo da giorni con la
+    # sync «riuscita» è esattamente il falso-successo che ha portato in
+    # produzione un cervello di settimane fa. PRIMA di ogni chiamata di rete.
+    vinfo = vault_info()
+    if settings.ingest_max_vault_age_h > 0 and vinfo.get("vault_commit_date"):
+        from datetime import datetime, timezone
+        try:
+            dt = datetime.fromisoformat(vinfo["vault_commit_date"])
+            age_h = (datetime.now(timezone.utc) - dt).total_seconds() / 3600
+        except ValueError:
+            age_h = -1
+        if age_h > settings.ingest_max_vault_age_h:
+            raise RuntimeError(
+                f"ingest annullato: il vault è fermo al commit {vinfo['vault_commit']} "
+                f"di ~{age_h:.0f} ore fa (soglia {settings.ingest_max_vault_age_h}h, "
+                "INGEST_MAX_VAULT_AGE_H; 0 per disattivare). Se il vault è davvero "
+                "fermo per scelta, alza la soglia; altrimenti la sincronizzazione "
+                "non sta portando gli aggiornamenti.")
     vault = Path(settings.vault_path)
     c = client()
 
@@ -374,8 +460,10 @@ def run() -> dict:
         import logging
         logging.getLogger("ember.ingest").exception("grafo cervello non aggiornato (ignorato)")
 
+    # Fix A0: commit e data del vault SEMPRE nella risposta — «cervello
+    # allineato al commit X del giorno Y», verificabile a occhio.
     return {"notes": n_notes, "chunks": len(points), "documents_synced": synced,
-            "graph_links": graph_links}
+            "graph_links": graph_links, **vinfo}
 
 
 # ── Re-ingest INCREMENTALE (una o poche note) ─────────────────────────────────
@@ -439,7 +527,8 @@ def reindex_paths(paths, sync: bool = True) -> dict:
     if not settings.vault_path:
         raise RuntimeError("VAULT_PATH non impostato nel .env")
     if sync:
-        sync_vault(settings.vault_path, settings.vault_git_url, settings.vault_git_token)
+        sync_vault(settings.vault_path, settings.vault_git_url, settings.vault_git_token,
+                   settings.vault_git_ref)
     vault = Path(settings.vault_path)
     c = client()
     ensure_collection(c, fresh=False)          # crea se manca, MAI azzera

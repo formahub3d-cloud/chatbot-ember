@@ -195,6 +195,8 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .msg.bot .bubble{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:5px}
 .sources{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .src-pill{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:8px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)}
+.src-pill.fire{cursor:pointer;transition:border-color .15s,color .15s}
+.src-pill.fire:hover{border-color:var(--cyan);color:var(--cyan)}
 .chat-hint{max-width:820px;margin:0 auto;text-align:center;color:var(--text-2);padding:40px 20px}
 .chat-hint .big{font-size:40px;margin-bottom:14px}
 .chat-hint h2{font-size:20px;margin-bottom:8px;background:linear-gradient(90deg,var(--magenta),var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
@@ -341,7 +343,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 30-07 · un solo renderer</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 30-07c · vault mai stantio</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -402,6 +404,9 @@ const state={
   tenant:(t=>t==='forma'?'forma-core':t)(localStorage.getItem(LS.tenant)||'forma-core'),
   demo:localStorage.getItem(LS.demo)==='1', view:'home', engOk:false, orchOk:false, chat:[],
   tts:localStorage.getItem(LS.tts)==='1', _liveTimer:null, _brainOn:false,
+  /* B3: slug delle note usate nelle risposte (memoria di sessione) — quando
+     apri Cervello vivo, quei neuroni PULSANO e alimentano la heatmap reale. */
+  _recentFires:[], _pendingFire:null,
   /* Selettore companion in chat: divina = smistamento automatico; dante/virgilio/
      beatrice = scelta esplicita (viaggia come `companion` in /chat). */
   _compSel:(c=>['divina','dante','virgilio','beatrice'].includes(c)?c:'divina')(localStorage.getItem(LS.comp)||'divina'),
@@ -490,7 +495,7 @@ function demoData(service, path, opts){
       return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats']});
     }
     if(path.startsWith('/admin/tasks/close')||path.startsWith('/admin/tasks/transition')) return Promise.resolve({ok:true});
-    if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:28},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
+    if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:28},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
     if(path.startsWith('/admin/proposals/approve')) return Promise.resolve({ok:true,task:{id:'t-demo',kind:'gap',status:'aperta'}});
     if(path.startsWith('/admin/proposals/dismiss')) return Promise.resolve({ok:true});
@@ -698,6 +703,10 @@ const VIEWS={
   async brain(){
     if(needSvc('engine'))return; C.innerHTML=skeleton(5);
     try{const d=await api('engine','/admin/brain');const s=d.stats||{},rec=d.recent||[];
+      /* A0 · spia anti-stantio: commit del vault fotografato dal motore. Se la
+         fotografia è più vecchia di 48h la spia diventa arancione. */
+      const v=d.vault||{},vAgeH=v.vault_commit_date?Math.round((Date.now()-new Date(v.vault_commit_date).getTime())/36e5):null;
+      const vaultMeta=v.vault_commit?`vault <span class="mono">${esc(v.vault_commit)}</span> · ${vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`:'sync metadati note';
       const noteRow=n=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div><div class="small muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.path||'')}</div></div><div class="row" style="gap:8px;flex-shrink:0"><span class="scope-chip" style="background:${scopeColor(n.tenant)}22;color:${scopeColor(n.tenant)};border-color:${scopeColor(n.tenant)}44">${esc(n.tenant||'')}</span><span class="small muted" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</span></div></div>`;
       C.innerHTML=`
       <div class="orbbar" style="border:1px solid var(--border);border-radius:14px;margin-bottom:14px;background:var(--surface)"><canvas id="brainOrbCv"></canvas><div><div class="orb-state">Cervello vivo</div><div class="orb-agent" id="brainOrbSub">${fmtN(s.notes)} neuroni · sinapsi in caricamento…</div></div><div class="orb-gov">la sfera respira col cervello: si accende quando pensa — grafo, ricerche, ingest</div></div>
@@ -706,7 +715,7 @@ const VIEWS={
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div><div class="lbl">${icon('brain',13)} Neuroni (note)</div><div class="val" style="color:var(--magenta)">${fmtN(s.notes)}</div><div class="meta">nel vault</div></div>
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">${icon('layers',13)} Aree</div><div class="val" style="color:var(--cyan)">${fmtN(s.areas)}</div><div class="meta">${Object.keys(s.by_tenant||{}).slice(0,4).map(esc).join(' · ')||'—'}</div></div>
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">${icon('spark',13)} Ultimi 7 giorni</div><div class="val" style="color:var(--green)">${fmtN(s.recent_7d)}</div><div class="meta">note aggiornate</div></div>
-        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">⟳ Ultima ingest</div><div class="val" style="color:var(--orange);font-size:21px">${s.last_ingest?timeAgoIso(s.last_ingest):'—'}</div><div class="meta">sync metadati note</div></div>
+        <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">⟳ Ultima ingest</div><div class="val" style="color:var(--orange);font-size:21px">${s.last_ingest?timeAgoIso(s.last_ingest):'—'}</div><div class="meta">${vaultMeta}</div></div>
       </div>
       <div class="grid g-2" style="margin-top:14px;align-items:start">
         <div class="card"><div class="card-head"><div><h3>Esplora le note</h3><p>Ricerca su titolo e percorso — la ricerca semantica vive nella Chat</p></div></div><div class="row"><input id="bnQ" placeholder="Cerca nel cervello… (es. listino, onboarding)" style="flex:1;min-width:160px"><button class="btn primary" id="bnGo">Cerca</button></div><div id="bnOut" style="margin-top:12px"></div></div>
@@ -924,10 +933,11 @@ function renderChat(){
     if(m.role==='approval'){const col=AG_COLORS[m.agent]||'var(--magenta)';return `<div class="msg bot"><div class="av" style="background:${col}">${icon('spark',15)}</div><div class="bubble" style="border:1px solid rgba(248,105,60,.45)"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Azione in attesa della TUA approvazione</div><div class="small muted" style="margin-bottom:10px">${esc(m.title||'')} — nessun effetto finché non decidi · ${icon('lock',11)} coerente con Proposte audit</div>${m.done?`<span class="tag ${m.done==='approvata'?'pos':'mut'}">${m.done==='approvata'?'✓ approvata da '+esc(m.by||''):'✕ rifiutata (archiviata, mai cancellata)'}</span>`:`<div class="row" style="flex-wrap:wrap"><input placeholder="Chi decide (nome)" id="ap-${esc(m.tid)}" style="max-width:170px"><button class="btn sm primary" onclick="chatApprove('${esc(m.tid)}','approvata')">✓ Approva</button><button class="btn sm" onclick="chatApprove('${esc(m.tid)}','archiviata')">✕ Rifiuta</button></div>`}</div></div>`;}
     const src=(m.sources||[]).map(s=>{
       if(s.type==='agent'){const col=AG_COLORS[s.agent]||'var(--magenta)';return `<span class="src-pill" style="color:${col};border-color:${col}55">${icon('spark',11)} ${esc(s.agent||'agente')}${s.skill?` · ${esc(s.skill)}`:''}${s.confidence!=null?` · ${Math.round(s.confidence*100)}%`:''}</span>`;}
-      return `<span class="src-pill">${icon('brain',11)} ${esc(s.title||s.slug||'nota')}${s.scope?` · ${esc(s.scope)}`:''}</span>`;}).join('');
+      return `<span class="src-pill${s.slug?' fire':''}"${s.slug?` data-fire="${esc(s.slug)}" title="Vedi il neurone nel Cervello vivo"`:''}>${icon('brain',11)} ${esc(s.title||s.slug||'nota')}${s.scope?` · ${esc(s.scope)}`:''}</span>`;}).join('');
     return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${esc(m.text)}</div>${src?`<div class="sources">${src}</div>`:''}</div></div>`;
   }).join('');
   const sc=$('#chatScroll');if(sc)sc.scrollTop=sc.scrollHeight;
+  $$('#chatInner [data-fire]').forEach(p=>p.onclick=()=>{state._pendingFire=p.dataset.fire;route('brain');});
 }
 async function sendChat(){
   const ta=$('#chatMsg');if(!ta)return;const text=ta.value.trim();if(!text)return;
@@ -956,6 +966,8 @@ async function sendChat(){
     state.chat.pop();
     const answer=r.answer||r.text||r.message||(typeof r==='string'?r:'(nessuna risposta)');
     state.chat.push({role:'bot',text:answer,sources:r.sources||[]});
+    const used=(r.sources||[]).filter(x=>x&&typeof x==='object'&&x.slug&&!x.type).map(x=>x.slug);
+    if(used.length){state._recentFires.push(...used);state._recentFires=state._recentFires.slice(-40);}
     const ag=(r.sources||[]).find(s=>s.type==='agent');
     setOrb(state.tts?null:'idle',ag?ag.agent:(comp||'divina'));
     speak(answer);
@@ -1147,6 +1159,15 @@ function startBrainCanvas(notes,realLinks){
     onHover:(n)=>{const cap=$('#brainCap');if(cap&&n)cap.textContent=`${n.title} · ${n.cat} · ${n.deg} sinapsi`;}
   });
   state._brain3d.setData(nodes,links);
+  /* B3 — i neuroni che si accendono: le note usate nelle risposte pulsano
+     all'apertura, e la heatmap «attività» riflette l'uso REALE di sessione. */
+  const cnt={};state._recentFires.forEach(sl=>{cnt[sl]=(cnt[sl]||0)+1;});
+  const mx=Math.max(1,...Object.values(cnt));
+  if(Object.keys(cnt).length){const usage={};for(const k in cnt)usage[k]=cnt[k]/mx;state._brain3d.setUsage(usage);}
+  const pend=state._pendingFire;state._pendingFire=null;
+  if(pend)setTimeout(()=>{if(state._brain3d)state._brain3d.fire(pend);},700);
+  [...new Set(state._recentFires.slice(-10))].filter(f=>f!==pend)
+    .forEach((f,i)=>setTimeout(()=>{if(state._brain3d)state._brain3d.fire(f);},1100+i*380));
 }
 
 /* ---- shared actions ---- */
