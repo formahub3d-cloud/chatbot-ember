@@ -790,7 +790,7 @@ def admin_status(authorization: str = Header(default="")):
         "redis": bool(settings.redis_url.strip()),
         "sentry": obs.enabled(),
         "stripe": billing.enabled(),
-        "voice_provider": settings.voice_provider.strip() or "",
+        **voice.status(),   # voice_provider + voice_id_set: la voce italiana manca? si vede qui
         "analytics_persist": bool(settings.analytics_persist),
         "retention_days": settings.retention_days,
         "content_encryption": crypto.enabled(),

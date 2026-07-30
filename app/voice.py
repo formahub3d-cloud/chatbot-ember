@@ -8,10 +8,24 @@ Provider selezionabile da .env con VOICE_PROVIDER:
 
 Così la "voce PRO" è un upsell attivabile senza toccare il widget:
 basta impostare le chiavi come variabili d'ambiente del servizio.
+
+ATTENZIONE (voce italiana): se ELEVENLABS_VOICE_ID è vuoto si ripiega su una
+voce di libreria dal timbro INGLESE (il modello è multilingua ma l'accento
+resta straniero). La configurazione mancante è visibile in /admin/status
+(voice_id_set) e nei log a ogni sintesi: va impostata una voce italiana.
 """
+import logging
+
 import httpx
 
 from .config import settings
+
+log = logging.getLogger("ember")
+
+# Voce di riserva della libreria ElevenLabs ("Rachel"): parla italiano perché il
+# modello è multilingua, ma con timbro/accent INGLESE. Serve solo a non lasciare
+# muto il servizio se ELEVENLABS_VOICE_ID manca: NON è la voce del prodotto.
+_EL_FALLBACK_VOICE = "21m00Tcm4TlvDq8ikWAM"
 
 
 def _clean(v: str) -> str:
@@ -35,6 +49,22 @@ def stt_enabled() -> bool:
 
 def tts_enabled() -> bool:
     return stt_enabled()  # stessa chiave provider abilita entrambi
+
+
+def status() -> dict:
+    """Fotografia NON sensibile della configurazione voce, per /admin/status:
+    da qui si vede a colpo d'occhio se manca la voce italiana (voice_id_set)."""
+    p = settings.voice_provider
+    out = {"voice_provider": p or "", "voice_lang": settings.voice_lang}
+    if p == "elevenlabs":
+        out["voice_id_set"] = bool(_clean(settings.elevenlabs_voice_id))
+        out["voice_tts_model"] = settings.elevenlabs_model
+        out["voice_stt_model"] = settings.elevenlabs_stt_model
+    elif p == "deepgram":
+        out["voice_id_set"] = True   # la voce è nel nome del modello TTS
+        out["voice_tts_model"] = settings.deepgram_tts_model
+        out["voice_stt_model"] = "nova-3"
+    return out
 
 
 def transcribe(audio: bytes, mime: str = "audio/webm") -> str:
@@ -69,7 +99,11 @@ def synthesize(text: str) -> tuple[bytes, str]:
     """Testo → (audio, content_type). Solleva RuntimeError se non configurato."""
     p = settings.voice_provider
     if p == "elevenlabs":
-        vid = settings.elevenlabs_voice_id or "21m00Tcm4TlvDq8ikWAM"  # voce di default (multilingua)
+        vid = _clean(settings.elevenlabs_voice_id)
+        if not vid:
+            vid = _EL_FALLBACK_VOICE
+            log.warning("ELEVENLABS_VOICE_ID vuoto: uso la voce di riserva %s "
+                        "(timbro INGLESE). Imposta una voce italiana su Railway.", vid)
         r = httpx.post(
             f"https://api.elevenlabs.io/v1/text-to-speech/{vid}",
             params={"output_format": "mp3_44100_128"},
