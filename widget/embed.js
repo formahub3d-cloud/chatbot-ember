@@ -30,6 +30,8 @@
  *   data-lang       "it-IT"                   lingua voce/riconoscimento
  *   data-voice      "true" | "false"          abilita microfono + lettura (default true)
  *   data-voice-auto "false" | "true"          legge in automatico ogni risposta (default false)
+ *   data-autosend   "true" | "false"          a fine parlato invia da solo (default true; il
+ *                                             pulsante resta e funziona comunque)
  *   data-barge      "true" | "false"          interruzione a voce mentre Divina parla (default true;
  *                                             si attiva solo se il permesso microfono è già concesso)
  *   data-greeting   testo di benvenuto personalizzato
@@ -65,6 +67,7 @@
       listen:"Ascolta", copy:"Copia", copied:"Copiato", retry:"Riprova", reasonPh:"Perché? (opzionale)", reasonSend:"Invia",
       fbUp:"Risposta utile", fbDown:"Risposta da migliorare", thanksUp:"Grazie! 👍", thanksDown:"Grazie, ne terremo conto.",
       listening:"In ascolto...", dictFail:"Dettatura non riuscita, scrivi pure...",
+      autosend:"Invio… tocca il microfono per annullare",
       errNet:"⚠️ Connessione non riuscita. Verifica che il servizio sia attivo.",
       errCode:function(s){ return "⚠️ Errore "+s+". Riprova tra poco."; },
       greet:function(t){ return "Ciao! Sono "+t+". Sei in conversazione con un assistente AI: rispondo solo sulle aree a cui ho accesso e cito le fonti. Come posso aiutarti?"; } },
@@ -73,6 +76,7 @@
       listen:"Listen", copy:"Copy", copied:"Copied", retry:"Retry", reasonPh:"Why? (optional)", reasonSend:"Send",
       fbUp:"Helpful answer", fbDown:"Answer to improve", thanksUp:"Thanks! 👍", thanksDown:"Thanks, we'll take note.",
       listening:"Listening...", dictFail:"Dictation failed, just type...",
+      autosend:"Sending… tap the mic to cancel",
       errNet:"⚠️ Connection failed. Check that the service is up.",
       errCode:function(s){ return "⚠️ Error "+s+". Try again shortly."; },
       greet:function(t){ return "Hi! I'm "+t+". You're chatting with an AI assistant: I only answer from the areas I can access and I cite sources. How can I help?"; } }
@@ -200,6 +204,7 @@
     color:${MUT};cursor:pointer;display:grid;place-items:center;transition:all .15s}
   .em-mic:hover{color:${ACC};border-color:${ACC}55}
   .em-mic.live{color:#fff;background:#e0561f;border-color:#e0561f;animation:emmic 1.2s infinite}
+  .em-mic.em-close{color:#06262b;background:#EAB308;border-color:#EAB308;animation:none}
   @keyframes emmic{0%{box-shadow:0 0 0 0 rgba(224,86,31,.5)}70%{box-shadow:0 0 0 7px rgba(224,86,31,0)}100%{box-shadow:0 0 0 0 rgba(224,86,31,0)}}
   .em-mic svg{width:18px;height:18px}
   .em-in{flex:1;background:${DARK2};border:1px solid ${LINE};color:${TXT};border-radius:11px;padding:10px 12px;font-size:14px;outline:none;transition:border .15s}
@@ -567,6 +572,9 @@
   // parte dal rumore di fondo misurato, non tarata a occhio: i numeri vivono in
   // window.Divina.voiceStats.vad (rms, base, soglia) per la taratura sul campo.
   var BARGE = String(CFG.barge != null ? CFG.barge : (d.barge != null ? d.barge : "true")) !== "false";
+  // V2: invio automatico a fine parlato (il pulsante resta comunque)
+  var AUTOSEND = String(CFG.autosend != null ? CFG.autosend : (d.autosend != null ? d.autosend : "true")) !== "false";
+  var proCancel = null;   // impostata durante l'ascolto PRO: annulla l'invio in chiusura
   var vad = { stream:null, ac:null, an:null, buf:null, raf:0, base:0.008, over:0,
               lastPlayAt:0, armed:false, micOk:false };
   function vadArm(){
@@ -748,6 +756,53 @@
     vad.micOk = true;                        // permesso concesso: il barge-in può armarsi
     mr = new MediaRecorder(stream); var chunks = [];
     var pseq = 0, pshown = 0, pbusy = false, t0rec = performance.now();
+    // V2 «mani libere»: la fine del parlato invia da sola. Stessa misura RMS del
+    // barge-in ma nel verso opposto: prima ≥400ms di parlato VERO (una stanza
+    // vuota non invia nulla), poi 900ms di silenzio continuo sotto la soglia
+    // adattiva → finestra «Invio…» di 500ms ANNULLABILE: tocca il mic per
+    // annullare (chi si ferma a pensare non vuole aver già inviato), o riprendi
+    // a parlare e la finestra svanisce (una pausa di respiro NON è una fine).
+    // Il pulsante resta e funziona come prima; spegnibile: data-autosend="false".
+    // I numeri per la taratura sul campo vivono in Divina.voiceStats.autosend.
+    var as = { ac:null, an:null, buf:null, raf:0, base:0.008, speechMs:0, sil0:0, closing:0, last:0, done:false };
+    var asCancel = false;
+    function asStop(){ as.done = true; if (as.raf){ cancelAnimationFrame(as.raf); as.raf = 0; }
+      try{ as.ac && as.ac.close(); }catch(e){} as.ac = null; as.an = null; }
+    function asLoop(){
+      if (as.done || !as.an || !listening) return;
+      as.an.getByteTimeDomainData(as.buf);
+      var s2 = 0, i2, v2;
+      for (i2 = 0; i2 < as.buf.length; i2++){ v2 = (as.buf[i2] - 128) / 128; s2 += v2 * v2; }
+      var rms = Math.sqrt(s2 / as.buf.length);
+      var now = performance.now(), dt = Math.min(100, now - as.last); as.last = now;
+      if (rms < Math.max(0.004, as.base) * 1.5) as.base = as.base * 0.995 + rms * 0.005;
+      var soglia = Math.max(0.045, as.base * 4);
+      var parlato = rms > soglia;
+      if (parlato) as.speechMs += dt;
+      VSTATS.autosend = { rms:+rms.toFixed(4), base:+as.base.toFixed(4), soglia:+soglia.toFixed(4), speechMs:Math.round(as.speechMs) };
+      if (as.closing){
+        if (parlato){ as.closing = 0; as.sil0 = 0; input.placeholder = TT("listening"); mic.classList.remove("em-close"); }
+        else if (now - as.closing > 500){
+          VSTATS.autosend.silenzioMs = Math.round(now - as.sil0);
+          try{ console.info("[voce] invio automatico a fine parlato", VSTATS.autosend); }catch(e){}
+          asStop(); mic.classList.remove("em-close");
+          try{ mr && mr.stop(); }catch(e){}
+          return;
+        }
+      } else if (as.speechMs >= 400){
+        if (!parlato){
+          if (!as.sil0) as.sil0 = now;
+          else if (now - as.sil0 > 900){ as.closing = now; input.placeholder = TT("autosend"); mic.classList.add("em-close"); }
+        } else as.sil0 = 0;
+      }
+      as.raf = requestAnimationFrame(asLoop);
+    }
+    proCancel = function(){          // tocco sul mic durante «Invio…» = annulla, non invia
+      if (!as.closing || as.done) return false;
+      asCancel = true; asStop(); mic.classList.remove("em-close");
+      try{ mr && mr.stop(); }catch(e){}
+      return true;
+    };
     async function parziale(){
       if (pbusy || !listening) return;
       pbusy = true; var mySeq = ++pseq;
@@ -769,8 +824,10 @@
     };
     mr.onstop = async function(){
       try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
+      asStop(); proCancel = null;
       stopListen();
       pseq += 1000;                          // invalida ogni parziale ancora in volo
+      if (asCancel) return;                  // annullato: il parziale resta nell'input, niente invio
       try{
         var blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
         var fd = new FormData(); fd.append("file", blob, "audio.webm");
@@ -781,12 +838,24 @@
       }catch(e){ input.placeholder = TT("dictFail"); }
     };
     listening = true; mic.classList.add("live"); input.placeholder = TT("listening"); stopAudio();
+    if (AUTOSEND){
+      try{
+        var AC2 = window.AudioContext || window.webkitAudioContext; as.ac = new AC2();
+        as.an = as.ac.createAnalyser(); as.an.fftSize = 1024;
+        as.ac.createMediaStreamSource(stream).connect(as.an);
+        as.buf = new Uint8Array(as.an.fftSize); as.last = performance.now(); asLoop();
+      }catch(e){}                            // senza WebAudio si torna al walkie-talkie: il pulsante c'è
+    }
     mr.start(1200);                          // timeslice: un pezzo ogni 1.2s → parziali live
   }
 
   function toggleListen(){
     if (PRO){
-      if (listening){ try{ mr && mr.stop(); }catch(e){} return; }
+      if (listening){
+        if (proCancel && proCancel()) return;   // V2: durante «Invio…» il tocco ANNULLA
+        try{ mr && mr.stop(); }catch(e){}       // altrimenti: stop manuale → invia (come sempre)
+        return;
+      }
       proListenStart().catch(function(){ if (SR) browserListen(); });
       return;
     }
