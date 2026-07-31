@@ -252,6 +252,26 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .voxmode.vox-quiet .vox-log{opacity:0;pointer-events:none}
 .voxmode.vox-quiet canvas,.voxmode.vox-quiet .orb-css{transform:scale(1.22)}
 .vox-log.vox-wake{transition:none}
+/* ── O2 · orbite e focus: i raggruppamenti REALI del vault come superficie ── */
+.orbits{padding:7px 22px 8px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface) 40%,transparent);flex-shrink:0}
+.orbit-tabs{display:flex;gap:6px;align-items:center;margin-bottom:7px;flex-wrap:wrap}
+.orbit-tab{border:1px solid var(--border);background:transparent;color:var(--text-2);border-radius:999px;padding:3px 12px;font-size:11.5px;cursor:pointer;min-height:28px}
+.orbit-tab.active{border-color:var(--magenta);color:var(--magenta);background:color-mix(in srgb,var(--magenta) 12%,transparent)}
+.orbit-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:thin;padding-bottom:3px}
+.orbit-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;min-height:32px}
+.orbit-chip .orbit-meta{opacity:.6;font-size:10px}
+.orbit-chip.active{border-color:var(--cyan);color:var(--cyan);background:color-mix(in srgb,var(--cyan) 12%,transparent)}
+/* ── O4 · provenienza a colpo d'occhio: dentro/fuori dal cervello ── */
+.bubble .fuori{display:block;border-left:3px solid var(--orange);background:color-mix(in srgb,var(--orange) 8%,transparent);padding:6px 10px;margin:6px 0;border-radius:6px}
+.bubble .fuori-tag{display:block;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);margin-bottom:3px;font-weight:700}
+/* ── O1 · il rientro: la home È il cervello ── */
+.home-overlay{position:absolute;left:0;right:0;bottom:0;padding:26px 28px 22px;pointer-events:none;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--bg) 82%,transparent) 55%)}
+.home-overlay .cta button{pointer-events:auto}
+.home-overlay h1{font-size:clamp(22px,3.4vw,34px)}
+#focusBar{padding:0 22px}
+#focusBar:not(:empty){display:flex;gap:10px;align-items:center;padding:7px 22px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--cyan) 7%,transparent)}
+.focus-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)}
+.focus-pill b{color:var(--cyan)}
 @media (prefers-reduced-motion: reduce){.voxmode{backdrop-filter:none}.vox-log,.voxmode canvas,.voxmode .orb-css{transition:none}}
 /* Fallback P1.5: canvas bloccato (anti-fingerprint/Lockdown) → orb in CSS puro */
 .orb-css{--oc:#a855f7;width:72px;height:72px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 38% 32%,rgba(255,255,255,.72) 0%,var(--oc) 44%,transparent 76%);animation:orbBreath 3.2s ease-in-out infinite}
@@ -333,7 +353,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 
     <div class="nav-label"><span class="ld" style="background:linear-gradient(90deg,var(--magenta),var(--cyan))"></span> Conversa</div>
     <button class="nav-item active" data-view="home"><span class="ic" data-ic="world" data-ics="17"></span> Il tuo mondo</button>
-    <button class="nav-item" data-view="chat"><span class="ic" data-ic="chat" data-ics="17"></span> Comunica col cervello</button>
+    <button class="nav-item" data-view="chat"><span class="ic" data-ic="chat" data-ics="17"></span> Lavora con Divina</button>
 
     <div class="nav-label"><span class="ld" style="background:var(--cyan)"></span> Cervello · motore</div>
     <button class="nav-item" data-view="dashboard"><span class="ic" data-ic="dash" data-ics="17"></span> Dashboard</button>
@@ -360,7 +380,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07b · un motore vocale solo</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07c · le orbite</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -374,7 +394,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
   <div class="main">
     <header class="topbar">
       <button class="icon-btn burger" id="burger" aria-label="Menu" data-ic="menu" data-ics="19"></button>
-      <div><div class="page-title" id="pageTitle">Comunica col cervello</div><div class="page-sub" id="pageSub">Parla con Divina</div></div>
+      <div><div class="page-title" id="pageTitle">Lavora con Divina</div><div class="page-sub" id="pageSub">Parla con Divina</div></div>
       <div class="top-actions">
         <button class="tenant-chip" id="tenantChip" title="Cambia tenant"><span class="tlabel">tenant:</span> <b id="tenantText">forma</b></button>
         <button class="conn-chip" id="connChip" title="Connessione"><span class="dot"></span><span id="connText">Non connesso</span></button>
@@ -524,7 +544,8 @@ function demoData(service, path, opts){
       let a='(DEMO) In base al cervello OVY, FORMA Hub offre stampa 3D (FDM/SLA da €15/pz), modellazione 3D su preventivo, servizi digitali da €600 e AI custom da €350. Posso approfondire un servizio specifico?';
       if(msg.includes('orari')||msg.includes('apert')) a='(DEMO) La sede di Benevento è aperta lun–ven 9:00–18:00. Il servizio a domicilio ATS copre anche il weekend su prenotazione.';
       if(msg.includes('prezzo')||msg.includes('costo')||msg.includes('stampa')) a='(DEMO) La stampa 3D FDM parte da €15/pezzo; la SLA è su preventivo in base a volume e finitura. Vuoi una stima per un modello specifico?';
-      return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats']});
+      if(msg.includes('business')||msg.includes('mercato')) a='(DEMO) Dal cervello: ATS opera nella ristorazione con servizio a domicilio. ⟦fuori⟧Nel mercato italiano della ristorazione il canale delivery vale in media il 10-15% del fatturato dei locali medio-piccoli: può essere una leva di crescita da verificare con dati reali del cliente.⟦/fuori⟧ Vuoi che salviamo questa pista sulla scheda ATS?';
+      return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats'],free:msg.includes('business')||msg.includes('mercato')});
     }
     if(path.startsWith('/admin/tasks/close')||path.startsWith('/admin/tasks/transition')) return Promise.resolve({ok:true});
     if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:28},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
@@ -624,42 +645,49 @@ const VIEWS={
 
   /* ---------- HOME · IL TUO MONDO (stile AI OS, brand FORMA) ---------- */
   async home(){
-    C.innerHTML=skeleton(4);
-    const [an,tk,ag,co,rm]=await Promise.all([
-      (state.engOk?api('engine','/admin/analytics'):Promise.reject()).catch(()=>null),
-      (state.engOk?api('engine','/admin/tasks'):Promise.reject()).catch(()=>null),
-      (state.orchOk?api('orch','/agents'):Promise.reject()).catch(()=>null),
-      (state.orchOk?api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'})):Promise.reject()).catch(()=>null),
-      (state.engOk?api('engine','/admin/roadmap'):Promise.reject()).catch(()=>null),
-    ]);
-    const t=(an&&an.totals)||{};const nTasks=tk?(tk.tasks||[]).length:null;if(tk)$('#b-tasks').textContent=nTasks;
-    const agents=(ag&&ag.agents)||[];const nContra=co?(co.contradictions||[]).length:null;
-    const fbTot=(t.feedback_up||0)+(t.feedback_down||0),help=fbTot?Math.round(t.feedback_up/fbTot*100):null;
+    /* O1 · Il rientro: entri e vedi il CERVELLO — l'orbita di Divina coi nodi
+       connessi dalle sinapsi reali. Non un diagramma da studiare: un colpo
+       d'occhio che dice «c'è dentro roba, ed è connessa». Il dettaglio si
+       raggiunge cliccando (hover sui nodi, poi «Lavora con Divina»), non
+       leggendo. Un solo invito. Il renderer è brain3d.js: lo stesso grafo che
+       già funziona nel Cervello vivo (rAF suo, destroy al cambio vista,
+       reduced-motion = frame statico, stato vuoto onesto senza nodi finti). */
     const connected=state.engOk||state.orchOk;
-    const compCard=a=>{const col=AG_COLORS[a.id]||'var(--magenta)';return `<div class="agent-card"><div class="accent-top" style="background:${col}"></div><div class="agent-head"><div class="agent-avatar" style="background:${col}">${AG_INIT[a.id]||'AG'}</div><div><div class="agent-name">${esc(a.name)}</div><div class="agent-arch">${esc(a.archetype||'')}</div></div></div><div class="agent-tagline">${esc(a.tagline||'')}</div><div class="row" style="justify-content:space-between;margin-top:12px"><span class="pill">${icon('spark',11)} ${(a.skills||[]).length} skill</span><button class="btn sm" onclick="askAgent('${esc(a.id)}')">Affida un compito</button></div></div>`;};
     C.innerHTML=`
-    <div class="hero"><div class="hero-in">
-      <div class="orb">DV</div>
-      <div style="flex:1;min-width:230px">
-        <h1><span class="grad">Il tuo mondo. La tua AI.</span></h1>
-        <div class="sub">Divina — il prodotto AI di <b>FORMA</b> — unisce il cervello OVY, il motore di risposta e i tuoi companion in un unico posto: fai una domanda, affida un compito, guarda il lavoro accadere.</div>
-        <div class="cta"><button class="btn cta-brand" onclick="route('chat')">${icon('chat',16)} Parla con Divina</button><button class="btn" onclick="route('router')">${icon('swap',16)} Affida un compito</button>${!connected?`<button class="btn" onclick="openConn()">${icon('plug',16)} Connetti i servizi</button>`:''}</div>
-      </div></div></div>
-    ${an?`<div class="sec">Oggi nel cervello</div><div class="grid g-stats">
-      <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">${icon('chat',13)} Conversazioni</div><div class="val" style="color:var(--cyan)">${fmtN(t.chat)}</div><div class="meta">dal boot</div></div>
-      <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">${icon('thumb',13)} Utilità</div><div class="val" style="color:var(--green)">${help==null?'—':help+'%'}</div><div class="meta">${fmtN(t.feedback_up)} ${icon('thumb',11)} · ${fmtN(t.feedback_down)} ${icon('thumbdown',11)}</div></div>
-      <div class="stat" onclick="route('tasks')" style="cursor:pointer"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div><div class="lbl">${icon('check',13)} Task aperte</div><div class="val" style="color:var(--magenta)">${nTasks==null?'—':fmtN(nTasks)}</div><div class="meta">coda del cervello</div></div>
-      <div class="stat" onclick="route('contradictions')" style="cursor:pointer"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">${icon('alert',13)} Da decidere</div><div class="val" style="color:var(--orange)">${nContra==null?'—':fmtN(nContra)}</div><div class="meta">contraddizioni</div></div>
-    </div>`:''}
-    <div class="sec">I tuoi companion</div>
-    ${agents.length?`<div class="grid g-3" style="align-items:start">${agents.map(compCard).join('')}</div>`:`<div class="card">${emptyBox(icon('sparks',36),'Companion non connessi',"Configura l'Orchestratore (URL + token) o attiva la modalità demo per vedere Dante, Virgilio e Beatrice.")}</div>`}
-    ${rm?`<div class="sec">Verso l'AI Operating System</div><div class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><div class="small" style="line-height:1.6">${icon('compass',13)} Roadmap (benchmark <b>Zoey OS</b>): <b>${(rm.counts||{}).aperte??'—'}</b> task aperte · <b>${(rm.counts||{}).parziali??'—'}</b> parziali su ${(rm.counts||{}).totale??'—'}</div><button class="btn sm" onclick="route('roadmap')">Apri la roadmap</button></div></div>`:''}`;
+    <div class="card" style="padding:0;overflow:hidden;position:relative">
+      <canvas id="homeBrain" style="width:100%;height:min(58vh,540px);display:block"></canvas>
+      <div class="home-overlay">
+        <h1 style="margin:0 0 6px"><span class="grad">Il tuo mondo. La tua AI.</span></h1>
+        <div class="sub" id="homeSub">il cervello si sta accendendo…</div>
+        <div class="cta" style="margin-top:12px">
+          <button class="btn cta-brand" onclick="route('chat')">${icon('spark',16)} Lavora con Divina</button>
+          ${!connected?`<button class="btn" onclick="openConn()">${icon('plug',16)} Connetti i servizi</button>`:''}
+        </div>
+      </div>
+    </div>`;
+    const sub=$('#homeSub');
+    let g=null;
+    try{g=await api('engine','/admin/brain/graph');}catch(_){}
+    if(g&&(g.nodes||[]).length){
+      startBrainCanvas(g.nodes,g.links,'homeBrain');
+      if(sub)sub.textContent=`${fmtN(g.nodes.length)} neuroni · ${fmtN((g.links||[]).length)} sinapsi reali — connessi, vivi, tuoi`;
+    }else{
+      try{
+        const r=await api('engine','/admin/brain/notes?'+q({limit:220}));
+        startBrainCanvas(r.notes||[],null,'homeBrain');
+        if(sub)sub.textContent=`${fmtN((r.notes||[]).length)} neuroni — le sinapsi arrivano con la prossima ingest`;
+      }catch(_){
+        startBrainCanvas([],null,'homeBrain');
+        if(sub)sub.textContent=connected?'nessun dato dal cervello: lancia una ingest':'connetti il motore per accendere il cervello';
+      }
+    }
   },
 
   /* ---------- CHAT ---------- */
   async chat(){
     C.classList.add('chatmode');
-    C.innerHTML=`<div class="chat"><div class="orbbar"><canvas id="orbCv"></canvas><div><div class="orb-state" id="orbState">Inattivo</div><div class="orb-agent" id="orbAgent">agente attivo · Divina</div></div><div class="orb-picks" id="orbPicks"><button class="orb-pick" data-oc="divina" title="Smistamento automatico">${icon('spark',12)} Divina</button><button class="orb-pick" data-oc="dante" title="Finanza & numeri">Dante</button><button class="orb-pick" data-oc="virgilio" title="Legale & operazioni">Virgilio</button><button class="orb-pick" data-oc="beatrice" title="Marketing & contenuti">Beatrice</button></div><div class="orb-gov">${icon('lock',12)} ogni azione con effetto esterno passa dalla tua approvazione</div></div><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
+    C.innerHTML=`<div class="chat"><div class="orbbar"><canvas id="orbCv"></canvas><div><div class="orb-state" id="orbState">Inattivo</div><div class="orb-agent" id="orbAgent">agente attivo · Divina</div></div><div class="orb-picks" id="orbPicks"><button class="orb-pick" data-oc="divina" title="Smistamento automatico">${icon('spark',12)} Divina</button><button class="orb-pick" data-oc="dante" title="Finanza & numeri">Dante</button><button class="orb-pick" data-oc="virgilio" title="Legale & operazioni">Virgilio</button><button class="orb-pick" data-oc="beatrice" title="Marketing & contenuti">Beatrice</button></div><div class="orb-gov">${icon('lock',12)} ogni azione con effetto esterno passa dalla tua approvazione</div></div><div class="orbits" id="orbitStrip"></div><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
+      <div id="focusBar"></div>
       <div class="composer"><div class="composer-inner">
         <textarea id="chatMsg" placeholder="Scrivi o detta al cervello OVY… (Invio per inviare, Shift+Invio a capo)" rows="1"></textarea>
         <button class="btn" id="voxBtn" title="Modo vocale a tutto schermo — parla con Divina" style="white-space:nowrap">${icon('mic',15)} Parla</button>
@@ -672,6 +700,7 @@ const VIEWS={
     ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
     $('#chatSend').onclick=sendChat;initVoice();initOrb();
     const vb=$('#voxBtn');if(vb)vb.onclick=voxOpen;
+    loadOrbite();renderFocusBar();
     $$('#orbPicks .orb-pick').forEach(b=>b.onclick=()=>pickComp(b.dataset.oc));
     pickComp(state._compSel||'divina');
     if(!state.demo&&!state.tenantKey&&!state.clientMode){const st=$('#orbState');if(st)st.textContent='In attesa di connessione';}
@@ -954,6 +983,61 @@ const VIEWS={
 };
 
 /* ---- CHAT logic ---- */
+/* ── O4 · La provenienza SI VEDE, riga per riga: ciò che il modello dichiara
+   «fuori dal cervello» (marcatori ⟦fuori⟧…⟦/fuori⟧ imposti dal prompt owner)
+   diventa un blocco evidenziato con l'etichetta, non una nota in fondo che
+   nessuno legge. Marcatori sbilanciati → si tolgono e resta l'avviso. */
+function bubbleHtml(t){
+  let h=esc(t);
+  const nO=(h.match(/⟦fuori⟧/g)||[]).length,nC=(h.match(/⟦\/fuori⟧/g)||[]).length;
+  if(!nO&&!nC)return {h,fuori:false};
+  if(nO!==nC){return {h:h.replace(/⟦\/?fuori⟧/g,''),fuori:true};}
+  h=h.replace(/⟦fuori⟧/g,'<span class="fuori"><span class="fuori-tag">fuori dal cervello · non verificato</span>')
+     .replace(/⟦\/fuori⟧/g,'</span>');
+  return {h,fuori:true};
+}
+/* ── O4 · «Salva nel cervello»: un pezzo di conversazione diventa contenuto —
+   MA con conferma umana in due passi (anteprima → conferma) e marcatura
+   server-side «Origine: conversazione con Divina · data · NON verificato».
+   Mai in automatico. Destinazione: l'orbita su cui stai lavorando. */
+function salvaForm(i){
+  const m=state.chat[i];if(!m)return;
+  const dest=(state.focus&&state.focus.scope)||'forma-core';
+  const el=document.getElementById('sv-'+i);if(!el)return;
+  el.outerHTML=`<div class="card" style="margin-top:8px;padding:12px" id="svc-${i}">
+    <div class="small" style="margin-bottom:8px"><b>Salva nel cervello</b> — entrerà MARCATO: «Origine: conversazione con Divina · NON verificato», finché un umano non lo conferma con una fonte vera.</div>
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <input id="svt-${i}" placeholder="Titolo della nota" style="flex:1;min-width:180px">
+      <input id="svs-${i}" value="${esc(dest)}" title="Scope di destinazione" style="max-width:150px">
+      <button class="btn sm primary" onclick="salvaAnteprima(${i})">Anteprima</button>
+      <button class="btn sm ghost" onclick="renderChat()">Annulla</button>
+    </div></div>`;
+  const t=document.getElementById('svt-'+i);if(t)t.focus();
+}
+async function salvaAnteprima(i){
+  const m=state.chat[i];if(!m)return;
+  const title=(document.getElementById('svt-'+i)||{value:''}).value.trim();
+  const scope=(document.getElementById('svs-'+i)||{value:''}).value.trim()||'forma-core';
+  if(!title){toast('Serve un titolo per la nota','bad');return;}
+  try{
+    const prev=await api('engine','/writeback',{method:'POST',auth:false,tenantKey:true,
+      body:{scope,title,body:m.text,origin:'conversazione',confirm:false}});
+    state._salva={i,scope,title};
+    const box=document.getElementById('svc-'+i);
+    if(box)box.innerHTML=`<div class="small" style="margin-bottom:6px"><b>Anteprima</b> — ancora NESSUNA scrittura:</div>
+      <pre style="white-space:pre-wrap;font-size:11px;max-height:200px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin:0">${esc(String(prev.preview||'').slice(0,1500))}</pre>
+      <div class="row" style="margin-top:8px"><button class="btn sm primary" onclick="salvaScrivi()">✓ Confermo: scrivi nel cervello</button><button class="btn sm ghost" onclick="state._salva=null;renderChat()">Annulla</button></div>`;
+  }catch(e){toast('✕ '+e.message,'bad');}
+}
+async function salvaScrivi(){
+  const s=state._salva;if(!s)return;const m=state.chat[s.i];if(!m)return;
+  try{
+    const r=await api('engine','/writeback',{method:'POST',auth:false,tenantKey:true,
+      body:{scope:s.scope,title:s.title,body:m.text,origin:'conversazione',confirm:true}});
+    toast(`Nota scritta nel cervello (${r.path||s.scope}) · marcata NON verificato`,'info');
+    state._salva=null;renderChat();
+  }catch(e){toast('✕ '+e.message,'bad');}
+}
 function renderChat(){
   const inner=$('#chatInner');if(!inner)return;
   if(!state.chat.length){
@@ -961,14 +1045,17 @@ function renderChat(){
     inner.querySelectorAll('.chip-suggest').forEach(c=>c.onclick=()=>{$('#chatMsg').value=c.dataset.s;sendChat();});
     return;
   }
-  inner.innerHTML=state.chat.map(m=>{
+  inner.innerHTML=state.chat.map((m,i)=>{
     if(m.role==='user') return `<div class="msg user"><div class="av">Tu</div><div class="bubble">${esc(m.text)}</div></div>`;
     if(m.role==='typing') return `<div class="msg bot"><div class="av">DV</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div><div class="small muted" id="typingStatus" style="margin-top:7px">${icon('brain',12)} Divina sta consultando il cervello…</div></div></div>`;
     if(m.role==='approval'){const col=AG_COLORS[m.agent]||'var(--magenta)';return `<div class="msg bot"><div class="av" style="background:${col}">${icon('spark',15)}</div><div class="bubble" style="border:1px solid rgba(248,105,60,.45)"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Azione in attesa della TUA approvazione</div><div class="small muted" style="margin-bottom:10px">${esc(m.title||'')} — nessun effetto finché non decidi · ${icon('lock',11)} coerente con Proposte audit</div>${m.done?`<span class="tag ${m.done==='approvata'?'pos':'mut'}">${m.done==='approvata'?'✓ approvata da '+esc(m.by||''):'✕ rifiutata (archiviata, mai cancellata)'}</span>`:`<div class="row" style="flex-wrap:wrap"><input placeholder="Chi decide (nome)" id="ap-${esc(m.tid)}" style="max-width:170px"><button class="btn sm primary" onclick="chatApprove('${esc(m.tid)}','approvata')">✓ Approva</button><button class="btn sm" onclick="chatApprove('${esc(m.tid)}','archiviata')">✕ Rifiuta</button></div>`}</div></div>`;}
     const src=(m.sources||[]).map(s=>{
       if(s.type==='agent'){const col=AG_COLORS[s.agent]||'var(--magenta)';return `<span class="src-pill" style="color:${col};border-color:${col}55">${icon('spark',11)} ${esc(s.agent||'agente')}${s.skill?` · ${esc(s.skill)}`:''}${s.confidence!=null?` · ${Math.round(s.confidence*100)}%`:''}</span>`;}
       return `<span class="src-pill${s.slug?' fire':''}"${s.slug?` data-fire="${esc(s.slug)}" title="Vedi il neurone nel Cervello vivo"`:''}>${icon('brain',11)} ${esc(s.title||s.slug||'nota')}${s.scope?` · ${esc(s.scope)}`:''}</span>`;}).join('');
-    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${esc(m.text)}</div>${src?`<div class="sources">${src}</div>`:''}</div></div>`;
+    const bb=bubbleHtml(m.text);
+    const salva=(!state.clientMode&&!state.demo&&m.text&&!m.text.startsWith('✕'))
+      ?`<button class="btn sm ghost" id="sv-${i}" onclick="salvaForm(${i})" style="margin-top:6px;min-height:28px;padding:2px 10px">${icon('doc',12)} Salva nel cervello</button>`:'';
+    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${bb.h}</div>${bb.fuori?`<div class="small" style="color:var(--orange);margin-top:4px">${icon('alert',11)} le parti evidenziate NON vengono dal cervello: ragionamento, non fonte</div>`:''}${src?`<div class="sources">${src}</div>`:''}${salva}</div></div>`;
   }).join('');
   const sc=$('#chatScroll');if(sc)sc.scrollTop=sc.scrollHeight;
   $$('#chatInner [data-fire]').forEach(p=>p.onclick=()=>{state._pendingFire=p.dataset.fire;route('brain');});
@@ -1001,13 +1088,123 @@ async function sendChat(){
   renderChat();
 }
 
+/* ── O2 · Le ORBITE: i tre raggruppamenti che il vault produce DAVVERO
+   (build_canvas_temi.py): CLIENTI = forma/clienti/<x>/, AREE = forma/areas/,
+   PROGETTI = forma/projects/. Niente filtri inventati: se un raggruppamento
+   non esiste nei dati, l'orbita non si disegna. Clic su un'orbita = FOCUS:
+   la conversazione è ristretta lì (ChatIn.focus → filtro slug in AND coi
+   grant, server-side) e i salvataggi finiscono lì. Lo stato è sempre
+   leggibile: «Stai lavorando su X» nella barra sotto la chat. */
+function calcolaOrbite(notes,graph){
+  const conn={};
+  if(graph&&graph.nodes&&graph.links){
+    graph.links.forEach(l=>{const a2=graph.nodes[l[0]],b2=graph.nodes[l[1]];
+      if(a2)conn[a2.slug]=(conn[a2.slug]||0)+1;if(b2)conn[b2.slug]=(conn[b2.slug]||0)+1;});
+  }
+  const out={clienti:{},aree:{},progetti:{}};
+  (notes||[]).forEach(n=>{
+    const p=n.path||'';if(p.endsWith('_index.md'))return;
+    const m=p.match(/^forma\/clienti\/([^/]+)\//);
+    if(m){const id=m[1];const g=out.clienti[id]=out.clienti[id]||{id,label:id,slugs:[],scope:id};
+      g.slugs.push(n.slug);if(n.slug==='cliente-'+id)g.label=(n.title||id).replace(/^Cliente\s*[—–-]?\s*/i,'');return;}
+    if(/^forma\/areas\//.test(p)){out.aree[n.slug]={id:n.slug,label:(n.title||n.slug).replace(/^Area\s*[—–-]?\s*/i,''),slugs:[n.slug],scope:'forma-core'};return;}
+    if(/^forma\/projects\//.test(p)){out.progetti[n.slug]={id:n.slug,label:(n.title||n.slug).replace(/^Progetto\s*[—–-]?\s*/i,''),slugs:[n.slug],scope:'forma-core'};}
+  });
+  for(const k in out)Object.values(out[k]).forEach(g=>{g.n=g.slugs.length;g.link=g.slugs.reduce((a2,s)=>a2+(conn[s]||0),0);});
+  /* O3 · LENTI: partono da ciò che è GIÀ scritto — la categoria della nota
+     (segmento del path, specchio di cat/* del frontmatter). Aree/progetti/
+     clienti restano orbite, non lenti. La lente TEMATICA (business, legale…)
+     oggi NON esiste nei dati: il posto c'è, dichiaratamente vuoto — si
+     riempie quando le note avranno il tag (proposta: docs/lenti-temi-proposta.md). */
+  const LENTI_LBL={docs:'Documenti',workspace:'Workspace',entities:'Entità',sistema:'Sistema'};
+  out.lenti={};
+  (notes||[]).forEach(n=>{
+    const p=n.path||'';if(p.endsWith('_index.md'))return;
+    const seg=p.split('/');
+    let cat=seg[0]==='forma'?seg[1]:seg[0];
+    if(!cat||['areas','projects','clienti'].includes(cat))return;
+    if(cat==='andrea-aloia')cat='andrea';
+    const g=out.lenti[cat]=out.lenti[cat]||{id:cat,label:LENTI_LBL[cat]||cat,slugs:[],set:null};
+    g.slugs.push(n.slug);
+  });
+  Object.values(out.lenti).forEach(g=>{g.n=g.slugs.length;g.set=new Set(g.slugs);});
+  return out;
+}
+/* Focus effettivo = orbita ∩ lente. Intersezione VUOTA → si manda una slug
+   sentinella che non esiste: il retrieval torna vuoto e Divina lo DICE
+   («non ho questa informazione») invece di allargare il filtro in silenzio. */
+function focusPayload(){
+  const f=state.focus,l=state.lens;
+  if(!f&&!l)return null;
+  let slugs=f?f.slugs.slice():null;
+  if(l)slugs=slugs?slugs.filter(s=>l.set.has(s)):l.slugs.slice();
+  if(!slugs.length)slugs=['__nessuna-nota__'];
+  const label=[f&&f.label,l&&('lente '+l.label)].filter(Boolean).join(' · ');
+  return {label,slugs:slugs.slice(0,300)};
+}
+async function loadOrbite(){
+  const s=$('#orbitStrip');if(!s)return;
+  if(state.clientMode){s.style.display='none';return;}   // il cliente resta nel suo perimetro
+  if(!state._orbite){
+    try{
+      const [nr,gr]=await Promise.all([
+        api('engine','/admin/brain/notes?'+q({limit:500})),
+        api('engine','/admin/brain/graph').catch(()=>null)]);
+      state._orbite=calcolaOrbite(nr.notes||[],gr);
+    }catch(_){state._orbite=null;}
+  }
+  renderOrbite();
+}
+function renderOrbite(){
+  const s=$('#orbitStrip');if(!s||!state._orbite)return;
+  const kind=state._orbKind||'clienti';
+  const tabs=[['clienti','Clienti'],['aree','Aree'],['progetti','Progetti']]
+    .map(([k,l])=>`<button class="orbit-tab ${k===kind?'active':''}" data-ok="${k}">${l}</button>`).join('');
+  const gs=Object.values(state._orbite[kind]||{}).sort((a2,b2)=>b2.n-a2.n||b2.link-a2.link);
+  const chips=gs.map(g=>{
+    const on=state.focus&&state.focus.kind===kind&&state.focus.id===g.id;
+    return `<button class="orbit-chip ${on?'active':''}" data-okind="${kind}" data-oid="${esc(g.id)}" title="clic: lavora qui dentro — Divina risponde da queste note e i salvataggi finiscono qui">${esc(g.label)}<span class="orbit-meta">${g.n} not${g.n===1?'a':'e'} · ${g.link} sin.</span></button>`;
+  }).join('');
+  const ls=Object.values(state._orbite.lenti||{}).sort((a2,b2)=>b2.n-a2.n);
+  const lenti=ls.map(g=>{
+    const on=state.lens&&state.lens.id===g.id;
+    return `<button class="orbit-chip ${on?'active':''}" data-lid="${esc(g.id)}" title="lente: restringe alle note di questa categoria">${esc(g.label)}<span class="orbit-meta">${g.n}</span></button>`;
+  }).join('')+`<button class="orbit-chip" disabled style="opacity:.45;cursor:not-allowed" title="La classificazione tematica (business, legale, tecnico…) oggi NON esiste nel frontmatter: nessuno può calcolarla senza indovinare. Il posto è pronto: si accende quando le note avranno i tag tema/* (proposta in docs/lenti-temi-proposta.md).">Temi · in attesa dei tag</button>`;
+  s.innerHTML=`<div class="orbit-tabs">${tabs}<span class="small muted" style="margin-left:auto">orbite e lenti dai dati reali del vault</span></div><div class="orbit-row">${chips||'<span class="small muted">nessuna orbita in questo raggruppamento</span>'}</div><div class="orbit-row" style="margin-top:6px"><span class="small muted" style="align-self:center;flex-shrink:0">Lenti:</span>${lenti}</div>`;
+  $$('#orbitStrip .orbit-tab').forEach(b2=>b2.onclick=()=>{state._orbKind=b2.dataset.ok;renderOrbite();});
+  $$('#orbitStrip .orbit-chip[data-lid]').forEach(b2=>b2.onclick=()=>{
+    const g=(state._orbite.lenti||{})[b2.dataset.lid];if(!g)return;
+    state.lens=(state.lens&&state.lens.id===g.id)?null:g;
+    renderOrbite();renderFocusBar();
+  });
+  $$('#orbitStrip .orbit-chip[data-okind]').forEach(b2=>b2.onclick=()=>{
+    const g=(state._orbite[b2.dataset.okind]||{})[b2.dataset.oid];if(!g)return;
+    if(state.focus&&state.focus.kind===b2.dataset.okind&&state.focus.id===g.id){setFocus(null);return;}
+    setFocus({kind:b2.dataset.okind,id:g.id,label:g.label,slugs:g.slugs,scope:g.scope,n:g.n,link:g.link});
+  });
+}
+function setFocus(f){
+  state.focus=f;renderOrbite();renderFocusBar();
+  toast(f?`Stai lavorando su ${f.label}: Divina risponde da ${f.n} not${f.n===1?'a':'e'} e i salvataggi finiscono lì`:'Focus rimosso: torni a tutto il cervello','info');
+}
+function renderFocusBar(){
+  const fb=$('#focusBar');if(!fb)return;
+  const fp=focusPayload();
+  if(!fp){fb.innerHTML='';return;}
+  const n=fp.slugs[0]==='__nessuna-nota__'?0:fp.slugs.length;
+  fb.innerHTML=`<span class="focus-pill">${icon('target',13)} Stai lavorando su <b>${esc(fp.label)}</b> · ${n} not${n===1?'a':'e'}${n===0?' — combinazione vuota: Divina lo dirà':''}</span><button class="btn ghost" id="focusExit" style="min-height:30px;padding:3px 10px;margin-left:auto">Esci</button>`;
+  const x=$('#focusExit');if(x)x.onclick=()=>{state.lens=null;setFocus(null);};
+}
+
 /* Il CUORE di un turno di chat, condiviso tra chat scritta e modo vocale (V3):
    payload col companion, via cliente (chiave sul SERVER, cookie HttpOnly) o
    via chiave tenant, fonti → neuroni recenti. NON tocca state.chat: la
    memoria/il rendering restano ai chiamanti. */
 async function chatTurn(text,history){
   const comp=(state._compSel&&state._compSel!=='divina')?state._compSel:null;
-  const payload={message:text,history,...(comp?{agent:true,companion:comp}:{})};
+  const fp=focusPayload();
+  const payload={message:text,history,...(comp?{agent:true,companion:comp}:{}),
+    ...(fp?{focus:fp}:{})};
   const r=state.clientMode
     ?await (async()=>{const res=await fetch('/client/chat',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(res.status===401){toast('Sessione scaduta: entra di nuovo','bad');setTimeout(()=>location.reload(),1200);throw new Error('sessione scaduta');}if(!res.ok)throw new Error(res.status+' · '+(await res.text()).slice(0,160));return res.json();})()
     :await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:payload});
@@ -1408,12 +1605,12 @@ async function chatApprove(tid,to){
 }
 
 /* ---- CERVELLO VIVO: costellazione animata dei neuroni (note reali per area) ---- */
-function startBrainCanvas(notes,realLinks){
+function startBrainCanvas(notes,realLinks,cvId='brainCanvas'){
   /* B1 (30-07): il renderer «povero» (costellazione piatta + 70 NODI A CASO come
      fallback) è sostituito dal modulo brain3d.js — lo STESSO renderer 3D della
      vetrina, estratto una volta sola. SENZA DATI: stato vuoto onesto, mai nodi
      inventati (un cervello finto mostrato come vero è peggio di uno schermo vuoto). */
-  const cv=document.getElementById('brainCanvas');if(!cv)return;
+  const cv=document.getElementById(cvId);if(!cv)return;
   if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}
   const src=(notes||[]).slice(0,220);
   if(!src.length||typeof createBrain!=='function'){
@@ -1500,7 +1697,7 @@ function newClientForm(){
 }
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Comunica col cervello','Parla con Divina — anche a voce'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 function route(view){
   if(state.clientMode)view='chat';   /* modalità cliente: esiste solo la chat */
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}

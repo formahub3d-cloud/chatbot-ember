@@ -123,7 +123,8 @@ _WEB_NOTE_EN = (
 )
 
 
-def _system(lang: str = "it", tier: str | None = None, web: bool = False) -> str:
+def _system(lang: str = "it", tier: str | None = None, web: bool = False,
+            free: bool = False) -> str:
     """System prompt vincolato al contenuto, nella lingua richiesta. In CODA si
     AGGIUNGONO (mai si sostituiscono) eventuali direttive: lo stile del tier e, se
     ci sono fonti web nel contesto, la nota sull'uso non fidato delle FONTI WEB. I
@@ -135,8 +136,31 @@ def _system(lang: str = "it", tier: str | None = None, web: bool = False) -> str
         base = f"{base} {style}"
     if web:
         base = base + (_WEB_NOTE_EN if _lang(lang) == "en" else _WEB_NOTE_IT)
+    if free:
+        base = base + (_FREE_NOTE_EN if _lang(lang) == "en" else _FREE_NOTE_IT)
     return base
 
+
+# O4 · Conversazione libera — SOLO OWNER (il permesso è server-side, mai da
+# prompt). La provenienza si deve VEDERE nella risposta, riga per riga: tutto
+# ciò che non nasce dal CONTENUTO va dentro i marcatori, che la console rende
+# come blocchi «fuori dal cervello · non verificato».
+_FREE_NOTE_IT = (
+    " DEROGA TITOLARE (attiva SOLO per questa conversazione col titolare FORMA):"
+    " puoi usare anche conoscenza generale, oltre al CONTENUTO, per aiutarlo a"
+    " ragionare. REGOLA DI PROVENIENZA, obbligatoria e senza eccezioni: ogni"
+    " frase o paragrafo che NON deriva dal CONTENUTO va racchiuso tra i"
+    " marcatori ⟦fuori⟧ e ⟦/fuori⟧. Ciò che deriva dal CONTENUTO resta fuori"
+    " dai marcatori. Non mescolare mai le due cose nella stessa frase; non"
+    " presentare MAI conoscenza generale come se fosse un dato del cervello."
+)
+_FREE_NOTE_EN = (
+    " OWNER OVERRIDE (active ONLY for this conversation with the FORMA owner):"
+    " you may also use general knowledge, beyond the CONTENT, to help them"
+    " reason. PROVENANCE RULE, mandatory: every sentence or paragraph that does"
+    " NOT come from the CONTENT must be wrapped between the markers ⟦fuori⟧ and"
+    " ⟦/fuori⟧. Never present general knowledge as brain data."
+)
 
 SYSTEM = _SYSTEM_IT   # retro-compatibilità (default italiano)
 
@@ -222,17 +246,25 @@ def is_master(grants) -> bool:
     return MASTER in orgs or MASTER in tenants_ or MASTER in subs
 
 
-def build_filter(grants):
+def build_filter(grants, focus_slugs=None):
     """Costruisce il Filter Qdrant dai grant. None = nessun filtro (master, vede tutto).
 
     Semantica: un chunk è visibile se soddisfa ALMENO UNO dei livelli concessi
     (org OR tenant OR sub_tenant) — un grant su `org` copre tutti i suoi tenant.
     Il match a livello tenant usa il campo `scope` (== tenant), presente anche nei
     dati storici. Nessun grant valido = nega tutto (come il comportamento storico
-    con lista vuota)."""
+    con lista vuota).
+
+    `focus_slugs` (O2 «Lavora con Divina»): l'orbita scelta in console. È un
+    filtro che RESTRINGE SOLTANTO — va in `must`, in AND coi grant: può ridurre
+    ciò che il tenant vede, mai allargarlo. Con la chiave master il focus resta
+    l'unico filtro (il master vede tutto, ma sta lavorando su quell'orbita)."""
     orgs, tenants_, subs = _grant_lists(grants)
+    must = []
+    if focus_slugs:
+        must.append(FieldCondition(key="slug", match=MatchAny(any=list(focus_slugs))))
     if is_master(grants):
-        return None
+        return Filter(must=must) if must else None
     should = []
     if tenants_:
         should.append(FieldCondition(key="scope", match=MatchAny(any=tenants_)))
@@ -242,6 +274,10 @@ def build_filter(grants):
         should.append(FieldCondition(key="sub_tenant", match=MatchAny(any=subs)))
     if not should:
         return Filter(must=[FieldCondition(key="scope", match=MatchAny(any=["__none__"]))])
+    if must:
+        # AND esplicito: (uno dei livelli concessi) E (slug nell'orbita) — il
+        # Filter annidato evita ambiguità sulla combinazione should+must.
+        return Filter(must=must + [Filter(should=should)])
     return Filter(should=should)
 
 
@@ -282,7 +318,8 @@ def _maybe_web(question: str, hits, web: bool, web_enabled: bool) -> list:
 
 
 def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
-           tier: str | None = None, web: bool = False, web_enabled: bool = False) -> dict:
+           tier: str | None = None, web: bool = False, web_enabled: bool = False,
+           focus_slugs=None, free: bool = False) -> dict:
     """Risposta vincolata al contenuto visibile ai `grants` del tenant.
 
     `grants`: lista storica (`allowed_scopes`) o dict con org/tenant/sub_tenant.
@@ -296,7 +333,7 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     ADDITIVA: non cambia il filtro Qdrant (scope) e il contenuto web è dato non fidato.
     """
     lang = _resolve_lang(lang, question)
-    hits = _retrieve(question, grants, k)   # NB: tier/web NON passano qui → scope invariato
+    hits = _retrieve(question, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
     scopes = scopes_of(grants)
     web_results = _maybe_web(question, hits, web, web_enabled)
     if not hits and not web_results:
@@ -304,16 +341,22 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
         q_red = redact_pii(question)[:200]
         metrics.bump_gap(scopes, q_red)
         events.record("gap", scopes, q_red)
-        return {"answer": no_answer(lang), "sources": [], "scopes": scopes}
+        if not free:
+            return {"answer": no_answer(lang), "sources": [], "scopes": scopes}
+        # O4 (solo owner): il muro diventa un inizio — si risponde con conoscenza
+        # generale, TUTTA dentro i marcatori di provenienza (il gap resta tracciato).
 
     context = _build_context(hits)
     user = (f"{_hist_block(history)}CONTENUTO:\n{context}\n\n"
             f"{_build_web_context(web_results)}DOMANDA: {question}")
-    out = _clean_answer(chat(_system(lang, tier, web=bool(web_results)), user))
+    out = _clean_answer(chat(_system(lang, tier, web=bool(web_results), free=free), user))
     sources = _merge_sources(hits, web_results)
     metrics.bump_chat(scopes)
     events.record("chat", scopes)
-    return {"answer": out, "sources": sources, "scopes": scopes}
+    res = {"answer": out, "sources": sources, "scopes": scopes}
+    if free:
+        res["free"] = True                  # la console mostra la legenda di provenienza
+    return res
 
 
 def _score(h) -> float:
@@ -365,23 +408,25 @@ def _filter_hits(hits, k: int):
     return _diversify(kept, k)
 
 
-def _retrieve(question: str, grants, k: int = 6):
+def _retrieve(question: str, grants, k: int = 6, focus_slugs=None):
     """Retrieval condiviso tra answer() e answer_stream(): vettore, filtro grant,
-    pool di candidati e poi filtro per rilevanza (vedi _filter_hits)."""
+    pool di candidati e poi filtro per rilevanza (vedi _filter_hits).
+    `focus_slugs`: l'orbita scelta (O2) — restringe soltanto, in AND coi grant."""
     qvec = embed([question])[0]
     c = client()
     pool = max(k, settings.retrieval_pool)
     hits = c.query_points(
         collection_name=settings.qdrant_collection,
         query=qvec,
-        query_filter=build_filter(grants),
+        query_filter=build_filter(grants, focus_slugs=focus_slugs),
         limit=pool,
     ).points
     return _filter_hits(hits, k)
 
 
 def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "it",
-                  tier: str | None = None, web: bool = False, web_enabled: bool = False):
+                  tier: str | None = None, web: bool = False, web_enabled: bool = False,
+                  focus_slugs=None, free: bool = False):
     """Come answer(), ma genera eventi SSE (stringhe già formattate).
 
     Sequenza: `event: sources` (fonti+scope, subito dopo retrieval/web),
@@ -399,28 +444,29 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
 
     lang = _resolve_lang(lang, question)
     scopes = scopes_of(grants)
-    hits = _retrieve(question, grants, k)   # NB: tier/web NON passano qui → scope invariato
+    hits = _retrieve(question, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
     web_results = _maybe_web(question, hits, web, web_enabled)
     if not hits and not web_results:
         _log_gap(question, grants)
         q_red = redact_pii(question)[:200]
         metrics.bump_gap(scopes, q_red)
         events.record("gap", scopes, q_red)
-        yield sse("sources", {"sources": [], "scopes": scopes})
-        yield sse(None, {"delta": no_answer(lang)})
-        yield sse("done", {})
-        return
+        if not free:
+            yield sse("sources", {"sources": [], "scopes": scopes})
+            yield sse(None, {"delta": no_answer(lang)})
+            yield sse("done", {})
+            return
 
     sources = _merge_sources(hits, web_results)
     metrics.bump_chat(scopes)
     events.record("chat", scopes)
-    yield sse("sources", {"sources": sources, "scopes": scopes})
+    yield sse("sources", {"sources": sources, "scopes": scopes, **({"free": True} if free else {})})
 
     context = _build_context(hits)
     user = (f"{_hist_block(history)}CONTENUTO:\n{context}\n\n"
             f"{_build_web_context(web_results)}DOMANDA: {question}")
     try:
-        for delta in chat_stream(_system(lang, tier, web=bool(web_results)), user):
+        for delta in chat_stream(_system(lang, tier, web=bool(web_results), free=free), user):
             yield sse(None, {"delta": delta})
     except Exception:  # pragma: no cover - errore del provider a stream avviato
         yield sse("error", {"message": "Errore del provider durante la risposta."})

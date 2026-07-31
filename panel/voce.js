@@ -89,8 +89,9 @@
     return { frasi: frasi, resto: resto };
   }
   /* EM_SENTENZE_END */
-  function emPulisci(s){   // testo → pronunciabile: via markdown e marcatori di elenco
-    return String(s).replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").replace(/[*`_#>[\]]/g, "").trim();
+  function emPulisci(s){   // testo → pronunciabile: via markdown, elenchi e marcatori di provenienza
+    return String(s).replace(/⟦\/?fuori⟧/g, " ")
+      .replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").replace(/[*`_#>[\]]/g, "").trim();
   }
 
   function rmsDi(an, buf){

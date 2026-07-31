@@ -203,6 +203,9 @@ class ChatIn(BaseModel):
     companion: str = ""    # companion scelto ESPLICITAMENTE (selettore console):
     #                        dante/virgilio/beatrice → implica agent:true e Divina smista
     #                        tra le skill di QUEL companion. Valore ignoto → ignorato.
+    focus: dict | None = None  # O2 «Lavora con Divina»: {"label": str, "slugs": [str]} —
+    #                        l'orbita su cui si sta lavorando. SICUREZZA: restringe
+    #                        SOLTANTO (AND coi grant in rag.build_filter), mai allarga.
 
 
 class SearchIn(BaseModel):
@@ -225,6 +228,9 @@ class WritebackIn(BaseModel):
     tags: list[str] = []
     confirm: bool = False      # false → solo ANTEPRIMA (regola 5: conferma umana)
     overwrite: bool = False
+    origin: str = ""           # "conversazione" → il SERVER antepone la marcatura
+    #                            «Origine: conversazione con Divina · data · NON
+    #                            verificato» (O4: ciò che entra, entra marcato)
 
 
 class FeedbackIn(BaseModel):
@@ -273,6 +279,27 @@ def _secs_to_midnight_utc() -> str:
     now = datetime.now(timezone.utc)
     nxt = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     return str(max(1, int((nxt - now).total_seconds())))
+
+
+def _focus_slugs(body) -> list | None:
+    """Slug dell'orbita scelta (O2), validati: solo stringhe, minuscole, max 300.
+    Ritorna None se il focus non c'è o è vuoto — il filtro resta quello dei grant."""
+    f = getattr(body, "focus", None)
+    if not isinstance(f, dict):
+        return None
+    slugs = [str(s).strip().lower() for s in (f.get("slugs") or [])
+             if isinstance(s, (str, int)) and str(s).strip()]
+    return slugs[:300] or None
+
+
+def _is_owner(tenant: dict) -> bool:
+    """O4 · L'interlocutore è il TITOLARE (FORMA)? Flag SERVER-SIDE sul record del
+    tenant (campo `owner` o branding.owner) — non è un interruttore d'interfaccia
+    e non si attiva col prompt: un cliente non può arrivarci nemmeno sbagliando
+    chiamata, perché il suo record il flag non ce l'ha (e non può scriverselo)."""
+    if tenant.get("owner") is True:
+        return True
+    return (tenant.get("branding") or {}).get("owner") is True
 
 
 def _reject_master_browser(tenant: dict, origin: str) -> None:
@@ -428,10 +455,13 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
         if routed and routed.get("routed"):
             return _agent_response(routed, _grants(tenant))
         # Divina inerte/irraggiungibile o non ha instradato → si prosegue col RAG.
+    focus_slugs = _focus_slugs(body)
+    free = _is_owner(tenant)   # O4: conversazione libera SOLO owner, deciso QUI, server-side
     if body.stream:
         try:
             gen = rag.answer_stream(body.message, _grants(tenant), history=body.history,
-                                    lang=lang, tier=tier, web=body.web, web_enabled=web_enabled)
+                                    lang=lang, tier=tier, web=body.web, web_enabled=web_enabled,
+                                    focus_slugs=focus_slugs, free=free)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -454,7 +484,8 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
         )
     try:
         return rag.answer(body.message, _grants(tenant), history=body.history, lang=lang,
-                          tier=tier, web=body.web, web_enabled=web_enabled)
+                          tier=tier, web=body.web, web_enabled=web_enabled,
+                          focus_slugs=focus_slugs, free=free)
     except HTTPException:
         raise
     except Exception:
@@ -945,12 +976,23 @@ def do_writeback(body: WritebackIn, x_tenant_key: str = Header(default=""), orig
     title = security.cap_input(body.title, 200)
     if not title:
         raise HTTPException(422, "Titolo vuoto.")
+    contenuto = body.body
+    if (body.origin or "").strip().lower() == "conversazione":
+        # O4 · «Quello che entra, entra marcato», e lo marca il SERVER (regola #1
+        # del vault: ogni dato porta fonte e data). Un contenuto nato da
+        # conversazione NON è verificato finché un umano non lo conferma con una
+        # fonte vera: meglio un nodo che dichiara di essere incerto che un nodo
+        # che sembra vero.
+        from datetime import datetime, timezone
+        oggi = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        contenuto = (f"> Origine: conversazione con Divina · {oggi} · NON verificato\n\n"
+                     + (body.body or ""))
     if not body.confirm:
-        preview = writeback.render_note(body.scope, title, body.body, body.summary, body.tags)
+        preview = writeback.render_note(body.scope, title, contenuto, body.summary, body.tags)
         return {"consolidato": False, "preview": preview,
                 "note": "Conferma con confirm=true per scrivere nel vault."}
     try:
-        res = writeback.save_note(body.scope, title, body.body, body.summary,
+        res = writeback.save_note(body.scope, title, contenuto, body.summary,
                                   body.tags, overwrite=body.overwrite)
     except Exception:
         log.exception("writeback failed")

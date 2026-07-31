@@ -29,7 +29,7 @@ def test_no_answer_lang():
 
 
 def test_answer_no_hits_lang(monkeypatch):
-    monkeypatch.setattr(rag, "_retrieve", lambda q, g, k: [])
+    monkeypatch.setattr(rag, "_retrieve", lambda q, g, k, focus_slugs=None: [])
     assert rag.answer("q", ["ats"], lang="en")["answer"] == rag._NO_ANSWER_EN
     assert rag.answer("q", ["ats"])["answer"] == rag.NO_ANSWER   # default it
 
