@@ -423,7 +423,7 @@ body.chat-aperta{--chatw:380px}
       <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="15"></span> Stato &amp; audit</button>
     </div>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07k · ondata A</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07l · la V2</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -590,7 +590,11 @@ function demoData(service, path, opts){
   const now=Math.floor(Date.now()/1000), nowIso=n=>new Date(Date.now()-n).toISOString();
   if(service==='engine'){
     if(path.startsWith('/chat')){
-      const msg=(opts.body&&opts.body.message||'').toLowerCase();
+      const msg=(opts.body&&opts.body.message||'').toLowerCase().trim();
+      /* V2-D: la demo rispecchia il comportamento vero — saluti e domande sul
+         sistema hanno un percorso loro anche qui */
+      if(/^(ciao|salve|buongiorno|buonasera)[!., ]*$/.test(msg)) return Promise.resolve({answer:'Ciao! Sono qui. Chiedimi qualcosa sul tuo mondo — o dimmi «cosa sai» e ti racconto cosa ho in testa.',sources:[],scopes:['forma-core','ats'],system:true});
+      if(/cosa (sai|conosci)\s*\??$/.test(msg)||/quante note/.test(msg)) return Promise.resolve({answer:'(DEMO) Ecco cosa ho in testa adesso — 100 note, nelle aree che questa chiave può vedere:\n— forma-core: 52 note\n— ats: 21 note\n— andrea: 15 note\n— ovyon: 12 note\nUltimo aggiornamento: oggi. Chiedimi qualcosa in una di queste aree: rispondo citando le fonti, e se un dato non c\'è te lo dico.',sources:[],scopes:['forma-core','ats'],system:true});
       let a='(DEMO) In base al cervello, FORMA Hub offre stampa 3D (FDM/SLA da €15/pz), modellazione 3D su preventivo, servizi digitali da €600 e AI custom da €350. Posso approfondire un servizio specifico?';
       if(msg.includes('orari')||msg.includes('apert')) a='(DEMO) La sede di Benevento è aperta lun–ven 9:00–18:00. Il servizio a domicilio ATS copre anche il weekend su prenotazione.';
       if(msg.includes('prezzo')||msg.includes('costo')||msg.includes('stampa')) a='(DEMO) La stampa 3D FDM parte da €15/pezzo; la SLA è su preventivo in base a volume e finitura. Vuoi una stima per un modello specifico?';
