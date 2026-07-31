@@ -86,6 +86,35 @@ caso("accoppiamento più forte del previsto (casse a palla): l'attacco lo impara
   if (r.scattato) throw new Error(`scattato con eco forte (k=${r.k.toFixed(2)}, soglia ${r.soglia.toFixed(3)})`);
 });
 
+function simulaFinestre({ out, eco, voce, voceDa, ms, frase = 0, k0 = 1.2, base = 0.008 }) {
+  // P2 (task audit-09): con `frase`>0 riproduce il DIFETTO — blind (350ms) e
+  // fresco (900ms) che ripartono A OGNI FRASE (e nel cieco il sostegno si
+  // azzera, come nel modulo); con frase=0 le finestre misurano il TURNO.
+  let k = k0, over = 0, scattato = false;
+  for (let t = 0; t < ms; t += DT) {
+    const rif = frase > 0 ? (t % frase) : t;             // orologio: frase o turno
+    const blind = rif < 350, fresco = rif < 900;
+    const rms = eco + (t >= voceDa ? voce : 0);
+    if (!blind) k = vadImparaK(k, rms, out, fresco);
+    const soglia = vadSoglia(base, k, out);
+    if (!blind && rms > soglia) { over += DT; if (over > SOSTEGNO) { scattato = true; break; } }
+    else over = 0;
+  }
+  return { scattato, k };
+}
+
+caso("P2 · turno di 4 frasi corte, voce sulla terza: con le finestre PER TURNO scatta", () => {
+  const out = 0.25, eco = 0.9 * out;
+  const r = simulaFinestre({ out, eco, voce: 0.35, voceDa: 2600, ms: 4800, frase: 0 });
+  if (!r.scattato) throw new Error(`NON scattato (k=${r.k.toFixed(2)})`);
+});
+
+caso("P2 · lo STESSO caso con le finestre per frase (il difetto 09) NON scattava", () => {
+  const out = 0.25, eco = 0.9 * out;
+  const r = simulaFinestre({ out, eco, voce: 0.35, voceDa: 2600, ms: 4800, frase: 1200 });
+  if (r.scattato) throw new Error("scattato anche col difetto: la dimostrazione non regge più, aggiorna il caso");
+});
+
 caso("senza uscita (idle) la soglia torna quella ambiente", () => {
   const s = vadSoglia(0.008, 1.2, 0);
   if (Math.abs(s - 0.045) > 1e-9) throw new Error(`soglia idle ${s}`);

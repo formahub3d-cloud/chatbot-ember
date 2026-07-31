@@ -288,6 +288,14 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .live-feed{display:flex;flex-direction:column;gap:10px}
 .live-row{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;animation:fade .3s ease}
 .live-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
+/* ── P3 · La console non si finge pronta ─────────────────────────────
+   La classe `preboot` sta nell'HTML statico: menu, barra mobile, topbar e
+   composer restano spenti finché lo script di boot non la toglie (bootDone).
+   Il cenno «si prepara» compare solo se il boot dura più di ~mezzo secondo:
+   sotto, sparisce prima di farsi notare. */
+.preboot .side,.preboot .bottombar,.preboot .topbar,.preboot .composer{pointer-events:none;opacity:.55}
+#bootHint{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:130;background:color-mix(in srgb,var(--surface) 92%,transparent);border:1px solid var(--border);color:var(--text-3);font-size:12px;font-weight:600;padding:6px 14px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .25s}
+.preboot #bootHint{opacity:1;transition-delay:.5s}
 /* ── Modalità CLIENTE (accessi gestiti da FORMA, app/clientauth.py) ── */
 .clientmode .side,.clientmode .bottombar,.clientmode #tenantChip,.clientmode #connChip,.clientmode #refreshBtn,.clientmode #burger{display:none!important}
 .clientmode .app{grid-template-columns:1fr}
@@ -342,8 +350,9 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 }
 </style>
 </head>
-<body>
+<body class="preboot">
 <div class="gradient-line" style="position:fixed;top:0;left:0;right:0;z-index:120"></div>
+<div id="bootHint">Divina si prepara…</div>
 <div class="app">
   <aside class="side" id="side">
     <div class="brand">
@@ -378,7 +387,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07g · un nome solo</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07i · pronta quando è pronta</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -571,8 +580,8 @@ function demoData(service, path, opts){
     return Promise.resolve(D[path.split('?')[0]]??{});
   }
   // orch
-  if(path.startsWith('/agents/route')) return Promise.resolve({routed:true,agent:'dante',skill:'invoice-chase',role:'Debt Chaser',department:'Small Business',confidence:0.86,output:'(DEMO) 3 fatture scadute per €4.200. Bozza di sollecito pronta per ciascun cliente, scadenza 7 giorni. Nessun invio effettuato: rivedi e conferma.',cervello_sources:[{title:'Scheda cliente ATS',slug:'scheda-ats'}]});
-  if(path.startsWith('/agents/run')) return Promise.resolve({agent:'virgilio',skill:'ui-ux-pro-max',role:'Design Lead',department:'Designers',output:'(DEMO) Analisi UI/UX: gerarchia coerente, contrasto AA ok. Aumenta i touch target del menu mobile e gli stati di focus.'});
+  if(path.startsWith('/agents/route')) return Promise.resolve({routed:true,agent:'dante',skill:'invoice-chase',role:'Sollecita le fatture in ritardo',department:'Piccola impresa',confidence:0.86,output:'(DEMO) 3 fatture scadute per €4.200. Bozza di sollecito pronta per ciascun cliente, scadenza 7 giorni. Nessun invio effettuato: rivedi e conferma.',cervello_sources:[{title:'Scheda cliente ATS',slug:'scheda-ats'}]});
+  if(path.startsWith('/agents/run')) return Promise.resolve({agent:'virgilio',skill:'ui-ux-pro-max',role:"Disegna l'interfaccia completa",department:'Design',output:'(DEMO) Analisi UI/UX: gerarchia coerente, contrasto AA ok. Aumenta i touch target del menu mobile e gli stati di focus.'});
   if(path.startsWith('/docs/generate')) return Promise.resolve({template:'Preventivo servizi',content:'# Preventivo servizi\n\n(DEMO) Documento dai nodi pertinenti.\n\n- Voce 1 — €600\n- Voce 2 — €350\n\n**Totale:** €950 + IVA',warnings:[]});
   if(path.startsWith('/maintenance/run')) return Promise.resolve({archived_duplicates:2,orphans:['nodo-senza-fonte'],note:'2 duplicati archiviati (mai delete), 1 orfano segnalato.'});
   if(path.startsWith('/contradictions/resolve')) return Promise.resolve({resolved:true,status:opts.body?.status||'risolto'});
@@ -580,13 +589,17 @@ function demoData(service, path, opts){
   const D={
     '/version':{name:'Divina',version:'0.4.0'},'/health':{status:'ok',service:'divina',version:'0.4.0',composio:true,worker:2},'/ready':{status:'ready',db:true},
     '/agents':{agents:[
-      {id:'dante',name:'Dante',archetype:"l'operativo (BIZ)",tagline:'Run the day-to-day money side on autopilot',skills:[
-        {id:'cash-flow-snapshot',role:'Cash Watcher',desc:'fotografa la cassa',department:'Small Business'},{id:'invoice-chase',role:'Debt Chaser',desc:'sollecita fatture',department:'Small Business'},{id:'plan-payroll',role:'Payroll Planner',desc:'buste paga',department:'Small Business'},{id:'margin-analyzer',role:'Margin Analyst',desc:'analizza i margini',department:'Small Business'},{id:'tax-prep',role:'Tax Prepper',desc:'prepara le tasse',department:'Small Business'},{id:'run-campaign',role:'Campaign Runner',desc:'lancia una campagna',department:'Small Business'}]},
-      {id:'virgilio',name:'Virgilio',archetype:'il costruttore/custode',tagline:'Build, design and safeguard what you ship',skills:[
-        {id:'superpowers',role:'Skill Forge',desc:'pacchetto 14 skill',department:'Developers'},{id:'mcp-builder',role:'Tool Wright',desc:'server MCP',department:'Developers'},{id:'webapp-testing',role:'QA Engineer',desc:'test browser',department:'Developers'},{id:'ui-ux-pro-max',role:'Design Lead',desc:'sistema UI/UX',department:'Designers'},{id:'brand-guidelines',role:'Brand Keeper',desc:'brand kit',department:'Designers'},{id:'review-contract',role:'Contract Reviewer',desc:'revisiona contratti',department:'Legal'},{id:'triage-nda',role:'NDA Triage',desc:'review NDA',department:'Legal'}]},
-      {id:'beatrice',name:'Beatrice',archetype:'la guida/visione',tagline:'Chart the strategy and tell the story',skills:[
-        {id:'market-scan',role:'Market Scout',desc:'scansione mercato',department:'Strategy'},{id:'okr-planner',role:'OKR Planner',desc:'imposta OKR',department:'Strategy'},{id:'content-plan',role:'Content Planner',desc:'piano editoriale',department:'Growth'},{id:'seo-audit',role:'SEO Auditor',desc:'audit SEO',department:'Growth'},{id:'case-study',role:'Story Weaver',desc:'case study',department:'Growth'}]}]},
-    '/agents/dispatches':{dispatches:[{at:now-15,kind:'run',tenant:'forma-core',input:'[test] Bozza email di collaudo',agent:'worker',skill:'gmail-crea-bozza',role:'Worker',department:'Azioni fidate',routed:true,esito:'ok'},{at:now-40,kind:'route',tenant:'ats',input:'Prepara i solleciti per le fatture scadute del cliente ATS',agent:'dante',skill:'invoice-chase',role:'Debt Chaser',department:'Small Business',routed:true,confidence:.86},{at:now-520,kind:'run',tenant:'forma',input:'Analisi UI/UX del pannello Divina',agent:'virgilio',skill:'ui-ux-pro-max',role:'Design Lead',department:'Designers',routed:true},{at:now-1900,kind:'route',tenant:'ats',input:'boh qualcosa sui prezzi forse',routed:false,confidence:.31}]},
+      {id:'dante',name:'Dante',archetype:"l'operativo (BIZ)",tagline:'Ti tiene in ordine i soldi di ogni giorno: cassa, fatture, buste paga',skills:[
+        {id:'cash-flow-snapshot',role:'Fotografa la cassa',desc:'entrate, uscite e saldo, in una pagina',department:'Piccola impresa'},{id:'invoice-chase',role:'Sollecita le fatture in ritardo',desc:'bozze di sollecito pronte, nessun invio senza il tuo ok',department:'Piccola impresa'},{id:'plan-payroll',role:'Pianifica le buste paga',desc:'scadenze e importi del mese, da verificare',department:'Piccola impresa'},{id:'margin-analyzer',role:'Ti dice dove guadagni davvero',desc:'margini per prodotto e per cliente',department:'Piccola impresa'},{id:'tax-prep',role:'Prepara i conti per il commercialista',desc:'documenti e scadenze fiscali in ordine',department:'Piccola impresa'},{id:'run-campaign',role:'Prepara una campagna promozionale',desc:'testi e piano di lancio, da approvare',department:'Piccola impresa'}]},
+      {id:'virgilio',name:'Virgilio',archetype:'il costruttore/custode',tagline:'Costruisce, disegna e protegge quello che consegni',skills:[
+        {id:'superpowers',role:'Attiva il pacchetto tecnico completo',desc:'14 skill di sviluppo in un colpo solo',department:'Sviluppo'},{id:'context7',role:'Trova la documentazione aggiornata',desc:'doc ufficiali delle librerie, dal vivo',department:'Sviluppo'},{id:'mcp-builder',role:'Collega Divina ad altri strumenti',desc:'costruisce connettori MCP',department:'Sviluppo'},{id:'skill-creator',role:'Costruisce una skill nuova',desc:"da un'idea a una capacità funzionante",department:'Sviluppo'},{id:'webapp-testing',role:"Collauda l'applicazione nel browser",desc:'prova i flussi come un utente vero',department:'Sviluppo'},{id:'claude-mem',role:'Ricorda il lavoro fatto',desc:'memoria persistente tra le sessioni',department:'Sviluppo'},
+        {id:'ui-ux-pro-max',role:"Disegna l'interfaccia completa",desc:'sistema UI/UX: colori, componenti, pagine',department:'Design'},{id:'taste',role:'Giudica se è bello davvero',desc:'critica onesta di gusto e coerenza',department:'Design'},{id:'frontend-design',role:'Costruisce le pagine del sito',desc:'UI front-end pronta da montare',department:'Design'},{id:'transitions',role:'Anima le transizioni',desc:'libreria di movimenti CSS',department:'Design'},{id:'web-artifacts',role:'Fa un prototipo cliccabile',desc:'una demo web viva da mostrare',department:'Design'},{id:'brand-guidelines',role:'Mette per iscritto il tuo brand',desc:'logo, colori, voce: il kit completo',department:'Design'},
+        {id:'review-contract',role:'Rilegge un contratto prima della firma',desc:'punti critici evidenziati, in italiano chiaro',department:'Legale'},{id:'triage-nda',role:'Controlla un NDA in dieci minuti',desc:'cosa firmare e cosa far cambiare',department:'Legale'},{id:'compliance-check',role:'Verifica se sei in regola',desc:'conformità alle regole che ti riguardano',department:'Legale'},{id:'legal-risk-assessment',role:'Segnala i rischi legali',desc:'dove puoi farti male, prima di farti male',department:'Legale'},{id:'vendor-check',role:'Controlla un fornitore prima di pagarlo',desc:"reputazione e segnali d'allarme",department:'Legale'},{id:'signature-request',role:'Porta il documento alla firma',desc:'prepara e instrada la richiesta di firma',department:'Legale'}]},
+      {id:'beatrice',name:'Beatrice',archetype:'la crescita/visione',tagline:'Trova clienti, racconta la tua storia, tiene i conti in ordine',skills:[
+        {id:'copywriting',role:'Scrive testi che vendono',desc:'copy per sito, email e offerte',department:'Marketing'},{id:'ai-seo',role:'Ti fa trovare dalle AI',desc:'come comparire nelle risposte di ChatGPT & co.',department:'Marketing'},{id:'cro',role:'Trasforma più visite in clienti',desc:'migliora la conversione del sito',department:'Marketing'},{id:'ad-creative',role:'Prepara le inserzioni',desc:'titoli e visual per le campagne',department:'Marketing'},{id:'customer-research',role:'Ascolta cosa dicono i clienti',desc:'recensioni e feedback, sintetizzati',department:'Marketing'},{id:'lead-magnets',role:"Crea l'esca per raccogliere contatti",desc:"guide e risorse in cambio dell'email",department:'Marketing'},
+        {id:'post-writer',role:'Scrive i post per LinkedIn',desc:'nella tua voce, pronti da pubblicare',department:'Social'},{id:'profile-optimizer',role:'Sistema il tuo profilo',desc:'bio, foto, presentazione: al meglio',department:'Social'},{id:'reels-scripting',role:'Sceneggia i tuoi Reel',desc:'script pronti da girare',department:'Social'},{id:'hook-generator',role:'Trova la frase che ferma lo scroll',desc:'aperture forti per i post',department:'Social'},{id:'voice-builder',role:'Definisce il tuo tono di voce',desc:'come parli, ovunque scrivi',department:'Social'},{id:'youtube-thumbnail',role:'Sceglie la copertina giusta',desc:'test sulle miniature che fanno cliccare',department:'Social'},
+        {id:'financial-statements',role:'Prepara i bilanci',desc:'prospetti pronti per il commercialista',department:'Finanza'},{id:'journal-entry',role:'Registra le scritture contabili',desc:'la prima nota, in ordine',department:'Finanza'},{id:'reconciliation',role:'Fa quadrare i conti',desc:'banca e contabilità allineate',department:'Finanza'},{id:'variance-analysis',role:'Spiega perché i numeri sono cambiati',desc:'gli scostamenti, in chiaro',department:'Finanza'},{id:'audit-support',role:'Prepara le carte per la revisione',desc:'documenti pronti per il revisore',department:'Finanza'},{id:'close-management',role:'Chiude il mese senza affanni',desc:'la checklist di chiusura, guidata',department:'Finanza'}]}]},
+    '/agents/dispatches':{dispatches:[{at:now-15,kind:'run',tenant:'forma-core',input:'[test] Bozza email di collaudo',agent:'worker',skill:'gmail-crea-bozza',role:'Worker',department:'Azioni fidate',routed:true,esito:'ok'},{at:now-40,kind:'route',tenant:'ats',input:'Prepara i solleciti per le fatture scadute del cliente ATS',agent:'dante',skill:'invoice-chase',role:'Sollecita le fatture in ritardo',department:'Piccola impresa',routed:true,confidence:.86},{at:now-520,kind:'run',tenant:'forma',input:'Analisi UI/UX del pannello Divina',agent:'virgilio',skill:'ui-ux-pro-max',role:"Disegna l'interfaccia completa",department:'Design',routed:true},{at:now-1900,kind:'route',tenant:'ats',input:'boh qualcosa sui prezzi forse',routed:false,confidence:.31}]},
     '/contradictions':{contradictions:[{id:'c1',description:'Il prezzo SLA differisce tra "listino-2026" e "faq-prezzi": €18 vs €22.',status:'irrisolto',created_at:nowIso(3600e3),node_a:'listino-2026',node_b:'faq-prezzi'},{id:'c2',description:'Orari discordanti tra scheda cliente ATS e pagina contatti.',status:'irrisolto',created_at:nowIso(26*3600e3),node_a:'scheda-ats',node_b:'contatti'}]},
     '/nodes/recent':{nodes:[{node_id:'n1',slug:'processo-onboarding-cliente',title:'Processo di onboarding cliente',kind:'processo',status:'bozza',summary:'Flusso in 5 step.',confidence:0.82,updated_at:nowIso(1200e3)},{node_id:'n2',slug:'listino-stampa-3d-2026',title:'Listino stampa 3D 2026',kind:'documento',status:'promosso',summary:'Prezzi FDM/SLA giugno 2026.',confidence:0.95,updated_at:nowIso(8*3600e3)},{node_id:'n3',slug:'faq-resi-rimborsi',title:'FAQ resi e rimborsi',kind:'faq',status:'bozza',summary:'Reso entro 14 giorni.',confidence:0.7,updated_at:nowIso(30*3600e3)}]},
     '/templates':{templates:[{name:'Preventivo servizi',business_area:'Sales',min_tier:'starter',format:'markdown',system:true},{name:'Contratto quadro',business_area:'Legal',min_tier:'enterprise',format:'docx',system:true},{name:'Report CO₂ B2B',business_area:'Sostenibilità',min_tier:'pro',format:'markdown',system:true}]},
@@ -1920,15 +1933,37 @@ function renderClientLogin(){
   document.getElementById('clEmail').focus();
 }
 
+/* P3 · Fine del boot: la console diventa cliccabile e DICE quanto ci ha
+   messo. La misura richiesta è «primo disegno → primo clic utile»: qui
+   first-contentful-paint (il browser la registra) e performance.now() al
+   momento in cui i menu si accendono. La riga [boot] resta in produzione:
+   è lo strumento di misura, non un log di debug. */
+let _bootMs=0;
+function bootDone(){
+  if(_bootMs)return;
+  _bootMs=Math.round(performance.now());
+  document.body.classList.remove('preboot');
+  // La riga esce quando il primo disegno è REGISTRATO (observer buffered):
+  // a fine script la pagina non è ancora stata presentata e la
+  // first-contentful-paint non esisterebbe ancora. Fallback a 3 s.
+  let detto=false;
+  const dilla=fp=>{if(detto)return;detto=true;
+    const gap=fp?_bootMs-fp:0;
+    console.info('[boot] pronta dopo '+_bootMs+' ms'+(fp?' · primo disegno a '+fp+' ms · '+(gap>0?'attesa fra disegno e clic utile: '+gap+' ms':'pronta prima del primo disegno'):''));};
+  try{new PerformanceObserver((l,o)=>{const e=l.getEntries().find(x=>x.name==='first-contentful-paint');if(e){o.disconnect();dilla(Math.round(e.startTime));}}).observe({type:'paint',buffered:true});}catch(_){dilla(0);}
+  setTimeout(()=>dilla(0),3000);
+}
 (async function init(){
-  applyIcons();setTheme(localStorage.getItem(LS.theme)||'dark');
-  if(location.hash==='#cliente'){renderClientLogin();return;}
-  if(await tryClientMode())return;
-  $('#tenantText').textContent=state.tenant;
-  await checkConn();
-  refreshBadges();setInterval(refreshBadges,60000);
-  if(!state.engOk&&!state.orchOk&&!state.demo)openConn();
-  route('home');
+  try{
+    applyIcons();setTheme(localStorage.getItem(LS.theme)||'dark');
+    if(location.hash==='#cliente'){renderClientLogin();return;}
+    if(await tryClientMode())return;
+    $('#tenantText').textContent=state.tenant;
+    await checkConn();
+    refreshBadges();setInterval(refreshBadges,60000);
+    if(!state.engOk&&!state.orchOk&&!state.demo)openConn();
+    route('home');
+  }finally{bootDone();}   // anche se il boot inciampa, la console non resta spenta
 })();
 </script>
 </body>

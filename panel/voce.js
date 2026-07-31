@@ -10,8 +10,7 @@
  *
  * Dentro: spezzatura in frasi (emSentenze, testata da
  * scripts/test_voce_sentenze.js sui marcatori), coda audio ordinata (max 2
- * sintesi in volo, interrompibile), barge-in (VAD adattivo, 220ms, cieco
- * 350ms), invio automatico a fine parlato (400ms parlato / 900ms silenzio /
+ * sintesi in volo, interrompibile), barge-in (VAD adattivo per TURNO: 220ms di sostegno, 350ms ciechi e 900ms di apprendimento SOLO a inizio turno), invio automatico a fine parlato (400ms parlato / 900ms silenzio /
  * finestra annullabile 500ms), trascrizione con parziali live, ampiezza
  * VERA in ingresso e in uscita per l'orb.
  *
@@ -149,7 +148,8 @@
 
     // ── USCITA: coda audio ORDINATA per frase ─────────────────────────────
     var vout = { on:false, buf:"", items:[], next:0, playing:null, gen:0, t0:0,
-                 inflight:0, done:false, measured:false, anyOk:false, frasi:[] };
+                 inflight:0, done:false, measured:false, anyOk:false, frasi:[],
+                 turnoAt:0 };   // P2: inizio del TURNO parlato (prima frase), non della frase corrente
     var outAC = null, outAn = null, outBuf = null, micOk = false;
 
     function speakStart(t0){
@@ -157,6 +157,7 @@
       vout.gen++; vout.on = true; vout.buf = ""; vout.items = []; vout.next = 0;
       vout.inflight = 0; vout.done = false; vout.measured = false; vout.anyOk = false;
       vout.frasi = []; vout.t0 = t0 || performance.now();
+      vout.turnoAt = 0;                      // il turno nuovo parte alla PRIMA riproduzione
     }
     function speakFeed(delta){
       if (!vout.on) return;
@@ -226,7 +227,7 @@
       var a = new Audio(URL.createObjectURL(it.blob));
       vout.playing = a; vout.anyOk = true;
       collegaUscita(a);
-      a.onplaying = function(){ misura(); setStato("parla"); emit("Notify", "speech-start"); vadArm(); };
+      a.onplaying = function(){ if (!vout.turnoAt) vout.turnoAt = performance.now(); misura(); setStato("parla"); emit("Notify", "speech-start"); vadArm(); };
       a.onended = a.onerror = function(){
         try{ URL.revokeObjectURL(a.src); }catch(e){}
         if (vout.playing === a) vout.playing = null;
@@ -260,7 +261,7 @@
         var vs = synth.getVoices() || [];
         var v = vs.filter(function(x){ return x.lang && x.lang.toLowerCase().indexOf(LANG.slice(0,2).toLowerCase()) === 0; })[0];
         if (v) u.voice = v;
-        u.onstart = function(){ misura(); setStato("parla"); emit("Notify", "speech-start"); vadArm(); };
+        u.onstart = function(){ if (!vout.turnoAt) vout.turnoAt = performance.now(); misura(); setStato("parla"); emit("Notify", "speech-start"); vadArm(); };
         u.onend = function(){
           if (!(synth.pending || synth.speaking) && vout.done && vout.next >= vout.items.length){
             setStato("fermo"); emit("Notify", "speech-end");
@@ -288,6 +289,7 @@
       vout.items.forEach(function(it){ try{ it.ctl && it.ctl.abort(); }catch(e){} });
       vout.items = []; vout.next = 0; vout.inflight = 0; vout.frasi = [];
       if (vout.playing){ try{ vout.playing.pause(); }catch(e){} vout.playing = null; }
+      vout.turnoAt = 0;
       if (synth) try{ synth.cancel(); }catch(e){}
       vadIdle();
     }
@@ -300,7 +302,15 @@
     var vad = { stream:null, ac:null, an:null, buf:null, raf:0, base:0.008, over:0,
                 lastPlayAt:0, armed:false, k:1.2 };   // k: accoppiamento uscita→mic (C3), appreso
     function vadArm(){
-      vad.lastPlayAt = performance.now();
+      /* P2 (task audit-09): blind (350ms) e fresco (900ms) misurano l'inizio
+         del TURNO parlato, non della frase — la sintesi è per frase (PR1),
+         quindi rimetterle a ogni onplaying le teneva aperte il 45-75% del
+         tempo, e dentro `fresco` la voce dell'utente veniva imparata come eco
+         proprio mentre provava a interrompere. Il transitorio che giustifica
+         il cieco (attacco altoparlante, stanza che risuona) accade una volta
+         per turno; il K della prima frase vale per le successive: stessa
+         stanza, stesso volume, stesso microfono. */
+      vad.lastPlayAt = vout.turnoAt || performance.now();
       if (!BARGE || !hasMR || vad.armed || udito.on) return;   // col mic già aperto ci pensa l'autosend
       if (micOk){ vadStart(); return; }
       if (navigator.permissions && navigator.permissions.query){
