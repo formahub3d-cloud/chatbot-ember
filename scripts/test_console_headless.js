@@ -60,7 +60,7 @@ function trovaChromium() {
   await page.waitForTimeout(700);
 
   // 1 · route() deve sopravvivere su tutte le viste principali
-  for (const v of ["chat", "dashboard", "brain", "home", "chat"]) {
+  for (const v of ["chat", "dashboard", "brain", "improve", "home", "chat"]) {
     await page.evaluate(v2 => route(v2), v);
     await page.waitForTimeout(350);
   }
