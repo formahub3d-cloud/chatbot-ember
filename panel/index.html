@@ -1822,7 +1822,7 @@ function route(view){
   state._brainOn=false;
   if(state._orb)state._orb.on=false;
   
-  if(_recProva)stopVoice();
+  stopVoice();
   state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   $$('.bottombar button').forEach(b=>b.classList.toggle('active',b.dataset.bv===view));
   const [t,s]=TITLES[view]||['',''];$('#pageTitle').textContent=t;$('#pageSub').textContent=s;
