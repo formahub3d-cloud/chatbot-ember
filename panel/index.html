@@ -242,11 +242,17 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .voxmode canvas,.voxmode .orb-css{width:min(64vw,300px);height:min(64vw,300px)}
 .vox-x{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:18px;font-size:20px;line-height:1;min-width:44px;min-height:44px}
 .vox-state{font-family:Orbitron,Montserrat,sans-serif;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
-.vox-log{width:min(92vw,560px);max-height:24vh;overflow-y:auto;font-size:12.5px;line-height:1.65;color:var(--text-3);text-align:center;scrollbar-width:thin}
+.vox-log{width:min(92vw,560px);max-height:24vh;overflow-y:auto;font-size:12.5px;line-height:1.65;color:var(--text-3);text-align:center;scrollbar-width:thin;transition:opacity 1.5s ease}
 .vox-log .vox-u{color:var(--cyan)}
 .vox-log .vox-b{color:var(--text-2)}
 .vox-log .interim{opacity:.55;font-style:italic}
-@media (prefers-reduced-motion: reduce){.voxmode{backdrop-filter:none}}
+/* U3: dopo ~6s di silenzio il trascritto sfuma (1.5s) e resta l'orb, che si
+   allarga a occupare lo spazio; una riga nuova lo fa ricomparire all'istante */
+.voxmode canvas,.voxmode .orb-css{transition:transform 1.5s ease}
+.voxmode.vox-quiet .vox-log{opacity:0;pointer-events:none}
+.voxmode.vox-quiet canvas,.voxmode.vox-quiet .orb-css{transform:scale(1.22)}
+.vox-log.vox-wake{transition:none}
+@media (prefers-reduced-motion: reduce){.voxmode{backdrop-filter:none}.vox-log,.voxmode canvas,.voxmode .orb-css{transition:none}}
 /* Fallback P1.5: canvas bloccato (anti-fingerprint/Lockdown) → orb in CSS puro */
 .orb-css{--oc:#a855f7;width:72px;height:72px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 38% 32%,rgba(255,255,255,.72) 0%,var(--oc) 44%,transparent 76%);animation:orbBreath 3.2s ease-in-out infinite}
 .orb-css[data-mode="ragionando"]{animation-duration:1.6s}
@@ -354,7 +360,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07a · voce naturale</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07b · un motore vocale solo</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -1221,6 +1227,14 @@ function voxOpen(){
   document.getElementById('voxClose').onclick=voxClose;
   M.addEventListener('keydown',voxKeys);
   (micB||document.getElementById('voxClose')).focus();
+  /* U3: ~6s dall'ultima riga → il trascritto sfuma (1.5s di dissolvenza in
+     CSS) e resta l'orb. Il testo completo non si perde: la conversazione è la
+     STESSA della chat scritta — chiudi il modo vocale e la rileggi lì. */
+  state._vox.lastLine=performance.now();
+  state._vox.fadeTimer=setInterval(()=>{
+    const v=state._vox;if(!v||!v.open)return;
+    if(performance.now()-v.lastLine>6000)M.classList.add('vox-quiet');
+  },500);
   voxListen();
 }
 function voxKeys(e){
@@ -1237,8 +1251,9 @@ function voxClose(){
   const v=state._vox;if(!v||!v.open)return;
   v.open=false;state._voxAfter=null;
   if(_vce)_vce.stop();
+  if(v.fadeTimer)clearInterval(v.fadeTimer);
   const M=document.getElementById('voxMode');
-  if(M){M.classList.remove('open');M.hidden=true;M.removeEventListener('keydown',voxKeys);}
+  if(M){M.classList.remove('open','vox-quiet');M.hidden=true;M.removeEventListener('keydown',voxKeys);}
   state._vox=null;
   if(document.getElementById('orbCv')){initOrb('orbCv');setOrb('idle',state._compSel||'divina');}
   try{v.ret&&v.ret.focus();}catch(_){}
@@ -1252,6 +1267,14 @@ function voxToggleMic(){
 }
 function voxLine(role,text,interim){
   const log=document.getElementById('voxLog');if(!log)return;
+  /* U3: una riga nuova fa RICOMPARIRE il trascritto all'istante (vox-wake
+     spegne la transizione per un frame), e azzera il timer della sfumatura. */
+  if(state._vox){state._vox.lastLine=performance.now();}
+  const M=document.getElementById('voxMode');
+  if(M&&M.classList.contains('vox-quiet')){
+    log.classList.add('vox-wake');M.classList.remove('vox-quiet');
+    void log.offsetWidth;log.classList.remove('vox-wake');
+  }
   let el=log.querySelector('.vox-line.interim');
   if(interim){
     if(!text){if(el)el.remove();return;}
@@ -1262,7 +1285,7 @@ function voxLine(role,text,interim){
     const n=document.createElement('div');n.className='vox-line '+(role==='user'?'vox-u':'vox-b');
     n.textContent=(role==='user'?'Tu: ':'Divina: ')+text;log.appendChild(n);
   }
-  while(log.children.length>14)log.removeChild(log.firstChild);
+  while(log.children.length>10)log.removeChild(log.firstChild);   // solo le ultime battute: il DOM non cresce
   log.scrollTop=log.scrollHeight;
 }
 function voxListen(){
