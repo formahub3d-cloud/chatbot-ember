@@ -362,9 +362,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <button class="nav-item" data-view="scopes"><span class="ic" data-ic="layers" data-ics="17"></span> Scope</button>
     <button class="nav-item" data-view="insights"><span class="ic" data-ic="signal" data-ics="17"></span> Segnali</button>
     <button class="nav-item" data-view="learning"><span class="ic" data-ic="spark" data-ics="17"></span> Apprendimento <span class="badge" id="b-learning">0</span></button>
-    <button class="nav-item" data-view="proposals"><span class="ic" data-ic="shield" data-ics="17"></span> Proposte audit <span class="badge" id="b-props">0</span></button>
-    <button class="nav-item" data-view="roadmap"><span class="ic" data-ic="compass" data-ics="17"></span> Roadmap <span class="badge" id="b-roadmap">0</span></button>
-    <button class="nav-item" data-view="tasks"><span class="ic" data-ic="check" data-ics="17"></span> Task del cervello <span class="badge" id="b-tasks">0</span></button>
+    <button class="nav-item" data-view="improve"><span class="ic" data-ic="check" data-ics="17"></span> Miglioramenti <span class="badge" id="b-improve">0</span></button>
     <button class="nav-item" data-view="usage"><span class="ic" data-ic="coins" data-ics="17"></span> Uso &amp; costi</button>
     <button class="nav-item" data-view="events"><span class="ic" data-ic="list" data-ics="17"></span> Eventi</button>
     <button class="nav-item" data-view="tenants"><span class="ic" data-ic="key" data-ics="17"></span> Tenant</button>
@@ -380,7 +378,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07c · le orbite</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07d · miglioramenti</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -548,7 +546,7 @@ function demoData(service, path, opts){
       return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats'],free:msg.includes('business')||msg.includes('mercato')});
     }
     if(path.startsWith('/admin/tasks/close')||path.startsWith('/admin/tasks/transition')) return Promise.resolve({ok:true});
-    if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:28},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
+    if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:100},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));/* M5: stesso numero di stats.notes (100), un dato solo */gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
     if(path.startsWith('/admin/proposals/approve')) return Promise.resolve({ok:true,task:{id:'t-demo',kind:'gap',status:'aperta'}});
     if(path.startsWith('/admin/proposals/dismiss')) return Promise.resolve({ok:true});
@@ -666,11 +664,17 @@ const VIEWS={
       </div>
     </div>`;
     const sub=$('#homeSub');
-    let g=null;
+    /* M5 · UN numero solo per un dato solo: i neuroni si contano in UN posto
+       (stats.notes di /admin/brain, la stessa fonte del Cervello vivo). Il
+       grafo serve a DISEGNARE: se è una fotografia più vecchia lo si dice
+       con l'età, non con un numero diverso. */
+    let g=null,stats=null;
+    try{const d=await api('engine','/admin/brain');stats=(d&&d.stats)||null;}catch(_){}
     try{g=await api('engine','/admin/brain/graph');}catch(_){}
     if(g&&(g.nodes||[]).length){
       startBrainCanvas(g.nodes,g.links,'homeBrain');
-      if(sub)sub.textContent=`${fmtN(g.nodes.length)} neuroni · ${fmtN((g.links||[]).length)} sinapsi reali — connessi, vivi, tuoi`;
+      const n=(stats&&stats.notes)!=null?stats.notes:g.nodes.length;
+      if(sub)sub.innerHTML=`${fmtN(n)} neuroni · ${fmtN((g.links||[]).length)} sinapsi reali — connessi, vivi, tuoi · ${etaDato(g.generated_at)||''}`;
     }else{
       try{
         const r=await api('engine','/admin/brain/notes?'+q({limit:220}));
@@ -681,6 +685,37 @@ const VIEWS={
         if(sub)sub.textContent=connected?'nessun dato dal cervello: lancia una ingest':'connetti il motore per accendere il cervello';
       }
     }
+  },
+
+  /* ---------- MIGLIORAMENTI (M1) — la coda UNICA: audit · roadmap · proposte · gap.
+     Tre liste in tre posti con tre nomi (due delle quali a zero) diventano UNA
+     voce: il menu perde due voci e guadagna una funzione. brain_tasks resta la
+     tabella (persistente, con idempotency_key): roadmap e proposte si MOSTRANO
+     qui, marcate per origine — nessuna tabella nuova. Criterio: entrando si
+     capisce in dieci secondi cosa è in corso ADESSO (gruppo in cima). ---------- */
+  async improve(){
+    C.innerHTML=skeleton(5);
+    const [tk,rm,pp]=await Promise.all([
+      api('engine','/admin/tasks').catch(()=>null),
+      api('engine','/admin/roadmap').catch(()=>null),
+      api('engine','/admin/proposals').catch(()=>null)]);
+    const items=[];
+    ((tk&&tk.tasks)||[]).forEach(t=>{
+      if(t.status==='archiviata')return;
+      items.push({titolo:t.title,nota:t.note||'',
+        origine:t.kind==='audit'?'audit':(['gap','feedback'].includes(t.kind)?'gap':'cervello'),
+        peso:'',stato:t.status==='fatta'?'fatte':(['in-approvazione','approvata','in-esecuzione'].includes(t.status)?'incorso':'dafare'),
+        quando:t.updated_at||t.created_at||'',k:'tk-'+(t.idempotency_key||t.id)});
+    });
+    ((rm&&rm.tasks)||[]).forEach(t=>items.push({titolo:t.title,nota:t.description||'',
+      origine:'roadmap',peso:t.effort||'',
+      stato:t.status==='fatto'?'fatte':(['in-corso','parziale'].includes(t.status)?'incorso':'dafare'),
+      quando:'',k:'rm-'+t.id}));
+    ((pp&&pp.proposals)||[]).forEach(t=>items.push({titolo:t.title,nota:t.detail||'',
+      origine:'proposta',peso:t.count?t.count+'×':'',stato:'dafare',quando:'',k:'pr-'+t.id,pid:t.id}));
+    state._impItems=items;
+    state._impPersist=!!(tk&&tk.persist);
+    renderImprove();
   },
 
   /* ---------- CHAT ---------- */
@@ -793,7 +828,7 @@ const VIEWS={
          fallback alla costellazione per vicinanza d'area. */
       let g=null;try{g=await api('engine','/admin/brain/graph');}catch(_){}
       const cap=$('#brainCap'),sub=$('#brainOrbSub');
-      if(g&&(g.links||[]).length){if(cap)cap.textContent=`sinapsi REALI dai [[link]] · ${g.links.length} collegamenti · grafo ${timeAgoIso(g.generated_at)}`;if(sub)sub.textContent=`${fmtN(s.notes)} neuroni · ${fmtN(g.links.length)} sinapsi reali`;startBrainCanvas(g.nodes||[],g.links);}
+      if(g&&(g.links||[]).length){if(cap)cap.textContent=`sinapsi REALI dai [[link]] · ${g.links.length} collegamenti`;if(sub)sub.innerHTML=`${fmtN(s.notes)} neuroni · ${fmtN(g.links.length)} sinapsi reali · ${etaDato(g.generated_at)}`;startBrainCanvas(g.nodes||[],g.links);}
       else{if(cap&&d.persist)cap.textContent="collegamenti per vicinanza d'area — le sinapsi reali arrivano con la prossima ingest completa";if(sub)sub.textContent=`${fmtN(s.notes)} neuroni · collegamenti per vicinanza d'area`;try{const r=await api('engine','/admin/brain/notes?'+q({limit:220}));startBrainCanvas(r.notes||[]);}catch(_){startBrainCanvas([]);}}
       setOrb('idle');
     }catch(e){C.innerHTML=errBox(e);}
@@ -1417,8 +1452,12 @@ function voxOpen(){
   const M=document.getElementById('voxMode');if(!M)return;
   state._vox={open:true,paused:false,rec:null,ret:document.activeElement};
   M.hidden=false;M.classList.add('open');
+  console.info('[vox] apertura');
   const log=document.getElementById('voxLog');if(log)log.innerHTML='';
   initOrb('voxOrb',320);
+  /* M4-A: ri-misura DOPO che il layout del modale è davvero a schermo — se il
+     canvas fosse stato letto a dimensione zero, qui si corregge da solo. */
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{if(state._orbKick)state._orbKick();}));
   setOrb('ascolto',state._compSel||'divina');
   const micB=document.getElementById('voxMic');if(micB){micB.textContent='Pausa';micB.onclick=voxToggleMic;}
   document.getElementById('voxClose').onclick=voxClose;
@@ -1446,6 +1485,7 @@ function voxKeys(e){
 }
 function voxClose(){
   const v=state._vox;if(!v||!v.open)return;
+  console.info('[vox] chiusura ←',(new Error().stack||'').split('\n').slice(2,5).map(s=>s.trim()).join(' ← '));
   v.open=false;state._voxAfter=null;
   if(_vce)_vce.stop();
   if(v.fadeTimer)clearInterval(v.fadeTimer);
@@ -1604,7 +1644,74 @@ async function chatApprove(tid,to){
   }catch(e){toast(e.message,'bad');}
 }
 
+/* ── M1 · resa della coda unica: gruppi visibili (IN CORSO in cima), filtri
+   in testa (origine + salto di stato), righe con titolo · origine · peso ·
+   data di chiusura. Nessuna sotto-scheda da scegliere prima di capire. ── */
+const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)']};
+function renderImprove(){
+  if(state.view!=='improve'&&!['roadmap','tasks','proposals'].includes(state.view))return;
+  const items=state._impItems||[];
+  const f=state._impF||(state._impF={origine:'tutte'});
+  const vis=items.filter(x=>f.origine==='tutte'||x.origine===f.origine);
+  const gruppi=[['incorso','IN CORSO','var(--cyan)'],['dafare','DA FARE','var(--orange)'],['fatte','FATTE','var(--green)']];
+  const chipO=['tutte',...Object.keys(IMP_ORIGINI)].map(o=>`<button class="orbit-tab ${f.origine===o?'active':''}" data-io="${o}">${o==='tutte'?'Tutte le origini':IMP_ORIGINI[o][0]}</button>`).join('');
+  const chipS=gruppi.map(([id,l])=>{const n=vis.filter(x=>x.stato===id).length;return `<button class="orbit-tab" data-is="${id}">${l} <b>${n}</b></button>`;}).join('');
+  const riga=x=>{
+    const [ol,oc]=IMP_ORIGINI[x.origine]||[x.origine,'var(--text-3)'];
+    return `<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)">
+      <div style="min-width:0"><div style="font-size:13px;font-weight:600">${esc(x.titolo)}</div>${x.nota?`<div class="small muted" style="margin-top:2px">${esc(x.nota.slice(0,180))}</div>`:''}</div>
+      <div class="row" style="gap:7px;flex-shrink:0;align-items:center">
+        ${x.peso?`<span class="pill" title="peso">${esc(x.peso)}</span>`:''}
+        <span class="scope-chip" style="background:color-mix(in srgb,${oc} 14%,transparent);color:${oc};border-color:${oc}55">${ol}</span>
+        ${x.stato==='fatte'&&x.quando?`<span class="small muted" title="chiusa">${timeAgoIso(x.quando)}</span>`:''}
+        ${x.pid?`<button class="btn sm" data-papp="${esc(x.pid)}">Approva → task</button>`:''}
+      </div></div>`;
+  };
+  const blocco=([id,label,col])=>{
+    const g=vis.filter(x=>x.stato===id);
+    return `<div class="card" id="imp-${id}" style="margin-bottom:14px"><div class="card-head"><div><h3 style="color:${col}">${label}</h3><p>${id==='incorso'?'quello che sta accadendo adesso':id==='dafare'?'in coda, per origine':'chiuse — con quando'}</p></div><span class="pill">${g.length}</span></div>
+      ${g.length?g.map(riga).join(''):`<div class="small muted">niente qui${id==='incorso'?' — scegli dalla coda DA FARE':''}</div>`}</div>`;
+  };
+  C.innerHTML=`
+    ${state._impPersist?'':`<div class="card" style="margin-bottom:14px;border-color:var(--orange)55"><div class="small" style="color:var(--orange)">${icon('alert',12)} Coda NON persistente (Supabase spento): le task del cervello vivono in memoria e si azzerano al redeploy. Roadmap e proposte restano comunque visibili.</div></div>`}
+    <div class="orbit-tabs" style="margin-bottom:12px;flex-wrap:wrap">${chipO}<span style="flex:1"></span>${chipS}</div>
+    <div id="auditShelf"></div>
+    ${gruppi.map(blocco).join('')}`;
+  $$('[data-io]').forEach(b=>b.onclick=()=>{state._impF.origine=b.dataset.io;renderImprove();});
+  $$('[data-is]').forEach(b=>b.onclick=()=>{const el=document.getElementById('imp-'+b.dataset.is);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});
+  $$('[data-papp]').forEach(b=>b.onclick=async()=>{try{await api('engine','/admin/proposals/approve',{method:'POST',body:{id:b.dataset.papp}});toast('Approvata: ora è una task del cervello','info');route('improve');}catch(e){toast('✕ '+e.message,'bad');}});
+  renderAuditShelf();
+}
+/* ── M3 · Gli audit DENTRO il pannello: non sono task, sono i documenti da cui
+   le task nascono. Registro pensato per PIÙ audit nel tempo (data+titolo, il
+   più recente in cima): aggiungerne uno = copiare l'HTML in panel/ e una riga
+   qui. L'audit del pannello del 31-07 va copiato da Andrea/Cowork in
+   panel/audit-pannello-divina-2026-07-31.html e aggiunto in testa:
+     {data:'2026-07-31',titolo:'Audit del pannello Divina',file:'audit-pannello-divina-2026-07-31.html'},
+   (niente link a file che non esistono: un 404 è peggio di una riga in meno). */
+const AUDITS=[
+  {data:'2026-07-23',titolo:'Audit ecosistema Divina — punteggi',file:'audit-divina.html'},
+  {data:'2026-07-23',titolo:'Audit visivo chatbot (ex Jarvis)',file:'audit-chatbot-jarvis.html'},
+];
+function renderAuditShelf(){
+  const el=document.getElementById('auditShelf');if(!el)return;
+  const righe=AUDITS.slice().sort((a2,b2)=>b2.data.localeCompare(a2.data))
+    .map(a2=>`<a class="orbit-chip" href="${esc(a2.file)}" target="_blank" rel="noopener" style="text-decoration:none">${icon('doc',13)} ${esc(a2.titolo)}<span class="orbit-meta">${esc(a2.data)}</span></a>`).join('');
+  el.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Gli audit</h3><p>I documenti da cui nascono le task — il più recente in cima</p></div><span class="pill">${AUDITS.length}</span></div><div class="orbit-row">${righe}</div></div>`;
+}
+
 /* ---- CERVELLO VIVO: costellazione animata dei neuroni (note reali per area) ---- */
+/* M5 · L'età del dato NON è un dettaglio tipografico: dopo la settimana del
+   cervello congelato senza che nessuno se ne accorgesse, va dove si guarda
+   e diventa evidente quando supera un giorno. */
+function etaDato(iso,cosa='grafo'){
+  if(!iso)return '';
+  const h=(Date.now()-new Date(iso).getTime())/36e5;
+  if(isNaN(h))return '';
+  const label=`${cosa} aggiornato ${timeAgoIso(iso)}`;
+  return h>24?`<span style="color:var(--orange);font-weight:700">${icon('alert',11)} ${esc(label)} — più di un giorno</span>`
+             :`<span>${esc(label)}</span>`;
+}
 function startBrainCanvas(notes,realLinks,cvId='brainCanvas'){
   /* B1 (30-07): il renderer «povero» (costellazione piatta + 70 NODI A CASO come
      fallback) è sostituito dal modulo brain3d.js — lo STESSO renderer 3D della
@@ -1697,9 +1804,11 @@ function newClientForm(){
 }
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],improve:['Miglioramenti','Da fare · in corso · fatte — audit, roadmap, proposte e gap in un posto solo'],proposals:['Miglioramenti','Da fare · in corso · fatte'],roadmap:['Miglioramenti','Da fare · in corso · fatte'],tasks:['Miglioramenti','Da fare · in corso · fatte'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+VIEWS.roadmap=VIEWS.tasks=VIEWS.proposals=VIEWS.improve;   // M1: tre nomi, una vista
 function route(view){
   if(state.clientMode)view='chat';   /* modalità cliente: esiste solo la chat */
+  if(state._vox&&state._vox.open){console.info('[vox] chiusura richiesta da route('+view+')');voxClose();}
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
   if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}   /* B1: mai animazioni accumulate */
   state._brainOn=false;
@@ -1723,9 +1832,14 @@ async function refreshBadges(){
   /* Contatori vivi della console (console-quotidiana): richiamati all'avvio e ogni 60s. */
   if(state.engOk){
     try{const l=await api('engine','/admin/learning');$('#b-learning').textContent=(l.tasks||[]).length;}catch(_){}
-    try{const rm=await api('engine','/admin/roadmap');$('#b-roadmap').textContent=(rm.counts||{}).aperte??(rm.tasks||[]).filter(t=>t.status!=='fatto').length;}catch(_){}
-    try{const tk=await api('engine','/admin/tasks');$('#b-tasks').textContent=(tk.tasks||[]).length;}catch(_){}
-    try{const pr=await api('engine','/admin/proposals');$('#b-props').textContent=(pr.proposals||[]).length;}catch(_){}
+    try{
+      const [rm,tk,pr]=await Promise.all([api('engine','/admin/roadmap').catch(()=>null),
+        api('engine','/admin/tasks').catch(()=>null),api('engine','/admin/proposals').catch(()=>null)]);
+      const n=(((rm&&rm.counts)||{}).aperte||0)+(((rm&&rm.counts)||{}).parziali||0)
+        +((tk&&tk.tasks)||[]).filter(t=>!['fatta','archiviata'].includes(t.status)).length
+        +((pr&&pr.proposals)||[]).length;
+      const el=$('#b-improve');if(el)el.textContent=n;
+    }catch(_){}
   }
   if(state.orchOk){
     try{const a=await api('orch','/agents');$('#b-agents').textContent=(a.agents||[]).length;}catch(_){}

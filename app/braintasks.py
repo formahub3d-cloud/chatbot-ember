@@ -23,7 +23,7 @@ from .config import settings
 
 log = logging.getLogger("ember.braintasks")
 
-KINDS = {"manuale", "gap", "feedback", "agente", "azione"}
+KINDS = {"manuale", "gap", "feedback", "agente", "azione", "audit"}   # audit: M2, le task nate dagli audit del pannello
 CLOSE_STATUSES = {"fatta", "archiviata"}
 
 # ── Macchina a stati (Z2, brief 2026-07-17) ──────────────────────────────────

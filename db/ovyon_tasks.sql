@@ -12,7 +12,7 @@
 
 create table if not exists brain_tasks (
     task_id      uuid primary key default gen_random_uuid(),
-    kind         text not null default 'manuale',   -- manuale | gap | feedback | agente
+    kind         text not null default 'manuale',   -- manuale | gap | feedback | agente | azione | audit
     scope        text,                              -- area del cervello (informativo)
     title        text not null,
     note         text,
@@ -21,7 +21,7 @@ create table if not exists brain_tasks (
     closed_at    timestamptz,
     closed_by    text,                              -- umano che chiude (obbligatorio lato API)
     constraint brain_tasks_status_chk check (status in ('aperta','fatta','archiviata')),
-    constraint brain_tasks_kind_chk   check (kind in ('manuale','gap','feedback','agente'))
+    constraint brain_tasks_kind_chk   check (kind in ('manuale','gap','feedback','agente','azione','audit'))
 );
 
 create index if not exists brain_tasks_status_idx  on brain_tasks (status, created_at desc);
