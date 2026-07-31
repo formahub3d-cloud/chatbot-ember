@@ -387,7 +387,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07j · gli stati veri</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07k · ondata A</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -556,6 +556,9 @@ function demoData(service, path, opts){
       return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats'],free:msg.includes('business')||msg.includes('mercato')});
     }
     if(path.startsWith('/admin/tasks/close')||path.startsWith('/admin/tasks/transition')) return Promise.resolve({ok:true});
+    if(path.startsWith('/admin/tasks?')&&path.includes('status=fatta')) return Promise.resolve({persist:true,tasks:[
+      {id:'tf1',kind:'audit',scope:'',title:'La console appare prima di essere cliccabile e non lo dice',note:'FATTA · Numero vero in produzione: 1265 ms (in sandbox erano 78 — la misura in laboratorio mentiva).',status:'fatta',created_at:nowIso(10*3600e3),closed_at:nowIso(3600e3),closed_by:'andrea'},
+      {id:'tf2',kind:'audit',scope:'',title:"Aggiusta l'orb invisibile e il modo vocale che si chiude",note:'FATTA · La voce funziona: provata in produzione, prima sillaba dopo 55 ms.',status:'fatta',created_at:nowIso(12*3600e3),closed_at:nowIso(2*3600e3),closed_by:'andrea'}]});
     if(path.startsWith('/document')) return Promise.resolve({slug:'workspace-potenziamento-divina',title:'(DEMO) Schema di potenziamento — dove sta Divina e cosa manca',path:'forma/workspace/workspace-potenziamento-divina.md',tenant:'forma-core',text:'(DEMO — in produzione qui c\'è la nota vera, letta dal cervello)\n\n# Schema di potenziamento\n\n| Area | Punteggio |\n|---|---|\n| **Affidabilità e controlli** | **9 / 10** |\n| **Voce** | **8 / 10** |\n| **Struttura dell\'interfaccia** | **5 / 10** |\n| **Contenuto del cervello** | **5 / 10** |\n| **Conversazione** | **4 / 10** |\n| **Vendibilità** | **3 / 10** |\n\n**Media: 5,7 / 10** (era 3,8 stamattina).'});
     if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:100},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));/* M5: stesso numero di stats.notes (100), un dato solo */gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
@@ -710,17 +713,28 @@ const VIEWS={
      capisce in dieci secondi cosa è in corso ADESSO (gruppo in cima). ---------- */
   async improve(){
     C.innerHTML=skeleton(5);
-    const [tk,rm,pp]=await Promise.all([
+    /* Le CHIUSE si chiedono apposta (il default dell'endpoint è: solo attive,
+       documentato): una lista dove chiudere una cosa la fa sparire racconta
+       metà della storia — quanto resta, mai quanto è stato fatto. Tetto 30:
+       fra sei mesi saranno centinaia. 'archiviata' NON è 'fatta': esclusa. */
+    const [tk,ft,rm,pp]=await Promise.all([
       api('engine','/admin/tasks').catch(()=>null),
+      api('engine','/admin/tasks?status=fatta&limit=30').catch(()=>null),
       api('engine','/admin/roadmap').catch(()=>null),
       api('engine','/admin/proposals').catch(()=>null)]);
     const items=[];
+    const origineDi=t=>t.kind==='audit'?'audit':(['gap','feedback'].includes(t.kind)?'gap':'cervello');
     ((tk&&tk.tasks)||[]).forEach(t=>{
       if(t.status==='archiviata')return;
       items.push({titolo:t.title,nota:t.note||'',
-        origine:t.kind==='audit'?'audit':(['gap','feedback'].includes(t.kind)?'gap':'cervello'),
+        origine:origineDi(t),
         peso:'',stato:t.status==='fatta'?'fatte':(['in-approvazione','approvata','in-esecuzione'].includes(t.status)?'incorso':'dafare'),
         quando:t.updated_at||t.created_at||'',k:'tk-'+(t.idempotency_key||t.id)});
+    });
+    ((ft&&ft.tasks)||[]).filter(t=>t.status==='fatta').forEach(t=>{
+      items.push({titolo:t.title,nota:t.note||'',origine:origineDi(t),peso:'',
+        stato:'fatte',quando:t.closed_at||t.created_at||'',chiusaDa:t.closed_by||'',
+        k:'tk-'+(t.idempotency_key||t.id)});
     });
     /* C2 · «in corso» significa: qualcuno ci sta lavorando ORA. Un file
        statico (roadmap.py) non può saperlo: le sue voci 'parziale'/'in-corso'
@@ -1290,7 +1304,18 @@ function initOrb(cvId='orbCv',maxPx=160){
         probe di disegno vuoto) → orb in CSS puro, stessi colori companion;
      6) diagnostica sempre attiva: [orb] init / [orb] fallback in console. */
   const cv=document.getElementById(cvId);if(!cv)return;
-  state._orb={comp:(state._orb&&state._orb.comp)||'divina',mode:'idle',level:0,mic:0,on:true,cvId};
+  /* V2 (ondata A) · init IDEMPOTENTE sulla STESSA canvas: il triplo
+     «[orb] init» dell'audit 31-07 era questo — chiamate ripetute sulla
+     vista già viva. Chi ci riprova riceve un warning e un kick, non una
+     seconda istanza. Se invece la vista è stata rimontata (elemento nuovo
+     con lo stesso id) la re-init è legittima e si fa davvero. */
+  const gia=state._orb;
+  if(gia&&gia.cvId===cvId&&gia.cv===cv&&!gia.fallback&&gia.ctx){
+    console.warn('[orb] init ripetuto ignorato',{cvId});
+    gia.on=true;if(state._orbKick)state._orbKick();
+    return;
+  }
+  state._orb={comp:(state._orb&&state._orb.comp)||'divina',mode:'idle',level:0,mic:0,on:true,cvId,cv};
   const reduced=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   const DPR=Math.min(3,Math.max(1,window.devicePixelRatio||1));
   let ctx=null,probeOk=false;
@@ -1356,7 +1381,17 @@ function orbLoopStart(){
     if(!o||!o.on||o.reduced)return;
     const el=document.getElementById(o.cvId);
     if(!el||el.classList.contains('orb-css'))return;         // vista smontata o fallback CSS
-    if(document.hidden)return;                               // riparte da visibilitychange
+    if(document.hidden){o._fpsGiu=0;o._last=0;return;}       // riparte da visibilitychange
+    /* V2 (ondata A) · adattamento automatico, requisito «deve andare sui
+       portatili»: sotto ~30 fps CONTINUATIVI per più di 2 s si passa alla
+       modalità leggera (4 anelli, 64 segmenti) e ci si resta. Nessun pannello
+       LOW/MED/HIGH alla Zoey: si adatta da solo e lo dice una volta sola. */
+    if(o._last&&!o.lowfx){
+      const dt=now-o._last;
+      if(dt>33.4){if(!o._fpsGiu)o._fpsGiu=now;else if(now-o._fpsGiu>2000){o.lowfx=true;console.info('[orb] fps bassi per >2s: modalità leggera permanente');}}
+      else o._fpsGiu=0;
+    }
+    o._last=now;
     orbDraw(o,now);
     _orbRaf=requestAnimationFrame(tick);
   };
@@ -1377,10 +1412,12 @@ function orbDraw(o,now){
   const comp=o.comp||'divina';
   if(comp!=='divina'&&ORB_SOLIDS[comp]){orbSolid(ctx,S,t,amp,ORB_SOLIDS[comp]);return;}
   const col=ORB_STATE_COLS[o.mode]||'#7f8aa0';
-  const R=S*0.31,cx=S/2,cy=S/2,SEG=110;   // 110 segmenti: sotto si vedono gli spigoli, sopra non si guadagna
+  // modalità leggera (fps bassi): 4 anelli e 64 segmenti — stesso linguaggio, meno lavoro
+  const ANELLI=o.lowfx?4:7,SEG=o.lowfx?64:110;   // 110 segmenti: sotto si vedono gli spigoli, sopra non si guadagna
+  const R=S*0.31,cx=S/2,cy=S/2;
   ctx.lineWidth=1.1;ctx.strokeStyle=col;
-  for(let l=0;l<7;l++){
-    const f=l/6,rad=R*(0.45+0.62*f);
+  for(let l=0;l<ANELLI;l++){
+    const f=l/(ANELLI-1),rad=R*(0.45+0.62*f);
     ctx.beginPath();
     for(let g2=0;g2<=SEG;g2++){
       const th=g2/SEG*6.2832;
@@ -1697,12 +1734,14 @@ function renderImprove(){
         ${x.iniziata?`<span class="tag warn" title="lavoro iniziato in passato, non attivo adesso">iniziata</span>`:''}
         ${x.peso?`<span class="pill" title="peso">${esc(x.peso)}</span>`:''}
         <span class="scope-chip" style="background:color-mix(in srgb,${oc} 14%,transparent);color:${oc};border-color:${oc}55">${ol}</span>
-        ${x.stato==='fatte'&&x.quando?`<span class="small muted" title="chiusa">${timeAgoIso(x.quando)}</span>`:''}
+        ${x.stato==='fatte'&&(x.quando||x.chiusaDa)?`<span class="small muted" title="quando e chi ha chiuso">${x.chiusaDa?esc(x.chiusaDa)+' · ':''}${x.quando?timeAgoIso(x.quando):''}</span>`:''}
         ${x.pid?`<button class="btn sm" data-papp="${esc(x.pid)}">Approva → task</button>`:''}
       </div></div>`;
   };
   const blocco=([id,label,col])=>{
-    const g=vis.filter(x=>x.stato===id);
+    let g=vis.filter(x=>x.stato===id);
+    // FATTE: la più recente in cima (le voci senza data — roadmap statica — in fondo)
+    if(id==='fatte')g=g.slice().sort((a2,b2)=>String(b2.quando||'').localeCompare(String(a2.quando||'')));
     return `<div class="card" id="imp-${id}" style="margin-bottom:14px"><div class="card-head"><div><h3 style="color:${col}">${label}</h3><p>${id==='incorso'?'qualcuno ci sta lavorando ADESSO (solo la coda viva può dirlo)':id==='dafare'?'in coda — «iniziata» = toccata in passato, non attiva ora':'chiuse — con quando'}</p></div><span class="pill">${g.length}</span></div>
       ${g.length?g.map(riga).join(''):`<div class="small muted">niente qui${id==='incorso'?' — scegli dalla coda DA FARE':''}</div>`}</div>`;
   };

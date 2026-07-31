@@ -54,9 +54,13 @@ function trovaChromium() {
   const rumore = /Failed to load resource|CORS policy|net::ERR|ERR_CONNECTION/;
   page.on("pageerror", e => errori.push("pageerror: " + e.message));
   let bootRiga = "";                                     // P3: la riga [boot] con i ms misurati
+  let orbInit = 0, orbRipetuti = 0;                      // V2-A: la console pulita si CONTA
   page.on("console", m => {
-    if (m.type() === "error" && !rumore.test(m.text())) errori.push("console.error: " + m.text());
-    if (m.text().startsWith("[boot]")) bootRiga = m.text();
+    const t = m.text();
+    if (m.type() === "error" && !rumore.test(t)) errori.push("console.error: " + t);
+    if (t.startsWith("[boot]")) bootRiga = t;
+    if (t.startsWith("[orb] init ripetuto")) orbRipetuti++;
+    else if (t.startsWith("[orb] init")) orbInit++;
   });
 
   const url = "file://" + path.resolve(__dirname, "..", "panel", "index.html");
@@ -92,13 +96,23 @@ function trovaChromium() {
   const quadro = await page.evaluate(() => ({
     box: !!document.getElementById("quadroBox"),
     apri: !!document.getElementById("quadroApri"),
+    // le CHIUSE si vedono: nel gruppo FATTE c'è chi ha chiuso e la nota di chiusura
+    fatteFirmate: /andrea/.test((document.getElementById("imp-fatte") || { textContent: "" }).textContent),
   }));
   await page.evaluate(() => route("chat"));
   await page.waitForTimeout(300);
 
-  // 2 · il modo vocale si apre e l'ORB DISEGNA (pixel ≠ fondo)
+  // 2 · il modo vocale si apre e l'ORB DISEGNA (pixel ≠ fondo).
+  //     V2-A: aprendo il vox l'orb si inizializza UNA volta (l'audit 31-07
+  //     ne contava tre nello stesso istante); un secondo init sulla stessa
+  //     canvas viene IGNORATO con warning (idempotenza provata qui sotto).
+  const initPrima = orbInit;
   await page.click("#voxBtn");
   await page.waitForTimeout(1000);
+  const initVox = orbInit - initPrima;
+  await page.evaluate(() => initOrb("voxOrb", 320));      // il "chi ci riprova" dell'audit
+  await page.waitForTimeout(200);
+  const initDopoRipetuta = orbInit - initPrima;
   const vox = await page.evaluate(() => {
     const M = document.getElementById("voxMode");
     const aperto = !!(M && !M.hidden && M.classList.contains("open"));
@@ -138,6 +152,23 @@ function trovaChromium() {
     return !!(M && (M.hidden || !M.classList.contains("open")));
   });
 
+  // 5 · F2 (numero unico): home e Cervello vivo devono dire LO STESSO numero
+  //     di neuroni — stessa sorgente (stats.notes), verificata qui in CI.
+  await page.evaluate(() => route("home"));
+  await page.waitForTimeout(700);
+  const nHome = await page.evaluate(() => {
+    const el = document.getElementById("homeSub");                 // overlay della home O1
+    const m = el && el.textContent.match(/^([\d.,]+)\s+neuroni/);
+    return m ? m[1] : null;
+  });
+  await page.evaluate(() => route("brain"));
+  await page.waitForTimeout(800);
+  const nBrain = await page.evaluate(() => {
+    const el = document.getElementById("brainOrbSub");
+    const m = el && el.textContent.match(/^([\d.,]+)\s+neuroni/);
+    return m ? m[1] : null;
+  });
+
   await b.close();
 
   let ko = 0;
@@ -147,6 +178,11 @@ function trovaChromium() {
   if (!bootRiga) { console.error("FAIL (P3): nessuna riga [boot] in console — la misura del boot è sparita"); ko = 1; }
   else console.log("[boot misurato] " + bootRiga);
   if (!quadro.box || !quadro.apri) { console.error("FAIL (X3): il quadro di potenziamento non si disegna in Miglioramenti (box=" + quadro.box + ", apri=" + quadro.apri + ")"); ko = 1; }
+  if (!quadro.fatteFirmate) { console.error("FAIL: il gruppo FATTE non mostra le task chiuse con la firma di chi ha chiuso"); ko = 1; }
+  if (initVox !== 1) { console.error("FAIL (V2-A): aprendo il vox l'orb si è inizializzato " + initVox + " volte (atteso: 1 — l'audit ne contava 3)"); ko = 1; }
+  if (initDopoRipetuta !== initVox || orbRipetuti < 1) { console.error("FAIL (V2-A): l'init ripetuto sulla stessa canvas non è stato ignorato (init=" + initDopoRipetuta + ", warning=" + orbRipetuti + ")"); ko = 1; }
+  if (!nHome || !nBrain || nHome !== nBrain) { console.error("FAIL (F2): home dice «" + nHome + "» neuroni, Cervello vivo «" + nBrain + "» — la sorgente non è unica"); ko = 1; }
+  else console.log("[numero unico] home=" + nHome + " · cervello=" + nBrain);
   if (!vox.aperto) { console.error("FAIL: il modo vocale non si è aperto"); ko = 1; }
   else if (vox.canvas && vox.px <= 200 && !vox.css) {
     console.error(`FAIL: l'orb NON disegna (canvas ${vox.w}x${vox.h}, cssW=${vox.cssW}, px=${vox.px})`); ko = 1;
