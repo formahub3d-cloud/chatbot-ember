@@ -242,11 +242,17 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .voxmode canvas,.voxmode .orb-css{width:min(64vw,300px);height:min(64vw,300px)}
 .vox-x{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:18px;font-size:20px;line-height:1;min-width:44px;min-height:44px}
 .vox-state{font-family:Orbitron,Montserrat,sans-serif;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
-.vox-log{width:min(92vw,560px);max-height:24vh;overflow-y:auto;font-size:12.5px;line-height:1.65;color:var(--text-3);text-align:center;scrollbar-width:thin}
+.vox-log{width:min(92vw,560px);max-height:24vh;overflow-y:auto;font-size:12.5px;line-height:1.65;color:var(--text-3);text-align:center;scrollbar-width:thin;transition:opacity 1.5s ease}
 .vox-log .vox-u{color:var(--cyan)}
 .vox-log .vox-b{color:var(--text-2)}
 .vox-log .interim{opacity:.55;font-style:italic}
-@media (prefers-reduced-motion: reduce){.voxmode{backdrop-filter:none}}
+/* U3: dopo ~6s di silenzio il trascritto sfuma (1.5s) e resta l'orb, che si
+   allarga a occupare lo spazio; una riga nuova lo fa ricomparire all'istante */
+.voxmode canvas,.voxmode .orb-css{transition:transform 1.5s ease}
+.voxmode.vox-quiet .vox-log{opacity:0;pointer-events:none}
+.voxmode.vox-quiet canvas,.voxmode.vox-quiet .orb-css{transform:scale(1.22)}
+.vox-log.vox-wake{transition:none}
+@media (prefers-reduced-motion: reduce){.voxmode{backdrop-filter:none}.vox-log,.voxmode canvas,.voxmode .orb-css{transition:none}}
 /* Fallback P1.5: canvas bloccato (anti-fingerprint/Lockdown) → orb in CSS puro */
 .orb-css{--oc:#a855f7;width:72px;height:72px;border-radius:50%;flex-shrink:0;background:radial-gradient(circle at 38% 32%,rgba(255,255,255,.72) 0%,var(--oc) 44%,transparent 76%);animation:orbBreath 3.2s ease-in-out infinite}
 .orb-css[data-mode="ragionando"]{animation-duration:1.6s}
@@ -354,7 +360,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07a · voce naturale</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07b · un motore vocale solo</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -418,6 +424,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 </div>
 
 <script src="brain3d.js"></script>
+<script src="voce.js"></script>
 <script>
 /* ══════════ STATO ══════════ */
 const LS={engBase:'dv_eng_base',engTok:'dv_eng_tok',tenantKey:'dv_tenant_key',orchBase:'dv_orch_base',orchTok:'dv_orch_tok',tenant:'dv_tenant',demo:'dv_demo',theme:'dv_theme',tts:'dv_tts',comp:'dv_comp'};
@@ -1051,33 +1058,14 @@ function initOrb(cvId='orbCv',maxPx=160){
     S=(Number.isFinite(w)&&w>8)?Math.max(40,Math.min(maxPx,w)):72;   // mai 0/NaN (V3: l'orb grande passa maxPx)
     el.width=Math.round(S*DPR);el.height=Math.round(S*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
+    const o=state._orb;if(o){o.S=S;o.ctx=ctx;}
   };
-  const t0=performance.now();let raf=0;
-  const draw=now=>{
-    const o=state._orb;const k=S/72;
-    const t=(now-t0)/1000;const col=ORB_COLS[o.comp]||ORB_COLS.divina;
-    let target=0.10+(reduced?0:0.03*Math.sin(t*1.1));
-    if(o.mode==='ascolto')target=0.16+Math.min(0.7,o.mic);
-    else if(o.mode==='parlando')target=o.outLive?0.20+0.55*Math.min(1,o.out||0):0.28+0.30*Math.abs(Math.sin(t*7.3)*0.6+Math.sin(t*3.1)*0.4);   // PR4: ampiezza REALE in uscita; sinusoide solo senza analyser (voce browser)
-    else if(o.mode==='ragionando')target=0.20+0.10*Math.sin(t*2.4);
-    else if(o.mode==='azione')target=0.52+0.18*Math.sin(t*9);
-    o.level+=(target-o.level)*0.16;
-    ctx.clearRect(0,0,S,S);
-    const cx=S/2,cy=S/2,r=k*(15+15*o.level);
-    const g=ctx.createRadialGradient(cx-4*k,cy-5*k,2*k,cx,cy,r+12*k);
-    g.addColorStop(0,'#ffffffbb');g.addColorStop(0.28,col);g.addColorStop(1,col+'00');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,Math.min(r+12*k,S/2),0,6.283);ctx.fill();
-    ctx.globalAlpha=.92;ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy,r*0.6,0,6.283);ctx.fill();ctx.globalAlpha=1;
-  };
-  const frame=now=>{
-    const o=state._orb;if(!o||!o.on||o.cvId!==cvId||!document.getElementById(cvId))return;
-    draw(now);
-    if(!reduced)raf=requestAnimationFrame(frame);
-  };
+  state._orb.reduced=reduced;state._orb.t0=performance.now();
   const kick=()=>{
-    cancelAnimationFrame(raf);
     const o=state._orb;if(!o||!o.on||o.cvId!==cvId||!document.getElementById(cvId))return;
-    size();raf=requestAnimationFrame(frame);
+    size();
+    if(reduced){orbDraw(o,o.t0);return;}     // UN frame statico disegnato, mai canvas vuoto
+    orbLoopStart();
   };
   if(window.ResizeObserver){
     if(state._orbRO)state._orbRO.disconnect();
@@ -1095,6 +1083,102 @@ function initOrb(cvId='orbCv',maxPx=160){
   console.info('[orb] init',{cvId,cssW:cv.clientWidth,dpr:DPR,backingW:cv.width,backingH:cv.height,reduced,ctxOk:true,usedFallback:false});
   kick();
 }
+
+/* ── U2 · L'orb «onda sonora» (trattamento B, scelto da Andrea) ─────────────
+   Sette anelli concentrici deformati da due sinusoidi, mossi dall'ampiezza
+   VERA (onAmp del modulo voce, lisciata 0.72/0.28) — non da un'animazione a
+   tempo: si muove PERCHÉ c'è un suono. Colori = stato (parla magenta ·
+   ascolta ciano · fermo grigio). I companion sono solidi in filo di ferro
+   (Dante cubo · Beatrice piramide col vertice in basso · Virgilio cilindro a
+   14 lati): stesso motore, la forma cambia, il linguaggio no.
+   UN SOLO requestAnimationFrame per tutta la pagina (c'è un solo orb attivo:
+   state._orb); fermo con document.hidden o canvas assente (riparte da
+   visibilitychange/kick). Con prefers-reduced-motion: un frame statico. */
+let _orbRaf=0;
+function orbLoopStart(){
+  if(_orbRaf)return;
+  const tick=now=>{
+    _orbRaf=0;
+    const o=state._orb;
+    if(!o||!o.on||o.reduced)return;
+    const el=document.getElementById(o.cvId);
+    if(!el||el.classList.contains('orb-css'))return;         // vista smontata o fallback CSS
+    if(document.hidden)return;                               // riparte da visibilitychange
+    orbDraw(o,now);
+    _orbRaf=requestAnimationFrame(tick);
+  };
+  _orbRaf=requestAnimationFrame(tick);
+}
+const ORB_STATE_COLS={parlando:'#dd24f2',ascolto:'#2ee6f2'}; // il resto: grigio «fermo»
+const ORB_AMP_FLOOR={idle:0.12,ascolto:0.14,ragionando:0.18,parlando:0.25,azione:0.30};
+function orbAmp(o){
+  let amp=Math.max(ORB_AMP_FLOOR[o.mode]!=null?ORB_AMP_FLOOR[o.mode]:0.12,Math.min(1,o.amp||0));
+  if(o.mode==='ascolto')amp=Math.max(amp,Math.min(1,o.mic||0));
+  else if(o.mode==='parlando'&&o.outLive)amp=Math.max(amp,Math.min(1,o.out||0));
+  return amp;
+}
+function orbDraw(o,now){
+  const ctx=o.ctx;if(!ctx)return;
+  const S=o.S||72,t=(now-(o.t0||0))/1000,amp=orbAmp(o);
+  ctx.clearRect(0,0,S,S);
+  const comp=o.comp||'divina';
+  if(comp!=='divina'&&ORB_SOLIDS[comp]){orbSolid(ctx,S,t,amp,ORB_SOLIDS[comp]);return;}
+  const col=ORB_STATE_COLS[o.mode]||'#7f8aa0';
+  const R=S*0.31,cx=S/2,cy=S/2,SEG=110;   // 110 segmenti: sotto si vedono gli spigoli, sopra non si guadagna
+  ctx.lineWidth=1.1;ctx.strokeStyle=col;
+  for(let l=0;l<7;l++){
+    const f=l/6,rad=R*(0.45+0.62*f);
+    ctx.beginPath();
+    for(let g2=0;g2<=SEG;g2++){
+      const th=g2/SEG*6.2832;
+      const m=1+amp*(0.20*Math.sin(5*th-3.4*t+l)+0.13*Math.sin(9*th+2.1*t))*(0.4+f);
+      const r=rad*m,x=cx+r*Math.cos(th),y=cy+r*Math.sin(th);
+      if(g2===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.globalAlpha=(0.16+0.55*(1-f))*(0.5+0.5*amp);   // interni più densi, tutti più vivi col suono
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
+/* Solidi companion: vertici in coordinate unitarie, spigoli come coppie. */
+const ORB_SOLIDS=(()=>{
+  const cubo={col:'#f2711f',v:[],e:[]};
+  for(let i=0;i<8;i++)cubo.v.push([(i&1?1:-1)*0.72,(i&2?1:-1)*0.72,(i&4?1:-1)*0.72]);
+  for(let i=0;i<8;i++)for(let b of [1,2,4]){const j=i^b;if(j>i)cubo.e.push([i,j]);}
+  const pir={col:'#dd24f2',v:[[-0.78,-0.62,-0.78],[0.78,-0.62,-0.78],[0.78,-0.62,0.78],[-0.78,-0.62,0.78],[0,0.88,0]],e:[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[2,4],[3,4]]};  // base in alto, VERTICE IN BASSO (y canvas cresce in giù)
+  const cil={col:'#2ee6f2',v:[],e:[]};
+  for(let i=0;i<14;i++){const a=i/14*6.2832;cil.v.push([Math.cos(a)*0.75,-0.72,Math.sin(a)*0.75]);}
+  for(let i=0;i<14;i++){const a=i/14*6.2832;cil.v.push([Math.cos(a)*0.75,0.72,Math.sin(a)*0.75]);}
+  for(let i=0;i<14;i++){cil.e.push([i,(i+1)%14]);cil.e.push([14+i,14+(i+1)%14]);cil.e.push([i,14+i]);}
+  return {dante:cubo,beatrice:pir,virgilio:cil};
+})();
+function orbSolid(ctx,S,t,amp,sol){
+  // Proiezione prospettica semplice; rotazione continua su Y + oscillazione su
+  // X; spigoli con opacità per profondità, vertici come punti; la SCALA pulsa
+  // con l'ampiezza, come la sfera.
+  const cx=S/2,cy=S/2,Rs=S*0.27*(1+0.28*amp),pers=3.2;
+  const ay=t*0.9,ax=0.42+0.30*Math.sin(t*0.7);
+  const cA=Math.cos(ay),sA=Math.sin(ay),cB=Math.cos(ax),sB=Math.sin(ax);
+  const P=sol.v.map(v=>{
+    let x=v[0]*cA+v[2]*sA,z=-v[0]*sA+v[2]*cA,y=v[1];
+    const y2=y*cB-z*sB,z2=y*sB+z*cB;
+    const k=pers/(pers-z2);
+    return {x:cx+x*k*Rs,y:cy+y2*k*Rs,z:z2};
+  });
+  ctx.strokeStyle=sol.col;ctx.fillStyle=sol.col;ctx.lineWidth=1.1;
+  const viva=0.5+0.5*amp;
+  for(const [a,b] of sol.e){
+    const z=(P[a].z+P[b].z)/2;                       // z alto = davanti
+    ctx.globalAlpha=(0.18+0.62*Math.max(0,Math.min(1,(z+1)/2)))*viva;
+    ctx.beginPath();ctx.moveTo(P[a].x,P[a].y);ctx.lineTo(P[b].x,P[b].y);ctx.stroke();
+  }
+  for(const q of P){
+    ctx.globalAlpha=(0.30+0.60*Math.max(0,Math.min(1,(q.z+1)/2)))*viva;
+    ctx.beginPath();ctx.arc(q.x,q.y,1.6,0,6.2832);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
 /* Selettore companion: 'divina' = smistamento automatico; un companion esplicito
    colora subito l'orb e viaggia in /chat come `companion` (che implica agent:true). */
 function pickComp(c){
@@ -1104,6 +1188,7 @@ function pickComp(c){
 }
 function setOrb(mode,comp){
   const o=state._orb;if(!o)return;if(mode)o.mode=mode;if(comp)o.comp=comp;
+  if(o.reduced&&o.ctx)orbDraw(o,o.t0||0);   // reduced-motion: il frame statico segue lo stato
   if(o.fallback){                       // orb CSS puro: colore e ritmo via attributi
     const el=document.getElementById(o.cvId||'orbCv');
     if(el&&el.classList.contains('orb-css')){el.style.setProperty('--oc',ORB_COLS[o.comp]||ORB_COLS.divina);el.dataset.mode=o.mode;}
@@ -1116,21 +1201,8 @@ function setOrb(mode,comp){
   }
   const a=document.getElementById('orbAgent');if(a){const c=o.comp||'divina';a.textContent='agente attivo · '+c.charAt(0).toUpperCase()+c.slice(1);a.style.color=ORB_COLS[o.comp]||'';}
 }
-async function startOrbMic(){
-  try{
-    const st=await navigator.mediaDevices.getUserMedia({audio:true});state._orbStream=st;
-    const AC=window.AudioContext||window.webkitAudioContext;const ac=new AC();state._orbAC=ac;
-    const an=ac.createAnalyser();an.fftSize=256;ac.createMediaStreamSource(st).connect(an);
-    const buf=new Uint8Array(an.frequencyBinCount);
-    const tick=()=>{const o=state._orb;if(!o||!state._orbAC)return;an.getByteTimeDomainData(buf);let s=0;for(let i=0;i<buf.length;i++)s+=Math.abs(buf[i]-128);o.mic=Math.min(0.8,(s/buf.length)/34);requestAnimationFrame(tick);};
-    tick();
-  }catch(_){}
-}
-function stopOrbMic(){
-  try{state._orbStream&&state._orbStream.getTracks().forEach(t=>t.stop());}catch(_){}
-  try{state._orbAC&&state._orbAC.close();}catch(_){}
-  state._orbStream=null;state._orbAC=null;if(state._orb)state._orb.mic=0;
-}
+/* (U1) l'ampiezza del microfono arriva dal modulo voce (onAmp): niente più
+   stream separato solo per l'orb. */
 
 /* ── V3 · Modo vocale a tutto schermo ─────────────────────────────────────
    «Parla» apre la conversazione a voce: orb GRANDE al centro (stesso motore
@@ -1138,24 +1210,31 @@ function stopOrbMic(){
    con prefers-reduced-motion), trascritto piccolo sotto (serve a capire se
    ha sentito bene, non a essere letto), stato a colpo d'occhio. Loop:
    in ascolto (Web Speech API) → sto pensando (chatTurn: la STESSA memoria
-   della chat scritta) → sto parlando (speakPro: l'orb respira con
+   della chat scritta) → sto parlando (modulo voce: l'orb respira con
    l'ampiezza reale) → riascolto. Escape o ✕ chiudono, il focus resta nel
    dialogo. La chat scritta resta esattamente com'è. */
 function voxOpen(){
   if(state._vox&&state._vox.open)return;
-  const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SRC){toast('Dettatura non supportata da questo browser','bad');return;}
+  if(!vce()){toast('Voce non disponibile: modulo voce.js non caricato','bad');return;}
   if(!state.demo&&!state.tenantKey&&!state.clientMode){toast('Configura una chiave tenant (X-Tenant-Key) per parlare','bad');openConn();return;}
   const M=document.getElementById('voxMode');if(!M)return;
   state._vox={open:true,paused:false,rec:null,ret:document.activeElement};
   M.hidden=false;M.classList.add('open');
   const log=document.getElementById('voxLog');if(log)log.innerHTML='';
-  initOrb('voxOrb',320);startOrbMic();
+  initOrb('voxOrb',320);
   setOrb('ascolto',state._compSel||'divina');
   const micB=document.getElementById('voxMic');if(micB){micB.textContent='Pausa';micB.onclick=voxToggleMic;}
   document.getElementById('voxClose').onclick=voxClose;
   M.addEventListener('keydown',voxKeys);
   (micB||document.getElementById('voxClose')).focus();
+  /* U3: ~6s dall'ultima riga → il trascritto sfuma (1.5s di dissolvenza in
+     CSS) e resta l'orb. Il testo completo non si perde: la conversazione è la
+     STESSA della chat scritta — chiudi il modo vocale e la rileggi lì. */
+  state._vox.lastLine=performance.now();
+  state._vox.fadeTimer=setInterval(()=>{
+    const v=state._vox;if(!v||!v.open)return;
+    if(performance.now()-v.lastLine>6000)M.classList.add('vox-quiet');
+  },500);
   voxListen();
 }
 function voxKeys(e){
@@ -1171,10 +1250,10 @@ function voxKeys(e){
 function voxClose(){
   const v=state._vox;if(!v||!v.open)return;
   v.open=false;state._voxAfter=null;
-  try{v.rec&&v.rec.stop();}catch(_){}v.rec=null;
-  stopVoiceOut();stopOrbMic();
+  if(_vce)_vce.stop();
+  if(v.fadeTimer)clearInterval(v.fadeTimer);
   const M=document.getElementById('voxMode');
-  if(M){M.classList.remove('open');M.hidden=true;M.removeEventListener('keydown',voxKeys);}
+  if(M){M.classList.remove('open','vox-quiet');M.hidden=true;M.removeEventListener('keydown',voxKeys);}
   state._vox=null;
   if(document.getElementById('orbCv')){initOrb('orbCv');setOrb('idle',state._compSel||'divina');}
   try{v.ret&&v.ret.focus();}catch(_){}
@@ -1183,11 +1262,19 @@ function voxToggleMic(){
   const v=state._vox;if(!v||!v.open)return;
   v.paused=!v.paused;
   const b=document.getElementById('voxMic');if(b)b.textContent=v.paused?'Riprendi':'Pausa';
-  if(v.paused){try{v.rec&&v.rec.stop();}catch(_){}v.rec=null;setOrb('idle');}
+  if(v.paused){if(_vce)_vce.cancelListen();setOrb('idle');}
   else voxListen();
 }
 function voxLine(role,text,interim){
   const log=document.getElementById('voxLog');if(!log)return;
+  /* U3: una riga nuova fa RICOMPARIRE il trascritto all'istante (vox-wake
+     spegne la transizione per un frame), e azzera il timer della sfumatura. */
+  if(state._vox){state._vox.lastLine=performance.now();}
+  const M=document.getElementById('voxMode');
+  if(M&&M.classList.contains('vox-quiet')){
+    log.classList.add('vox-wake');M.classList.remove('vox-quiet');
+    void log.offsetWidth;log.classList.remove('vox-wake');
+  }
   let el=log.querySelector('.vox-line.interim');
   if(interim){
     if(!text){if(el)el.remove();return;}
@@ -1198,19 +1285,15 @@ function voxLine(role,text,interim){
     const n=document.createElement('div');n.className='vox-line '+(role==='user'?'vox-u':'vox-b');
     n.textContent=(role==='user'?'Tu: ':'Divina: ')+text;log.appendChild(n);
   }
-  while(log.children.length>14)log.removeChild(log.firstChild);
+  while(log.children.length>10)log.removeChild(log.firstChild);   // solo le ultime battute: il DOM non cresce
   log.scrollTop=log.scrollHeight;
 }
 function voxListen(){
+  /* U1: ascolto tramite il MODULO (quindi /voice/stt + parziali + invio a fine
+     parlato + barge-in), non più SpeechRecognition per conto della console. */
   const v=state._vox;if(!v||!v.open||v.paused)return;
-  const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SRC)return;
-  setOrb('ascolto');
-  const r=new SRC();v.rec=r;r.lang='it-IT';r.interimResults=true;r.continuous=false;
-  let fin='';
-  r.onresult=e=>{let tmp='';for(const res of e.results){if(res.isFinal)fin+=res[0].transcript;else tmp+=res[0].transcript;}voxLine('user',(fin+tmp).trim(),true);};
-  r.onerror=()=>{};
-  r.onend=()=>{if(v.rec===r)v.rec=null;const t=fin.trim();if(!v.open)return;if(t)voxSend(t);else if(!v.paused)voxListen();};
-  try{r.start();}catch(_){}
+  const e=vce();if(!e)return;
+  _voicePro().then(()=>{if(v.open&&!v.paused&&!e.listening())e.listen({autosend:true});});
 }
 async function voxSend(text){
   const v=state._vox;if(!v||!v.open)return;
@@ -1234,169 +1317,76 @@ async function voxSend(text){
   }
 }
 
-/* ---- VOCE (dettatura + lettura) + PR4 «la voce continua»: la lettura va per
-   FRASI (parte prima), usa la voce PRO del motore quando c'è, e l'orb respira
-   con l'AMPIEZZA REALE dell'audio in uscita (WebAudio analyser), come già fa
-   col microfono in ascolto. Stesso chunker del widget (blocco marcato: la
-   parità è verificata da tests/test_voce_sentenze.py). ---- */
-/* EM_SENTENZE_BEGIN — estratto e testato da scripts/test_voce_sentenze.js */
-var EM_ABBR = ("dott dott.ssa sig sig.ra sig.na dr prof ing arch avv geom rag on sen " +
-  "gen col mons art artt lett n nn p pp pag pagg par cap capp vol fig figg tab all " +
-  "es ecc etc ca cfr tel cell fax min max sec srl spa snc sas vs " +
-  "s.r.l s.p.a s.n.c s.a.s s.s p.es u.s c.m c.a n.ro co kg mg km cm mm ml cl kw kwh mq").split(" ");
-function emSentenze(buf, flush){
-  // Ritorna { frasi:[…], resto:"…" }: le frasi sono complete e pronunciabili,
-  // il resto va tenuto nel buffer. Con flush=true anche il resto diventa frase.
-  var frasi = [], start = 0, i, ch;
-  for (i = 0; i < buf.length; i++){
-    ch = buf.charAt(i);
-    var punto = (ch === "." || ch === "!" || ch === "?" || ch === "…");
-    if (!punto && ch !== "\n") continue;
-    if (punto){
-      var next = buf.charAt(i + 1);
-      if (!next) break;                                   // fine buffer: la conferma non è arrivata
-      if (ch === "."){
-        if (next >= "0" && next <= "9") continue;         // 1.234 · v2.5 · art.3 attaccato
-        var m = buf.slice(start, i).match(/([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.]*)$/);
-        var w = m ? m[1].toLowerCase() : "";
-        if (w.length === 1) continue;                     // iniziale: "G. Verdi", elenco "A."
-        if (EM_ABBR.indexOf(w) !== -1) continue;          // "Dott." "S.r.l." "art." …
-        if (next !== " " && next !== "\n") continue;      // "3.x", url, sigle senza spazio
-      }
-      while (i + 1 < buf.length && ".!?…".indexOf(buf.charAt(i + 1)) !== -1) i++;   // "?!", "..."
-      if (i + 1 >= buf.length && buf.charAt(i) !== "\n"){ if (!flush) break; }
-      if (ch === "…" || (ch === "." && buf.charAt(i - 1) === ".")){
-        // puntini di sospensione: confine solo se poi si riparte con la maiuscola
-        var j = i + 1; while (j < buf.length && buf.charAt(j) === " ") j++;
-        var c2 = buf.charAt(j);
-        if (!c2){ if (!flush) break; }                    // aspetta di sapere come continua
-        else if (/[a-zà-ÿ]/.test(c2)) continue;           // "Vediamo... forse" resta unita
-      }
-    }
-    var s = buf.slice(start, i + 1).trim();
-    if (/[0-9A-Za-zÀ-ÿ]{2}/.test(s)) frasi.push(s);       // niente segmenti vuoti ("1.", "-")
-    start = i + 1;
-  }
-  var resto = buf.slice(start);
-  if (flush){
-    var r0 = resto.trim();
-    if (/[0-9A-Za-zÀ-ÿ]{2}/.test(r0)) frasi.push(r0);
-    resto = "";
-  }
-  return { frasi: frasi, resto: resto };
-}
-/* EM_SENTENZE_END */
-function emPulisci(s){   // testo → pronunciabile: via markdown e marcatori di elenco
-  return String(s).replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").replace(/[*`_#>[\]]/g, "").trim();
-}
-let _rec=null;
+/* ---- VOCE (U1 · MOTORE VOCALE UNICO) --------------------------------------
+   Frasi, coda ordinata, barge-in, invio automatico, parziali e ampiezza vivono
+   in voce.js — LO STESSO modulo del widget (copia byte-identica, parità
+   verificata da tests/test_voce_sentenze.py). La console non usa più
+   SpeechRecognition per conto suo: l'ascolto passa dal modulo (quindi da
+   /voice/stt quando la voce PRO c'è — stessa qualità del widget, deciso, non
+   capitato), col fallback browser dentro il modulo. Qui solo il cablaggio. */
+let _vce=null;
 async function _voicePro(){
-  /* La voce PRO del motore c'è? (chiavi SUL SERVER, la console usa solo il
-     proxy /voice/tts con la chiave tenant). In demo/cliente: voce del browser. */
+  /* La voce PRO del motore c'è? (chiavi SUL SERVER: la console usa solo il
+     proxy /voice/* con la chiave tenant). In demo/cliente: voce del browser. */
   if(state.demo||state.clientMode||!state.tenantKey||!state.engBase)return false;
   if(state._voiceProOk!=null)return state._voiceProOk;
   try{const h=await api('engine','/health');state._voiceProOk=!!(h&&h.voice&&h.voice!=='browser');}
   catch(_){state._voiceProOk=false;}
   return state._voiceProOk;
 }
+function vce(){
+  if(_vce||!window.DivinaVoce)return _vce;
+  _vce=window.DivinaVoce({
+    base:()=> (state.engBase||'').replace(/\/$/,''),
+    headers:()=>{const h={};if(!state.clientMode&&state.tenantKey)h['X-Tenant-Key']=state.tenantKey;return h;},
+    pro:()=> !!state._voiceProOk&&!state.demo&&!state.clientMode,
+    lang:'it-IT',autosend:true,barge:true,
+    onState:s=>{
+      const map={fermo:'idle',ascolta:'ascolto',pensa:'ragionando',parla:'parlando'};
+      setOrb(map[s]||'idle');
+      if(s==='fermo')dictUiOff();
+    },
+    onAmp:v=>{const o=state._orb;if(!o)return;o.amp=(o.amp||0)*0.72+v*0.28;   // lisciata per l'orb
+      if(o.mode==='ascolto')o.mic=Math.min(0.8,v);
+      else if(o.mode==='parlando'){o.out=Math.min(1,v);o.outLive=true;}},
+    onPartial:t=>{
+      if(state._vox&&state._vox.open){voxLine('user',t,true);return;}
+      const ta=$('#chatMsg');if(ta)ta.value=((state._dict||'')+t).trim();
+    },
+    onFinal:t=>{
+      if(state._vox&&state._vox.open){const v=state._vox;if(t)voxSend(t);else if(!v.paused)setTimeout(voxListen,250);return;}
+      const ta=$('#chatMsg');if(ta&&t)ta.value=((state._dict||'')+t).trim();
+      state._dict=null;dictUiOff();
+    },
+    onNotify:k=>{if(k==='speech-end')voxAfter();},   // fine lettura → il modo vocale riascolta
+  });
+  return _vce;
+}
+function dictUiOff(){const m=$('#chatMic');if(m)m.classList.remove('rec');}
 function speak(text,force){
   if(!state.tts&&!force)return;                      // force: nel modo vocale si parla sempre
-  stopVoiceOut();
-  const gen=state._vGen;
-  const frasi=[];
-  const r=emSentenze(String(text).slice(0,2000),true);
-  r.frasi.forEach(f=>{const t=emPulisci(f);if(t)frasi.push(t);});
-  if(!frasi.length){voxAfter();return;}              // niente da dire: il loop vocale riparte comunque
-  _voicePro().then(pro=>{if(gen!==state._vGen)return;if(pro)speakPro(frasi,gen);else speakBrowser(frasi,gen);});
+  const e=vce();
+  if(!e){voxAfter();return;}                         // modulo assente: il loop vocale non resta appeso
+  _voicePro().then(()=>{e.speak(String(text).slice(0,4000));});
 }
-function voxAfter(){                                  // fine lettura → il modo vocale riascolta
-  const f=state._voxAfter;if(!f)return;state._voxAfter=null;f();
-}
-function speakPro(frasi,gen){
-  /* Coda ORDINATA per frase su /voice/tts (max 2 sintesi in volo): la prima
-     frase si sente mentre le altre si preparano. L'audio in uscita passa da un
-     analyser → o.out = ampiezza reale → l'orb respira col suono (PR4). */
-  const base=(state.engBase||'').replace(/\/$/,'');
-  const items=frasi.map(t=>({t,blob:null,err:false,state:null}));
-  let next=0,playing=null,inflight=0,anyOk=false;
-  let ac=null,an=null,buf=null;
-  try{const AC=window.AudioContext||window.webkitAudioContext;ac=new AC();an=ac.createAnalyser();an.fftSize=512;an.connect(ac.destination);buf=new Uint8Array(an.fftSize);}catch(_){}
-  state._outAC=ac;
-  const tick=()=>{
-    if(gen!==state._vGen)return;
-    const o=state._orb;
-    if(o&&an&&playing){an.getByteTimeDomainData(buf);let s2=0;for(let i=0;i<buf.length;i++){const v=(buf[i]-128)/128;s2+=v*v;}o.out=Math.min(1,Math.sqrt(s2/buf.length)*4);o.outLive=true;}
-    requestAnimationFrame(tick);
-  };
-  const fine=()=>{
-    if(gen!==state._vGen)return;
-    const o=state._orb;if(o){o.out=0;o.outLive=false;}
-    try{ac&&ac.close();}catch(_){}if(state._outAC===ac)state._outAC=null;
-    if(!anyOk){speakBrowser(frasi,gen);return;}          // PRO giù: rete di sicurezza browser
-    setOrb('idle');voxAfter();
-  };
-  const avanti=()=>{
-    if(gen!==state._vGen||playing)return;
-    const it=items[next];
-    if(!it){fine();return;}
-    if(it.state!=='pronta')return;                        // la sintesi richiama avanti()
-    next++;
-    if(it.err||!it.blob){avanti();return;}                // frase saltata, mai silenzio totale
-    const a=new Audio(URL.createObjectURL(it.blob));
-    playing=a;state._outAudio=a;anyOk=true;
-    if(an){try{ac.createMediaElementSource(a).connect(an);}catch(_){}}
-    a.onplaying=()=>{if(gen===state._vGen)setOrb('parlando');};
-    a.onended=a.onerror=()=>{try{URL.revokeObjectURL(a.src);}catch(_){}if(playing===a){playing=null;if(state._outAudio===a)state._outAudio=null;}avanti();};
-    a.play().catch(()=>{if(playing===a){playing=null;if(state._outAudio===a)state._outAudio=null;}avanti();});
-  };
-  const pump=()=>{
-    if(gen!==state._vGen)return;
-    for(const it of items){
-      if(inflight>=2)break;
-      if(it.state)continue;
-      it.state='sintesi';inflight++;
-      fetch(base+'/voice/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Tenant-Key':state.tenantKey},body:JSON.stringify({text:it.t.slice(0,2000)})})
-        .then(r2=>{if(!r2.ok)throw new Error('tts '+r2.status);return r2.blob();})
-        .then(b=>{it.blob=b;it.state='pronta';})
-        .catch(()=>{it.err=true;it.state='pronta';})
-        .finally(()=>{if(gen!==state._vGen)return;inflight--;pump();avanti();});
-    }
-  };
-  tick();pump();
-}
-function speakBrowser(frasi,gen){
-  if(!('speechSynthesis' in window)){voxAfter();return;}   // muto: il loop vocale non resta appeso
-  try{
-    speechSynthesis.cancel();
-    frasi.forEach((t,i)=>{
-      const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';
-      if(i===0)u.onstart=()=>{if(gen===state._vGen)setOrb('parlando');};
-      u.onend=()=>{if(gen===state._vGen&&!speechSynthesis.pending&&!speechSynthesis.speaking){setOrb('idle');voxAfter();}};
-      speechSynthesis.speak(u);                            // la coda del browser è già ordinata
-    });
-  }catch(_){voxAfter();}
-}
+function voxAfter(){const f=state._voxAfter;if(!f)return;state._voxAfter=null;f();}
 function stopVoiceOut(){
-  state._vGen=(state._vGen||0)+1;                          // invalida le code in corso
-  try{state._outAudio&&state._outAudio.pause();}catch(_){}state._outAudio=null;
-  try{state._outAC&&state._outAC.close();}catch(_){}state._outAC=null;
-  if('speechSynthesis' in window)try{speechSynthesis.cancel();}catch(_){}
-  const o=state._orb;if(o){o.out=0;o.outLive=false;}
+  if(_vce)_vce.stopSpeak();
+  const o=state._orb;if(o){o.out=0;o.outLive=false;o.amp=0;}
 }
-function stopVoice(){if(_rec){try{_rec.stop();}catch(_){}_rec=null;}stopVoiceOut();}
+function stopVoice(){if(_vce)_vce.stop();state._dict=null;dictUiOff();stopVoiceOut();}
 function initVoice(){
   const mic=$('#chatMic'),tts=$('#chatTts');if(!mic)return;
   tts.onclick=()=>{state.tts=!state.tts;localStorage.setItem(LS.tts,state.tts?'1':'0');tts.innerHTML=icon(state.tts?'speakon':'speakoff',18);if(!state.tts)stopVoice();toast(state.tts?'Lettura vocale attiva':'Lettura vocale disattivata','info');};
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){mic.onclick=()=>toast('Dettatura non supportata da questo browser','bad');mic.style.opacity=.45;return;}
-  mic.onclick=()=>{
-    if(_rec){_rec.stop();return;}
-    const ta=$('#chatMsg');if(!ta)return;const base=ta.value?ta.value.trim()+' ':'';
-    _rec=new SR();_rec.lang='it-IT';_rec.interimResults=true;_rec.continuous=true;
-    _rec.onresult=e=>{let fin='',tmp='';for(const r of e.results){if(r.isFinal)fin+=r[0].transcript;else tmp+=r[0].transcript;}ta.value=(base+fin+tmp).trim();ta.dispatchEvent(new Event('input'));};
-    _rec.onend=()=>{_rec=null;mic.classList.remove('rec');stopOrbMic();setOrb('idle');const t=$('#chatMsg');if(t)t.focus();};
-    _rec.onerror=()=>{};
-    mic.classList.add('rec');try{_rec.start();setOrb('ascolto');startOrbMic();toast('Ti ascolto… premi di nuovo il microfono per fermare','info');}catch(_){mic.classList.remove('rec');_rec=null;}
+  mic.onclick=async()=>{
+    const e=vce();
+    if(!e){toast('Modulo voce non caricato (voce.js)','bad');return;}
+    if(e.listening()){e.stopListen();return;}
+    const ta=$('#chatMsg');state._dict=ta&&ta.value?ta.value.trim()+' ':'';
+    await _voicePro();                               // PRO o browser: lo decide il modulo
+    mic.classList.add('rec');
+    e.listen({autosend:false});                      // dettatura: si ferma col pulsante
+    toast('Ti ascolto… premi di nuovo il microfono per fermare','info');
   };
 }
 async function askAgent(agentId){route('router');await new Promise(r=>setTimeout(r,60));const ta=$('#rInput');if(ta){ta.placeholder=`Scrivi il compito da affidare a ${agentId}…`;ta.focus();}}
@@ -1517,7 +1507,7 @@ function route(view){
   if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}   /* B1: mai animazioni accumulate */
   state._brainOn=false;
   if(state._orb)state._orb.on=false;
-  stopOrbMic();
+  
   if(_rec)stopVoice();
   state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   $$('.bottombar button').forEach(b=>b.classList.toggle('active',b.dataset.bv===view));

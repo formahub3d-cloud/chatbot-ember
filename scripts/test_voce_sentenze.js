@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-/* Test del chunker di frasi della voce continua (PR1).
+/* Test del chunker di frasi della voce continua (PR1; dal 31-07 U1 il
+ * chunker vive nel MOTORE VOCALE UNICO widget/voce.js).
  *
- * La funzione emSentenze vive DENTRO widget/embed.js (file unico, niente
- * build): questo script la estrae dai marcatori EM_SENTENZE_BEGIN/END e la
- * mette alla prova sui tagli pericolosi dell'italiano scritto. Stessa
- * filosofia del contract test della console: il codice vero, non una copia.
+ * Questo script estrae emSentenze dai marcatori EM_SENTENZE_BEGIN/END del
+ * modulo e la mette alla prova sui tagli pericolosi dell'italiano scritto.
+ * Stessa filosofia del contract test della console: il codice VERO, non una
+ * copia — se il refactor sposta il codice, il test lo segue o fallisce.
  *
  * Uso:  node scripts/test_voce_sentenze.js   (exit 0 = tutto ok)
  */
@@ -12,10 +13,10 @@
 const fs = require("fs");
 const path = require("path");
 
-const SRC = path.join(__dirname, "..", "widget", "embed.js");
+const SRC = path.join(__dirname, "..", "widget", "voce.js");
 const code = fs.readFileSync(SRC, "utf8");
 const m = code.match(/\/\* EM_SENTENZE_BEGIN[\s\S]*?\*\/([\s\S]*?)\/\* EM_SENTENZE_END \*\//);
-if (!m) { console.error("FAIL: marcatori EM_SENTENZE_BEGIN/END non trovati in widget/embed.js"); process.exit(1); }
+if (!m) { console.error("FAIL: marcatori EM_SENTENZE_BEGIN/END non trovati in widget/voce.js"); process.exit(1); }
 
 // eslint-disable-next-line no-new-func
 const emSentenze = new Function(m[1] + "\nreturn emSentenze;")();

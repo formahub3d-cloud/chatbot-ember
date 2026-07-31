@@ -165,6 +165,31 @@ def test_stream_gli_errori_esplodono_prima_dei_byte(monkeypatch):
         voice.synthesize_stream("Ciao")
 
 
+def test_stream_vuoto_esplode_niente_200_muto(monkeypatch):
+    """Buco del fallback (PR #31): zero byte dal provider → errore (quindi 502
+    → voce del browser), MAI un 200 vuoto che lascia il widget muto."""
+    monkeypatch.setattr(settings, "voice_provider", "elevenlabs")
+    monkeypatch.setattr(settings, "elevenlabs_api_key", "sk_test")
+    monkeypatch.setattr(settings, "elevenlabs_voice_id", "VOCE_IT")
+
+    class _VuotoStream:
+        def __enter__(self):
+            class R:
+                def raise_for_status(self):
+                    pass
+
+                def iter_bytes(self):
+                    return iter(())          # il provider chiude senza un byte
+            return R()
+
+        def __exit__(self, *a):
+            return False
+    monkeypatch.setattr(voice.httpx, "stream", lambda *a, **k: _VuotoStream())
+    import pytest as _pytest
+    with _pytest.raises(RuntimeError, match="0 byte"):
+        voice.synthesize_stream("Ciao")
+
+
 def test_stream_restituisce_i_byte_in_ordine(monkeypatch):
     monkeypatch.setattr(settings, "voice_provider", "elevenlabs")
     monkeypatch.setattr(settings, "elevenlabs_api_key", "sk_test")
