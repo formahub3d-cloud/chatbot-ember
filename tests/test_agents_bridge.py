@@ -253,7 +253,7 @@ def test_chat_companion_ignoto_resta_rag(monkeypatch):
     _mock_rag(monkeypatch)
     monkeypatch.setattr(agents_bridge, "route", lambda *a, **k:
                         (_ for _ in ()).throw(AssertionError("non deve instradare")))
-    r = client.post("/chat", json={"message": "ciao", "companion": "gandalf"},
+    r = client.post("/chat", json={"message": "quanto costa la stampa?", "companion": "gandalf"},
                     headers={"X-Tenant-Key": "K"})
     assert r.status_code == 200
     assert r.json()["answer"] == "risposta-rag"

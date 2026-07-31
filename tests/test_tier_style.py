@@ -84,7 +84,7 @@ def test_answer_inietta_stile_ma_lascia_i_grant_invariati(monkeypatch):
     monkeypatch.setattr(rag, "chat", fake_chat)
 
     grants = {"allowed_scopes": ["ats"], "allowed_orgs": [], "allowed_sub_tenants": []}
-    out = rag.answer("ciao", grants, tier="virgilio")
+    out = rag.answer("quanto costa la stampa?", grants, tier="virgilio")
 
     assert out["answer"] == "risposta"
     assert rag.style_directive("virgilio") in seen["system"]     # stile iniettato
@@ -127,7 +127,7 @@ def test_chat_applica_il_tier_dal_branding_senza_toccare_lo_scope(monkeypatch):
     monkeypatch.setattr(rag, "_retrieve", fake_retrieve)
     monkeypatch.setattr(rag, "chat", lambda system, user: seen.setdefault("system", system) or "ok")
 
-    r = client.post("/chat", json={"message": "ciao"}, headers={"X-Tenant-Key": "K"})
+    r = client.post("/chat", json={"message": "quanto costa la stampa?"}, headers={"X-Tenant-Key": "K"})
     assert r.status_code == 200
     # stile beatrice iniettato nel system prompt del /chat
     assert rag.style_directive("beatrice") in seen["system"]
@@ -146,7 +146,7 @@ def test_chat_senza_tier_prompt_come_prima(monkeypatch):
     monkeypatch.setattr(rag, "_retrieve", lambda q, g, k, focus_slugs=None: [_fake_hit()])
     monkeypatch.setattr(rag, "chat", lambda system, user: seen.setdefault("system", system) or "ok")
 
-    r = client.post("/chat", json={"message": "ciao"}, headers={"X-Tenant-Key": "K"})
+    r = client.post("/chat", json={"message": "quanto costa la stampa?"}, headers={"X-Tenant-Key": "K"})
     assert r.status_code == 200
     # lang di default = it → prompt identico a rag._system("it") (== SYSTEM)
     assert seen["system"] == rag._system(settings.default_lang)
