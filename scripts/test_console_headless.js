@@ -53,12 +53,29 @@ function trovaChromium() {
   // qui si cercano ECCEZIONI del codice, non risorse irraggiungibili.
   const rumore = /Failed to load resource|CORS policy|net::ERR|ERR_CONNECTION/;
   page.on("pageerror", e => errori.push("pageerror: " + e.message));
-  page.on("console", m => { if (m.type() === "error" && !rumore.test(m.text())) errori.push("console.error: " + m.text()); });
+  let bootRiga = "";                                     // P3: la riga [boot] con i ms misurati
+  page.on("console", m => {
+    if (m.type() === "error" && !rumore.test(m.text())) errori.push("console.error: " + m.text());
+    if (m.text().startsWith("[boot]")) bootRiga = m.text();
+  });
 
   const url = "file://" + path.resolve(__dirname, "..", "panel", "index.html");
   await page.addInitScript(() => { try { localStorage.setItem("dv_demo", "1"); } catch (e) {} });
+  // Prova OFFLINE per davvero: le richieste esterne (font, CDN) si abortiscono
+  // SUBITO invece di lasciarle appese. Un <link> stylesheet pendente blocca
+  // l'esecuzione degli script: senza questo abort, in sandbox senza rete la
+  // misura [boot] segnava ~13 s di font, non il boot della console.
+  await page.route(/^https?:\/\//, r => r.abort());
   await page.goto(url);
   await page.waitForTimeout(700);
+
+  // 0 · P3: il boot deve DICHIARARSI finito — classe `preboot` tolta dal body
+  //     e riga [boot] coi millisecondi in console. Se una delle due manca,
+  //     la console o resta spenta o si finge pronta: entrambi guasti.
+  const boot = await page.evaluate(() => ({
+    preboot: document.body.classList.contains("preboot"),
+    hint: !!document.getElementById("bootHint"),
+  }));
 
   // 1 · route() deve sopravvivere su tutte le viste principali
   for (const v of ["chat", "dashboard", "brain", "improve", "home", "chat"]) {
@@ -112,6 +129,10 @@ function trovaChromium() {
 
   let ko = 0;
   if (errori.length) { console.error("ECCEZIONI IN CONSOLE/PAGINA:\n  " + errori.join("\n  ")); ko = 1; }
+  if (boot.preboot) { console.error("FAIL (P3): la classe `preboot` è ancora sul body — la console non si è dichiarata pronta"); ko = 1; }
+  if (!boot.hint) { console.error("FAIL (P3): manca #bootHint nell'HTML statico"); ko = 1; }
+  if (!bootRiga) { console.error("FAIL (P3): nessuna riga [boot] in console — la misura del boot è sparita"); ko = 1; }
+  else console.log("[boot misurato] " + bootRiga);
   if (!vox.aperto) { console.error("FAIL: il modo vocale non si è aperto"); ko = 1; }
   else if (vox.canvas && vox.px <= 200 && !vox.css) {
     console.error(`FAIL: l'orb NON disegna (canvas ${vox.w}x${vox.h}, cssW=${vox.cssW}, px=${vox.px})`); ko = 1;
