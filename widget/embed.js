@@ -289,6 +289,11 @@
 
   // markdown-lite SICURO: prima escape totale, poi riabilita solo un set ristretto.
   function mdLite(t){
+    // O4: marcatori di provenienza (conversazione libera owner) resi VISIBILI
+    // anche qui: mai conoscenza generale spacciata per dato del cervello.
+    t = String(t == null ? "" : t)
+        .replace(/⟦fuori⟧/g, "\n〔fuori dal cervello · non verificato〕 ")
+        .replace(/⟦\/fuori⟧/g, "");
     var h = esc(t);
     h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
     h = h.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
