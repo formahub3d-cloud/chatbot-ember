@@ -261,6 +261,10 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .orbit-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;white-space:nowrap;min-height:32px}
 .orbit-chip .orbit-meta{opacity:.6;font-size:10px}
 .orbit-chip.active{border-color:var(--cyan);color:var(--cyan);background:color-mix(in srgb,var(--cyan) 12%,transparent)}
+/* ── O1 · il rientro: la home È il cervello ── */
+.home-overlay{position:absolute;left:0;right:0;bottom:0;padding:26px 28px 22px;pointer-events:none;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--bg) 82%,transparent) 55%)}
+.home-overlay .cta button{pointer-events:auto}
+.home-overlay h1{font-size:clamp(22px,3.4vw,34px)}
 #focusBar{padding:0 22px}
 #focusBar:not(:empty){display:flex;gap:10px;align-items:center;padding:7px 22px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--cyan) 7%,transparent)}
 .focus-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)}
@@ -637,36 +641,42 @@ const VIEWS={
 
   /* ---------- HOME · IL TUO MONDO (stile AI OS, brand FORMA) ---------- */
   async home(){
-    C.innerHTML=skeleton(4);
-    const [an,tk,ag,co,rm]=await Promise.all([
-      (state.engOk?api('engine','/admin/analytics'):Promise.reject()).catch(()=>null),
-      (state.engOk?api('engine','/admin/tasks'):Promise.reject()).catch(()=>null),
-      (state.orchOk?api('orch','/agents'):Promise.reject()).catch(()=>null),
-      (state.orchOk?api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'})):Promise.reject()).catch(()=>null),
-      (state.engOk?api('engine','/admin/roadmap'):Promise.reject()).catch(()=>null),
-    ]);
-    const t=(an&&an.totals)||{};const nTasks=tk?(tk.tasks||[]).length:null;if(tk)$('#b-tasks').textContent=nTasks;
-    const agents=(ag&&ag.agents)||[];const nContra=co?(co.contradictions||[]).length:null;
-    const fbTot=(t.feedback_up||0)+(t.feedback_down||0),help=fbTot?Math.round(t.feedback_up/fbTot*100):null;
+    /* O1 · Il rientro: entri e vedi il CERVELLO — l'orbita di Divina coi nodi
+       connessi dalle sinapsi reali. Non un diagramma da studiare: un colpo
+       d'occhio che dice «c'è dentro roba, ed è connessa». Il dettaglio si
+       raggiunge cliccando (hover sui nodi, poi «Lavora con Divina»), non
+       leggendo. Un solo invito. Il renderer è brain3d.js: lo stesso grafo che
+       già funziona nel Cervello vivo (rAF suo, destroy al cambio vista,
+       reduced-motion = frame statico, stato vuoto onesto senza nodi finti). */
     const connected=state.engOk||state.orchOk;
-    const compCard=a=>{const col=AG_COLORS[a.id]||'var(--magenta)';return `<div class="agent-card"><div class="accent-top" style="background:${col}"></div><div class="agent-head"><div class="agent-avatar" style="background:${col}">${AG_INIT[a.id]||'AG'}</div><div><div class="agent-name">${esc(a.name)}</div><div class="agent-arch">${esc(a.archetype||'')}</div></div></div><div class="agent-tagline">${esc(a.tagline||'')}</div><div class="row" style="justify-content:space-between;margin-top:12px"><span class="pill">${icon('spark',11)} ${(a.skills||[]).length} skill</span><button class="btn sm" onclick="askAgent('${esc(a.id)}')">Affida un compito</button></div></div>`;};
     C.innerHTML=`
-    <div class="hero"><div class="hero-in">
-      <div class="orb">DV</div>
-      <div style="flex:1;min-width:230px">
-        <h1><span class="grad">Il tuo mondo. La tua AI.</span></h1>
-        <div class="sub">Divina — il prodotto AI di <b>FORMA</b> — unisce il cervello OVY, il motore di risposta e i tuoi companion in un unico posto: fai una domanda, affida un compito, guarda il lavoro accadere.</div>
-        <div class="cta"><button class="btn cta-brand" onclick="route('chat')">${icon('chat',16)} Parla con Divina</button><button class="btn" onclick="route('router')">${icon('swap',16)} Affida un compito</button>${!connected?`<button class="btn" onclick="openConn()">${icon('plug',16)} Connetti i servizi</button>`:''}</div>
-      </div></div></div>
-    ${an?`<div class="sec">Oggi nel cervello</div><div class="grid g-stats">
-      <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">${icon('chat',13)} Conversazioni</div><div class="val" style="color:var(--cyan)">${fmtN(t.chat)}</div><div class="meta">dal boot</div></div>
-      <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">${icon('thumb',13)} Utilità</div><div class="val" style="color:var(--green)">${help==null?'—':help+'%'}</div><div class="meta">${fmtN(t.feedback_up)} ${icon('thumb',11)} · ${fmtN(t.feedback_down)} ${icon('thumbdown',11)}</div></div>
-      <div class="stat" onclick="route('tasks')" style="cursor:pointer"><div class="glow" style="background:linear-gradient(90deg,var(--magenta),#eea2f9)"></div><div class="lbl">${icon('check',13)} Task aperte</div><div class="val" style="color:var(--magenta)">${nTasks==null?'—':fmtN(nTasks)}</div><div class="meta">coda del cervello</div></div>
-      <div class="stat" onclick="route('contradictions')" style="cursor:pointer"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">${icon('alert',13)} Da decidere</div><div class="val" style="color:var(--orange)">${nContra==null?'—':fmtN(nContra)}</div><div class="meta">contraddizioni</div></div>
-    </div>`:''}
-    <div class="sec">I tuoi companion</div>
-    ${agents.length?`<div class="grid g-3" style="align-items:start">${agents.map(compCard).join('')}</div>`:`<div class="card">${emptyBox(icon('sparks',36),'Companion non connessi',"Configura l'Orchestratore (URL + token) o attiva la modalità demo per vedere Dante, Virgilio e Beatrice.")}</div>`}
-    ${rm?`<div class="sec">Verso l'AI Operating System</div><div class="card"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:10px"><div class="small" style="line-height:1.6">${icon('compass',13)} Roadmap (benchmark <b>Zoey OS</b>): <b>${(rm.counts||{}).aperte??'—'}</b> task aperte · <b>${(rm.counts||{}).parziali??'—'}</b> parziali su ${(rm.counts||{}).totale??'—'}</div><button class="btn sm" onclick="route('roadmap')">Apri la roadmap</button></div></div>`:''}`;
+    <div class="card" style="padding:0;overflow:hidden;position:relative">
+      <canvas id="homeBrain" style="width:100%;height:min(58vh,540px);display:block"></canvas>
+      <div class="home-overlay">
+        <h1 style="margin:0 0 6px"><span class="grad">Il tuo mondo. La tua AI.</span></h1>
+        <div class="sub" id="homeSub">il cervello si sta accendendo…</div>
+        <div class="cta" style="margin-top:12px">
+          <button class="btn cta-brand" onclick="route('chat')">${icon('spark',16)} Lavora con Divina</button>
+          ${!connected?`<button class="btn" onclick="openConn()">${icon('plug',16)} Connetti i servizi</button>`:''}
+        </div>
+      </div>
+    </div>`;
+    const sub=$('#homeSub');
+    let g=null;
+    try{g=await api('engine','/admin/brain/graph');}catch(_){}
+    if(g&&(g.nodes||[]).length){
+      startBrainCanvas(g.nodes,g.links,'homeBrain');
+      if(sub)sub.textContent=`${fmtN(g.nodes.length)} neuroni · ${fmtN((g.links||[]).length)} sinapsi reali — connessi, vivi, tuoi`;
+    }else{
+      try{
+        const r=await api('engine','/admin/brain/notes?'+q({limit:220}));
+        startBrainCanvas(r.notes||[],null,'homeBrain');
+        if(sub)sub.textContent=`${fmtN((r.notes||[]).length)} neuroni — le sinapsi arrivano con la prossima ingest`;
+      }catch(_){
+        startBrainCanvas([],null,'homeBrain');
+        if(sub)sub.textContent=connected?'nessun dato dal cervello: lancia una ingest':'connetti il motore per accendere il cervello';
+      }
+    }
   },
 
   /* ---------- CHAT ---------- */
@@ -1491,12 +1501,12 @@ async function chatApprove(tid,to){
 }
 
 /* ---- CERVELLO VIVO: costellazione animata dei neuroni (note reali per area) ---- */
-function startBrainCanvas(notes,realLinks){
+function startBrainCanvas(notes,realLinks,cvId='brainCanvas'){
   /* B1 (30-07): il renderer «povero» (costellazione piatta + 70 NODI A CASO come
      fallback) è sostituito dal modulo brain3d.js — lo STESSO renderer 3D della
      vetrina, estratto una volta sola. SENZA DATI: stato vuoto onesto, mai nodi
      inventati (un cervello finto mostrato come vero è peggio di uno schermo vuoto). */
-  const cv=document.getElementById('brainCanvas');if(!cv)return;
+  const cv=document.getElementById(cvId);if(!cv)return;
   if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}
   const src=(notes||[]).slice(0,220);
   if(!src.length||typeof createBrain!=='function'){
