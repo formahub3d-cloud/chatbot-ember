@@ -23,6 +23,18 @@ def test_chunker_frasi_del_widget():
     assert r.returncode == 0, f"chunker KO:\n{r.stdout}\n{r.stderr}"
 
 
+@pytest.mark.skipif(shutil.which("node") is None, reason="node non disponibile")
+def test_il_barge_in_non_si_auto_interrompe():
+    """C3: soglia RELATIVA all'uscita — con sola eco (nessuna voce umana)
+    interrompi() non deve scattare; con la voce vera sì. Logica estratta dai
+    marcatori EM_VAD di voce.js: il codice vero, 7 casi simulati."""
+    r = subprocess.run(
+        ["node", str(ROOT / "scripts" / "test_voce_vad.js")],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert r.returncode == 0, f"VAD KO:\n{r.stdout}\n{r.stderr}"
+
+
 def test_marcatori_presenti_nel_modulo():
     """Senza marcatori il test node non estrae nulla: guard esplicito.
     U1: il chunker vive nel MOTORE VOCALE UNICO widget/voce.js."""

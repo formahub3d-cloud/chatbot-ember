@@ -96,7 +96,7 @@ def notes(q: str = "", limit: int = 50) -> list[dict]:
 
 # ── Grafo REALE del cervello: nodi = note, sinapsi = [[link]] ─────────────────
 # Costruito dall'ingest completo (che ha in mano il contenuto di ogni nota dopo
-# sync_vault) e persistito su Supabase (riga unica jsonb, db/ovyon_graph.sql):
+# sync_vault) e persistito su Supabase (riga unica jsonb, db/brain_graph.sql):
 # la console lo disegna nella tab «Cervello vivo» — tranche 2 della convergenza.
 
 def build_graph(notes: list[dict]) -> dict:

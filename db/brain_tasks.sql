@@ -1,6 +1,6 @@
 -- ═════════════════════════════════════════════════════════════════════════
 -- OVYON · brain_tasks — coda task PERSISTENTE del cervello (additiva)
--- Da applicare DOPO ovyon_schema.sql. Prima tranche della task di roadmap
+-- Da applicare DOPO schema.sql. Prima tranche della task di roadmap
 -- «coda-task-persistente» (console /panel/ → tab "Task del cervello").
 --
 -- Filosofia: le task di apprendimento (in-memory) si rigenerano dai segnali;

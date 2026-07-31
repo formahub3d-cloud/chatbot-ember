@@ -241,7 +241,7 @@ def log_access(key_hash: str, action: str, tenant_code: str | None = None,
     (l'audit non deve mai bloccare una richiesta). No-op se il backend non è attivo.
 
     L'insert gira in una sessione con i GUC ovyon.* dell'attore (rls.session_grants):
-    così la policy RLS scope-checked su access_logs (db/ovyon_schema.sql) è rispettata
+    così la policy RLS scope-checked su access_logs (db/schema.sql) è rispettata
     anche con un ruolo non privilegiato."""
     if not _apikeys_enabled() or not key_hash:
         return

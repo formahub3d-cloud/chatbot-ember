@@ -7,7 +7,7 @@
 -- sub_code) = lo `scope`/segmento usato da Divina (es. 'forma','ats','docs'), così i
 -- filtri per grant combaciano senza traduzioni. Vedi ovyon/docs/doc-ovyon-ember-scope.
 --
--- Applicazione:  psql "$DATABASE_URL" -f db/ovyon_schema.sql
+-- Applicazione:  psql "$DATABASE_URL" -f db/schema.sql
 -- Idempotente:   usa IF NOT EXISTS / CREATE OR REPLACE.
 -- ============================================================================
 

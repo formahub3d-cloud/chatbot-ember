@@ -1,9 +1,9 @@
-# OVY Brain Connector (MCP)
+# Divina Brain Connector (MCP)
 
-Connettore **MCP** che espone a Claude il cervello OVY, come da Sezione 5 del
-documento di architettura OVYON (`ovyon/docs/doc-ovyon-connettore-claude` nel
+Connettore **MCP** che espone a Claude il cervello di Divina, come da Sezione 5 del
+documento di architettura (`ovyon/docs/doc-ovyon-connettore-claude` nel
 cervello). È un **adattatore sottile**: ogni tool chiama gli endpoint HTTP di
-**Divina** (il chatbot integrato in OVYON), che applica server-side il filtro per
+**Divina** (il motore), che applica server-side il filtro per
 grant. Il connettore **non** contiene logica di permessi.
 
 ## I 5 tool

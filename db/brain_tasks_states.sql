@@ -1,6 +1,6 @@
 -- ═════════════════════════════════════════════════════════════════════════
 -- OVYON · brain_tasks — macchina a stati con APPROVAZIONE (additiva)
--- Da applicare DOPO ovyon_tasks.sql. Brief "Divina verso Zoey" (2026-07-17),
+-- Da applicare DOPO brain_tasks.sql. Brief "Divina verso Zoey" (2026-07-17),
 -- task Z2: le azioni dei companion con effetto esterno non partono mai senza
 -- l'ok dell'owner — è il differenziatore di Divina ("azioni fidate").
 --

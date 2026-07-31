@@ -1,7 +1,7 @@
 """Difesa in profondità lato database (Opzione 1, Sezione 9 del doc OVYON).
 
 Imposta i grant del richiedente come **GUC di sessione** `ovyon.*`, così la RLS di
-Supabase (`db/ovyon_schema.sql`) filtra automaticamente le tabelle protette
+Supabase (`db/schema.sql`) filtra automaticamente le tabelle protette
 (`documents`, `access_logs`) quando Divina le interroga con un ruolo non privilegiato.
 
 Uso tipico::
@@ -19,7 +19,7 @@ from contextlib import contextmanager
 from . import tenants
 from .rag import _grant_lists
 
-# Nomi dei GUC letti dalle funzioni RLS in db/ovyon_schema.sql (ovyon.grants()).
+# Nomi dei GUC letti dalle funzioni RLS in db/schema.sql (ovyon.grants()).
 GUC = {
     "allowed_orgs": "ovyon.allowed_orgs",
     "allowed_tenants": "ovyon.allowed_tenants",
