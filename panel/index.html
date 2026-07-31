@@ -548,7 +548,7 @@ function demoData(service, path, opts){
       return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats'],free:msg.includes('business')||msg.includes('mercato')});
     }
     if(path.startsWith('/admin/tasks/close')||path.startsWith('/admin/tasks/transition')) return Promise.resolve({ok:true});
-    if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:28},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
+    if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:100},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));/* M5: stesso numero di stats.notes (100), un dato solo */gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
     if(path.startsWith('/admin/proposals/approve')) return Promise.resolve({ok:true,task:{id:'t-demo',kind:'gap',status:'aperta'}});
     if(path.startsWith('/admin/proposals/dismiss')) return Promise.resolve({ok:true});
@@ -666,11 +666,17 @@ const VIEWS={
       </div>
     </div>`;
     const sub=$('#homeSub');
-    let g=null;
+    /* M5 · UN numero solo per un dato solo: i neuroni si contano in UN posto
+       (stats.notes di /admin/brain, la stessa fonte del Cervello vivo). Il
+       grafo serve a DISEGNARE: se è una fotografia più vecchia lo si dice
+       con l'età, non con un numero diverso. */
+    let g=null,stats=null;
+    try{const d=await api('engine','/admin/brain');stats=(d&&d.stats)||null;}catch(_){}
     try{g=await api('engine','/admin/brain/graph');}catch(_){}
     if(g&&(g.nodes||[]).length){
       startBrainCanvas(g.nodes,g.links,'homeBrain');
-      if(sub)sub.textContent=`${fmtN(g.nodes.length)} neuroni · ${fmtN((g.links||[]).length)} sinapsi reali — connessi, vivi, tuoi`;
+      const n=(stats&&stats.notes)!=null?stats.notes:g.nodes.length;
+      if(sub)sub.innerHTML=`${fmtN(n)} neuroni · ${fmtN((g.links||[]).length)} sinapsi reali — connessi, vivi, tuoi · ${etaDato(g.generated_at)||''}`;
     }else{
       try{
         const r=await api('engine','/admin/brain/notes?'+q({limit:220}));
@@ -793,7 +799,7 @@ const VIEWS={
          fallback alla costellazione per vicinanza d'area. */
       let g=null;try{g=await api('engine','/admin/brain/graph');}catch(_){}
       const cap=$('#brainCap'),sub=$('#brainOrbSub');
-      if(g&&(g.links||[]).length){if(cap)cap.textContent=`sinapsi REALI dai [[link]] · ${g.links.length} collegamenti · grafo ${timeAgoIso(g.generated_at)}`;if(sub)sub.textContent=`${fmtN(s.notes)} neuroni · ${fmtN(g.links.length)} sinapsi reali`;startBrainCanvas(g.nodes||[],g.links);}
+      if(g&&(g.links||[]).length){if(cap)cap.textContent=`sinapsi REALI dai [[link]] · ${g.links.length} collegamenti`;if(sub)sub.innerHTML=`${fmtN(s.notes)} neuroni · ${fmtN(g.links.length)} sinapsi reali · ${etaDato(g.generated_at)}`;startBrainCanvas(g.nodes||[],g.links);}
       else{if(cap&&d.persist)cap.textContent="collegamenti per vicinanza d'area — le sinapsi reali arrivano con la prossima ingest completa";if(sub)sub.textContent=`${fmtN(s.notes)} neuroni · collegamenti per vicinanza d'area`;try{const r=await api('engine','/admin/brain/notes?'+q({limit:220}));startBrainCanvas(r.notes||[]);}catch(_){startBrainCanvas([]);}}
       setOrb('idle');
     }catch(e){C.innerHTML=errBox(e);}
@@ -1610,6 +1616,17 @@ async function chatApprove(tid,to){
 }
 
 /* ---- CERVELLO VIVO: costellazione animata dei neuroni (note reali per area) ---- */
+/* M5 · L'età del dato NON è un dettaglio tipografico: dopo la settimana del
+   cervello congelato senza che nessuno se ne accorgesse, va dove si guarda
+   e diventa evidente quando supera un giorno. */
+function etaDato(iso,cosa='grafo'){
+  if(!iso)return '';
+  const h=(Date.now()-new Date(iso).getTime())/36e5;
+  if(isNaN(h))return '';
+  const label=`${cosa} aggiornato ${timeAgoIso(iso)}`;
+  return h>24?`<span style="color:var(--orange);font-weight:700">${icon('alert',11)} ${esc(label)} — più di un giorno</span>`
+             :`<span>${esc(label)}</span>`;
+}
 function startBrainCanvas(notes,realLinks,cvId='brainCanvas'){
   /* B1 (30-07): il renderer «povero» (costellazione piatta + 70 NODI A CASO come
      fallback) è sostituito dal modulo brain3d.js — lo STESSO renderer 3D della
