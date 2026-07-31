@@ -1417,8 +1417,12 @@ function voxOpen(){
   const M=document.getElementById('voxMode');if(!M)return;
   state._vox={open:true,paused:false,rec:null,ret:document.activeElement};
   M.hidden=false;M.classList.add('open');
+  console.info('[vox] apertura');
   const log=document.getElementById('voxLog');if(log)log.innerHTML='';
   initOrb('voxOrb',320);
+  /* M4-A: ri-misura DOPO che il layout del modale è davvero a schermo — se il
+     canvas fosse stato letto a dimensione zero, qui si corregge da solo. */
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{if(state._orbKick)state._orbKick();}));
   setOrb('ascolto',state._compSel||'divina');
   const micB=document.getElementById('voxMic');if(micB){micB.textContent='Pausa';micB.onclick=voxToggleMic;}
   document.getElementById('voxClose').onclick=voxClose;
@@ -1446,6 +1450,7 @@ function voxKeys(e){
 }
 function voxClose(){
   const v=state._vox;if(!v||!v.open)return;
+  console.info('[vox] chiusura ←',(new Error().stack||'').split('\n').slice(2,5).map(s=>s.trim()).join(' ← '));
   v.open=false;state._voxAfter=null;
   if(_vce)_vce.stop();
   if(v.fadeTimer)clearInterval(v.fadeTimer);
@@ -1700,6 +1705,7 @@ function newClientForm(){
 const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],proposals:['Proposte audit','Solo owner — approva le task di auto-miglioramento'],roadmap:['Roadmap Divina',"Verso l'AI Operating System"],tasks:['Task del cervello','Coda operativa persistente'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 function route(view){
   if(state.clientMode)view='chat';   /* modalità cliente: esiste solo la chat */
+  if(state._vox&&state._vox.open){console.info('[vox] chiusura richiesta da route('+view+')');voxClose();}
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
   if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}   /* B1: mai animazioni accumulate */
   state._brainOn=false;
