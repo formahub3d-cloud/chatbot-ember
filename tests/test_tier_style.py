@@ -72,7 +72,7 @@ def _fake_hit():
 def test_answer_inietta_stile_ma_lascia_i_grant_invariati(monkeypatch):
     seen = {}
 
-    def fake_retrieve(q, g, k):
+    def fake_retrieve(q, g, k, focus_slugs=None):
         seen["grants"] = g                 # cattura i grant usati per il filtro
         return [_fake_hit()]
 
@@ -99,7 +99,7 @@ def test_answer_scope_identico_a_prescindere_dal_tier(monkeypatch):
     """Cambiare il tier NON cambia il filtro: build_filter dipende solo dai grant."""
     grants = {"allowed_scopes": ["ats"]}
     captured = []
-    monkeypatch.setattr(rag, "_retrieve", lambda q, g, k: (captured.append(g), [_fake_hit()])[1])
+    monkeypatch.setattr(rag, "_retrieve", lambda q, g, k, focus_slugs=None: (captured.append(g), [_fake_hit()])[1])
     monkeypatch.setattr(rag, "chat", lambda s, u: "ok")
     for tier in (None, "dante", "virgilio", "beatrice", "sconosciuto"):
         rag.answer("q", grants, tier=tier)
@@ -120,7 +120,7 @@ def test_chat_applica_il_tier_dal_branding_senza_toccare_lo_scope(monkeypatch):
     _mock_tenant(monkeypatch, {"tier": "beatrice"})
     seen = {}
 
-    def fake_retrieve(q, g, k):
+    def fake_retrieve(q, g, k, focus_slugs=None):
         seen["grants"] = g
         return [_fake_hit()]
 
@@ -143,7 +143,7 @@ def test_chat_senza_tier_prompt_come_prima(monkeypatch):
     """Retro-compat end-to-end: tenant senza tier → system prompt = quello storico."""
     _mock_tenant(monkeypatch, {})            # nessun tier nel branding
     seen = {}
-    monkeypatch.setattr(rag, "_retrieve", lambda q, g, k: [_fake_hit()])
+    monkeypatch.setattr(rag, "_retrieve", lambda q, g, k, focus_slugs=None: [_fake_hit()])
     monkeypatch.setattr(rag, "chat", lambda system, user: seen.setdefault("system", system) or "ok")
 
     r = client.post("/chat", json={"message": "ciao"}, headers={"X-Tenant-Key": "K"})

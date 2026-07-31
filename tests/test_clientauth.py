@@ -144,7 +144,7 @@ def test_endpoint_login_me_chat(monkeypatch):
 
     from types import SimpleNamespace
 
-    def fake_retrieve(q, g, k):
+    def fake_retrieve(q, g, k, focus_slugs=None):
         visto["grants"] = g
         return [SimpleNamespace(score=0.9, payload={"slug": "nota", "scope": "ats",
                                                     "title": "Nota", "text": "contenuto"})]

@@ -15,7 +15,7 @@ def test_detect_lang():
 
 
 def test_answer_lang_auto(monkeypatch):
-    monkeypatch.setattr(rag, "_retrieve", lambda q, g, k: [])
+    monkeypatch.setattr(rag, "_retrieve", lambda q, g, k, focus_slugs=None: [])
     assert rag.answer("what is this, how are you", ["ats"], lang="auto")["answer"] == rag._NO_ANSWER_EN
     assert rag.answer("ciao come stai", ["ats"], lang="auto")["answer"] == rag.NO_ANSWER
 

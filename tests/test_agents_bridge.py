@@ -136,7 +136,7 @@ def _mock_tenant(monkeypatch, branding=None, scopes=None):
 
 def _mock_rag(monkeypatch, capture=None):
     """RAG mockato (nessuna rete). Se `capture` è un dict, registra i grant visti."""
-    def fake_retrieve(q, g, k):
+    def fake_retrieve(q, g, k, focus_slugs=None):
         if capture is not None:
             capture["grants"] = g
         return [_hit()]
