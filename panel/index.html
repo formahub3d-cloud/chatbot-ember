@@ -380,7 +380,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07b · un motore vocale solo</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07c · le orbite</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -1111,7 +1111,36 @@ function calcolaOrbite(notes,graph){
     if(/^forma\/projects\//.test(p)){out.progetti[n.slug]={id:n.slug,label:(n.title||n.slug).replace(/^Progetto\s*[—–-]?\s*/i,''),slugs:[n.slug],scope:'forma-core'};}
   });
   for(const k in out)Object.values(out[k]).forEach(g=>{g.n=g.slugs.length;g.link=g.slugs.reduce((a2,s)=>a2+(conn[s]||0),0);});
+  /* O3 · LENTI: partono da ciò che è GIÀ scritto — la categoria della nota
+     (segmento del path, specchio di cat/* del frontmatter). Aree/progetti/
+     clienti restano orbite, non lenti. La lente TEMATICA (business, legale…)
+     oggi NON esiste nei dati: il posto c'è, dichiaratamente vuoto — si
+     riempie quando le note avranno il tag (proposta: docs/lenti-temi-proposta.md). */
+  const LENTI_LBL={docs:'Documenti',workspace:'Workspace',entities:'Entità',sistema:'Sistema'};
+  out.lenti={};
+  (notes||[]).forEach(n=>{
+    const p=n.path||'';if(p.endsWith('_index.md'))return;
+    const seg=p.split('/');
+    let cat=seg[0]==='forma'?seg[1]:seg[0];
+    if(!cat||['areas','projects','clienti'].includes(cat))return;
+    if(cat==='andrea-aloia')cat='andrea';
+    const g=out.lenti[cat]=out.lenti[cat]||{id:cat,label:LENTI_LBL[cat]||cat,slugs:[],set:null};
+    g.slugs.push(n.slug);
+  });
+  Object.values(out.lenti).forEach(g=>{g.n=g.slugs.length;g.set=new Set(g.slugs);});
   return out;
+}
+/* Focus effettivo = orbita ∩ lente. Intersezione VUOTA → si manda una slug
+   sentinella che non esiste: il retrieval torna vuoto e Divina lo DICE
+   («non ho questa informazione») invece di allargare il filtro in silenzio. */
+function focusPayload(){
+  const f=state.focus,l=state.lens;
+  if(!f&&!l)return null;
+  let slugs=f?f.slugs.slice():null;
+  if(l)slugs=slugs?slugs.filter(s=>l.set.has(s)):l.slugs.slice();
+  if(!slugs.length)slugs=['__nessuna-nota__'];
+  const label=[f&&f.label,l&&('lente '+l.label)].filter(Boolean).join(' · ');
+  return {label,slugs:slugs.slice(0,300)};
 }
 async function loadOrbite(){
   const s=$('#orbitStrip');if(!s)return;
@@ -1136,9 +1165,19 @@ function renderOrbite(){
     const on=state.focus&&state.focus.kind===kind&&state.focus.id===g.id;
     return `<button class="orbit-chip ${on?'active':''}" data-okind="${kind}" data-oid="${esc(g.id)}" title="clic: lavora qui dentro — Divina risponde da queste note e i salvataggi finiscono qui">${esc(g.label)}<span class="orbit-meta">${g.n} not${g.n===1?'a':'e'} · ${g.link} sin.</span></button>`;
   }).join('');
-  s.innerHTML=`<div class="orbit-tabs">${tabs}<span class="small muted" style="margin-left:auto">orbite dai dati reali del vault</span></div><div class="orbit-row">${chips||'<span class="small muted">nessuna orbita in questo raggruppamento</span>'}</div>`;
+  const ls=Object.values(state._orbite.lenti||{}).sort((a2,b2)=>b2.n-a2.n);
+  const lenti=ls.map(g=>{
+    const on=state.lens&&state.lens.id===g.id;
+    return `<button class="orbit-chip ${on?'active':''}" data-lid="${esc(g.id)}" title="lente: restringe alle note di questa categoria">${esc(g.label)}<span class="orbit-meta">${g.n}</span></button>`;
+  }).join('')+`<button class="orbit-chip" disabled style="opacity:.45;cursor:not-allowed" title="La classificazione tematica (business, legale, tecnico…) oggi NON esiste nel frontmatter: nessuno può calcolarla senza indovinare. Il posto è pronto: si accende quando le note avranno i tag tema/* (proposta in docs/lenti-temi-proposta.md).">Temi · in attesa dei tag</button>`;
+  s.innerHTML=`<div class="orbit-tabs">${tabs}<span class="small muted" style="margin-left:auto">orbite e lenti dai dati reali del vault</span></div><div class="orbit-row">${chips||'<span class="small muted">nessuna orbita in questo raggruppamento</span>'}</div><div class="orbit-row" style="margin-top:6px"><span class="small muted" style="align-self:center;flex-shrink:0">Lenti:</span>${lenti}</div>`;
   $$('#orbitStrip .orbit-tab').forEach(b2=>b2.onclick=()=>{state._orbKind=b2.dataset.ok;renderOrbite();});
-  $$('#orbitStrip .orbit-chip').forEach(b2=>b2.onclick=()=>{
+  $$('#orbitStrip .orbit-chip[data-lid]').forEach(b2=>b2.onclick=()=>{
+    const g=(state._orbite.lenti||{})[b2.dataset.lid];if(!g)return;
+    state.lens=(state.lens&&state.lens.id===g.id)?null:g;
+    renderOrbite();renderFocusBar();
+  });
+  $$('#orbitStrip .orbit-chip[data-okind]').forEach(b2=>b2.onclick=()=>{
     const g=(state._orbite[b2.dataset.okind]||{})[b2.dataset.oid];if(!g)return;
     if(state.focus&&state.focus.kind===b2.dataset.okind&&state.focus.id===g.id){setFocus(null);return;}
     setFocus({kind:b2.dataset.okind,id:g.id,label:g.label,slugs:g.slugs,scope:g.scope,n:g.n,link:g.link});
@@ -1150,9 +1189,11 @@ function setFocus(f){
 }
 function renderFocusBar(){
   const fb=$('#focusBar');if(!fb)return;
-  const f=state.focus;
-  fb.innerHTML=f?`<span class="focus-pill">${icon('target',13)} Stai lavorando su <b>${esc(f.label)}</b> · ${f.n} not${f.n===1?'a':'e'} · ${f.link} sinapsi</span><button class="btn ghost" id="focusExit" style="min-height:30px;padding:3px 10px;margin-left:auto">Esci</button>`:'';
-  const x=$('#focusExit');if(x)x.onclick=()=>setFocus(null);
+  const fp=focusPayload();
+  if(!fp){fb.innerHTML='';return;}
+  const n=fp.slugs[0]==='__nessuna-nota__'?0:fp.slugs.length;
+  fb.innerHTML=`<span class="focus-pill">${icon('target',13)} Stai lavorando su <b>${esc(fp.label)}</b> · ${n} not${n===1?'a':'e'}${n===0?' — combinazione vuota: Divina lo dirà':''}</span><button class="btn ghost" id="focusExit" style="min-height:30px;padding:3px 10px;margin-left:auto">Esci</button>`;
+  const x=$('#focusExit');if(x)x.onclick=()=>{state.lens=null;setFocus(null);};
 }
 
 /* Il CUORE di un turno di chat, condiviso tra chat scritta e modo vocale (V3):
@@ -1161,8 +1202,9 @@ function renderFocusBar(){
    memoria/il rendering restano ai chiamanti. */
 async function chatTurn(text,history){
   const comp=(state._compSel&&state._compSel!=='divina')?state._compSel:null;
+  const fp=focusPayload();
   const payload={message:text,history,...(comp?{agent:true,companion:comp}:{}),
-    ...(state.focus?{focus:{label:state.focus.label,slugs:state.focus.slugs}}:{})};
+    ...(fp?{focus:fp}:{})};
   const r=state.clientMode
     ?await (async()=>{const res=await fetch('/client/chat',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(res.status===401){toast('Sessione scaduta: entra di nuovo','bad');setTimeout(()=>location.reload(),1200);throw new Error('sessione scaduta');}if(!res.ok)throw new Error(res.status+' · '+(await res.text()).slice(0,160));return res.json();})()
     :await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:payload});
