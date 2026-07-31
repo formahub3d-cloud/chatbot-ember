@@ -27,3 +27,21 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q
+
+      # C1 · Il guardiano NON dorme più: «_rec is not defined» è passato per
+      # questa CI ed è arrivato in produzione lasciando la console morta.
+      # Da qui in poi la console si APRE davvero a ogni push: eccezioni di
+      # pagina, navigazione morta, orb che non disegna, modale che si chiude
+      # durante la risposta → CI rossa.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Playwright Chromium (guardiano console)
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: La console si apre DAVVERO (headless)
+        run: node scripts/test_console_headless.js
