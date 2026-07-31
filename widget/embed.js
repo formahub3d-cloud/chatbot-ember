@@ -1,7 +1,9 @@
 /* Divina — widget di chat embeddable (vanilla JS, nessuna dipendenza).
- * v3 · «la voce continua»: sintesi PER FRASE durante lo stream (la prima frase
- *      si sente mentre il resto arriva), interruzione a metà frase (barge-in),
- *      trascrizione con parziali live. Misure in window.Divina.voiceStats.
+ * v4 · U1 «un motore vocale solo»: frasi, coda, barge-in, invio automatico e
+ *      parziali vivono in voce.js (fratello di questo script, condiviso con la
+ *      console). Misure in window.Divina.voiceStats (disponibile a modulo carico).
+ * v3 · «la voce continua»: sintesi PER FRASE durante lo stream, interruzione a
+ *      metà frase (barge-in), trascrizione con parziali live.
  * v2 · Shadow DOM (CSS isolati dal sito ospite) + voce (input & output) + markdown + chip-fonti.
  * Funziona su qualsiasi sito (FORMA, ATS, ...). Una bolla flottante apre il pannello.
  *
@@ -103,7 +105,7 @@
   var canListen = VOICE && (!!SR || (hasMR && VMODE !== "browser"));
   var canSpeak  = VOICE && (!!synth || (hasMR && VMODE !== "browser"));
   var speakOn = VAUTO && canSpeak;   // lettura automatica attiva/disattiva
-  var rec = null, listening = false, mr = null, curAudio = null, cfgLoaded = false;
+  var rec = null, listening = false, cfgLoaded = false;
   function voiceHeaders(extra){ var h = extra || {}; if(!PROXY) h["X-Tenant-Key"] = KEY; return h; }
 
   // Auto-configurazione dalla CHIAVE del tenant: white-label (titolo, sottotitolo,
@@ -113,6 +115,7 @@
   async function maybeAutoConfig(){
     if (cfgLoaded) return;
     cfgLoaded = true;
+    if (VOICE) loadVoce();          // U1: il motore vocale si carica col pannello
     try{
       var r = await fetch(VBASE + "/config", { headers: voiceHeaders({}) });
       if (!r.ok) return;
@@ -390,7 +393,7 @@
     }
     // PR1: se la coda per frasi ha già preso in carico la lettura (anche se poi
     // interrotta dal barge-in), niente doppione a fine risposta
-    if (speakOn && !vout.spoke) speak(textAcc);
+    if (speakOn && !liveSpoke) speak(textAcc);
     body.scrollTop = body.scrollHeight;
   }
   function typing(){
@@ -399,238 +402,72 @@
     body.appendChild(row); body.scrollTop = body.scrollHeight; return row;
   }
 
-  // ── PR1 «la voce continua» · spezzatura in FRASI per la sintesi progressiva ──
-  // Appena una frase è completa la si sintetizza mentre il resto arriva ancora
-  // dallo stream. Le regole evitano i tagli sbagliati dell'italiano scritto:
-  // abbreviazioni (Dott., S.r.l., art. 3), numeri con separatore (1.234,56),
-  // iniziali (G. Verdi); un a-capo chiude la frase (elenchi puntati senza punto).
-  /* EM_SENTENZE_BEGIN — estratto e testato da scripts/test_voce_sentenze.js */
-  var EM_ABBR = ("dott dott.ssa sig sig.ra sig.na dr prof ing arch avv geom rag on sen " +
-    "gen col mons art artt lett n nn p pp pag pagg par cap capp vol fig figg tab all " +
-    "es ecc etc ca cfr tel cell fax min max sec srl spa snc sas vs " +
-    "s.r.l s.p.a s.n.c s.a.s s.s p.es u.s c.m c.a n.ro co kg mg km cm mm ml cl kw kwh mq").split(" ");
-  function emSentenze(buf, flush){
-    // Ritorna { frasi:[…], resto:"…" }: le frasi sono complete e pronunciabili,
-    // il resto va tenuto nel buffer. Con flush=true anche il resto diventa frase.
-    var frasi = [], start = 0, i, ch;
-    for (i = 0; i < buf.length; i++){
-      ch = buf.charAt(i);
-      var punto = (ch === "." || ch === "!" || ch === "?" || ch === "…");
-      if (!punto && ch !== "\n") continue;
-      if (punto){
-        var next = buf.charAt(i + 1);
-        if (!next) break;                                   // fine buffer: la conferma non è arrivata
-        if (ch === "."){
-          if (next >= "0" && next <= "9") continue;         // 1.234 · v2.5 · art.3 attaccato
-          var m = buf.slice(start, i).match(/([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.]*)$/);
-          var w = m ? m[1].toLowerCase() : "";
-          if (w.length === 1) continue;                     // iniziale: "G. Verdi", elenco "A."
-          if (EM_ABBR.indexOf(w) !== -1) continue;          // "Dott." "S.r.l." "art." …
-          if (next !== " " && next !== "\n") continue;      // "3.x", url, sigle senza spazio
-        }
-        while (i + 1 < buf.length && ".!?…".indexOf(buf.charAt(i + 1)) !== -1) i++;   // "?!", "..."
-        if (i + 1 >= buf.length && buf.charAt(i) !== "\n"){ if (!flush) break; }
-        if (ch === "…" || (ch === "." && buf.charAt(i - 1) === ".")){
-          // puntini di sospensione: confine solo se poi si riparte con la maiuscola
-          var j = i + 1; while (j < buf.length && buf.charAt(j) === " ") j++;
-          var c2 = buf.charAt(j);
-          if (!c2){ if (!flush) break; }                    // aspetta di sapere come continua
-          else if (/[a-zà-ÿ]/.test(c2)) continue;           // "Vediamo... forse" resta unita
-        }
+  // ── U1 · MOTORE VOCALE UNICO ──────────────────────────────────────
+  // Frasi, coda ordinata, barge-in, invio automatico, parziali e ampiezza
+  // vivono in voce.js (caricato come fratello di questo script) e sono GLI
+  // STESSI della console: una funzione si aggiunge o si toglie in un posto
+  // solo. Qui restano interfaccia e cablaggio. Se voce.js non arriva:
+  // voce del browser essenziale, mai un widget rotto.
+  var BARGE = String(CFG.barge != null ? CFG.barge : (d.barge != null ? d.barge : "true")) !== "false";
+  var AUTOSEND = String(CFG.autosend != null ? CFG.autosend : (d.autosend != null ? d.autosend : "true")) !== "false";
+  var vce = null, vceLoading = false, liveSpoke = false;
+  function loadVoce(cb){
+    if (window.DivinaVoce || vceLoading){ if (cb) cb(); return; }
+    vceLoading = true;
+    var src2 = "";
+    try{ src2 = String(s.src || "").replace(/embed(\.min)?\.js([?#].*)?$/, "voce.js"); }catch(e){}
+    if (!src2 || src2 === String(s.src || "")){ if (cb) cb(); return; }
+    var el = document.createElement("script");
+    el.src = src2; el.async = true;
+    el.onload = el.onerror = function(){ if (cb) cb(); };
+    document.head.appendChild(el);
+  }
+  function engine(){
+    if (vce) return vce;
+    if (!window.DivinaVoce) return null;
+    vce = window.DivinaVoce({
+      base: function(){ return VBASE; },
+      headers: function(){ return voiceHeaders({}); },
+      pro: function(){ return PRO; },
+      lang: LANG, autosend: AUTOSEND, barge: BARGE,
+      onState: function(st){
+        if (st === "ascolta"){ listening = true; if (mic) mic.classList.add("live"); input.placeholder = TT("listening"); }
+        else if (listening){ listening = false; if (mic){ mic.classList.remove("live"); mic.classList.remove("em-close"); } input.placeholder = TT("ph"); }
+      },
+      onPartial: function(t){ input.value = t; },
+      onFinal: function(t){ if (t){ input.value = ""; ask(t); } else input.placeholder = TT("dictFail"); },
+      onNotify: function(k){
+        if (k === "interrupt"){ if (askCtl) try{ askCtl.abort(); }catch(e){} }
+        else if (k === "autosend-window"){ input.placeholder = TT("autosend"); if (mic) mic.classList.add("em-close"); }
+        else if (k === "autosend-resume"){ input.placeholder = TT("listening"); if (mic) mic.classList.remove("em-close"); }
       }
-      var s = buf.slice(start, i + 1).trim();
-      if (/[0-9A-Za-zÀ-ÿ]{2}/.test(s)) frasi.push(s);       // niente segmenti vuoti ("1.", "-")
-      start = i + 1;
-    }
-    var resto = buf.slice(start);
-    if (flush){
-      var r0 = resto.trim();
-      if (/[0-9A-Za-zÀ-ÿ]{2}/.test(r0)) frasi.push(r0);
-      resto = "";
-    }
-    return { frasi: frasi, resto: resto };
-  }
-  /* EM_SENTENZE_END */
-  function emPulisci(s){   // testo → pronunciabile: via markdown e marcatori di elenco
-    return String(s).replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").replace(/[*`_#>[\]]/g, "").trim();
-  }
-
-  // ── Coda audio ORDINATA (voce PRO): la sintesi parte appena la frase è
-  // completa (max 2 richieste in volo), la riproduzione rispetta l'ordine anche
-  // se le risposte tornano fuori ordine. Ogni pezzo è interrompibile all'istante.
-  // Misura che conta: ms dall'invio alla PRIMA SILLABA → [voce] in console e
-  // window.Divina.voiceStats. Fallback browser: stesse frasi, coda del synth.
-  var vout = { on:false, buf:"", items:[], next:0, playing:null, gen:0, t0:0,
-               spoke:false, inflight:0, done:false, measured:false };
-  var VSTATS = { firstSyllableMs:null, samples:[], interruptions:0, vad:null };
-  function voutReset(t0){
-    vout.gen++; vout.on = true; vout.buf = ""; vout.items = []; vout.next = 0;
-    vout.inflight = 0; vout.spoke = false; vout.done = false; vout.measured = false;
-    vout.t0 = t0 || performance.now();
-  }
-  function voutStop(){
-    vout.gen++; vout.on = false; vout.buf = ""; vout.done = true;
-    vout.items.forEach(function(it){ try{ it.ctl && it.ctl.abort(); }catch(e){} });
-    vout.items = []; vout.next = 0; vout.inflight = 0;
-    if (vout.playing){ try{ vout.playing.pause(); }catch(e){} vout.playing = null; }
-  }
-  function voutBusy(){
-    if (synth && (synth.speaking || synth.pending)) return true;
-    if (vout.playing) return true;
-    if (!vout.on) return false;
-    return !vout.done || vout.next < vout.items.length || !!vout.buf;
-  }
-  function voutMisura(){
-    if (vout.measured) return;
-    vout.measured = true;
-    var ms = Math.round(performance.now() - vout.t0);
-    VSTATS.firstSyllableMs = ms; VSTATS.samples.push(ms);
-    try{ console.info("[voce] prima sillaba dopo " + ms + " ms"); }catch(e){}
-  }
-  function voutFeed(delta, flush){
-    if (!vout.on) return;
-    vout.buf += (delta || "");
-    var r = emSentenze(vout.buf, !!flush);
-    vout.buf = r.resto;
-    if (flush) vout.done = true;
-    r.frasi.forEach(function(f){
-      var t = emPulisci(f);
-      if (!t) return;
-      vout.spoke = true;                       // qualcuno parlerà: niente doppia lettura a fine stream
-      if (PRO) vout.items.push({ text:t, blob:null, err:false, ctl:null, state:"coda" });
-      else speakFraseBrowser(t);
     });
-    if (PRO){ voutPump(); voutPlay(); }
-  }
-  function voutPump(){
-    if (!vout.on) return;
-    for (var i = vout.next; i < vout.items.length && vout.inflight < 2; i++){
-      (function(it){
-        if (it.state !== "coda") return;
-        it.state = "sintesi"; vout.inflight++;
-        it.ctl = window.AbortController ? new AbortController() : null;
-        var gen = vout.gen;
-        fetch(VBASE + "/voice/tts", {
-          method:"POST", headers: voiceHeaders({"Content-Type":"application/json"}),
-          body: JSON.stringify({ text: it.text.slice(0, 2000) }),
-          signal: it.ctl ? it.ctl.signal : undefined
-        }).then(function(r){ if (!r.ok) throw new Error("tts " + r.status); return r.blob(); })
-          .then(function(b){ if (vout.gen !== gen) return; it.blob = b; it.state = "pronta"; vout.inflight--; voutPump(); voutPlay(); })
-          .catch(function(){ if (vout.gen !== gen) return; it.err = true; it.state = "pronta"; vout.inflight--; voutPump(); voutPlay(); });
-      })(vout.items[i]);
-    }
-  }
-  function voutPlay(){
-    if (!vout.on || vout.playing) return;
-    var it = vout.items[vout.next];
-    if (!it || it.state !== "pronta") return;
-    vout.next++;
-    if (it.err || !it.blob){ voutPlay(); return; }   // frase saltata: meglio un buco del silenzio totale
-    var a = new Audio(URL.createObjectURL(it.blob));
-    vout.playing = a; curAudio = a;
-    a.onplaying = function(){ voutMisura(); vadArm(); };
-    a.onended = a.onerror = function(){
-      try{ URL.revokeObjectURL(a.src); }catch(e){}
-      if (vout.playing === a){ vout.playing = null; curAudio = null; }
-      voutPlay();
-    };
-    a.play().catch(function(){ if (vout.playing === a){ vout.playing = null; curAudio = null; } voutPlay(); });
-  }
-  function speakFraseBrowser(t){
-    if (!synth) return;
-    try{
-      var u = new SpeechSynthesisUtterance(t);
-      u.lang = LANG; u.rate = 1.02; u.pitch = 1;
-      var vs = synth.getVoices() || [];
-      var v = vs.filter(function(x){ return x.lang && x.lang.toLowerCase().indexOf(LANG.slice(0,2).toLowerCase())===0; })[0];
-      if (v) u.voice = v;
-      u.onstart = function(){ voutMisura(); vadArm(); };
-      synth.speak(u);                          // la coda del browser è già ordinata
-    }catch(e){}
+    try{ window.Divina.voiceStats = vce.stats(); }catch(e){}
+    return vce;
   }
 
-  // ── Voce: sintesi — API storiche sopra il motore nuovo ──
+  // ── Voce: sintesi — API storiche sopra il motore unico ──
   function stopAudio(){
-    voutStop();
-    try{ if (curAudio){ curAudio.pause(); curAudio = null; } }catch(e){}
+    if (vce) vce.stopSpeak();
     if (synth) try{ synth.cancel(); }catch(e){}
-    vadIdle();
   }
   function speak(t){
     if (!canSpeak || !t) return;
-    stopAudio();
-    voutReset(performance.now());
-    voutFeed(String(t), true);                 // stessa coda per frasi: parte prima
+    var e2 = engine();
+    if (e2){ liveSpoke = true; e2.speak(String(t)); return; }
+    speakBrowserBasic(t);
   }
-
-  // ── PR2 · interruzione a metà frase (barge-in) ──
-  // Mentre Divina parla, un analyser sul microfono rileva la voce dell'utente:
-  // RMS sopra la soglia ADATTIVA per 220ms consecutivi → stop IMMEDIATO di
-  // audio e generazione, e il microfono passa all'utente. I primi 350ms di ogni
-  // riproduzione sono un periodo cieco (transitorio + eco dell'altoparlante);
-  // echoCancellation tiene la voce di Divina fuori dal microfono. La soglia
-  // parte dal rumore di fondo misurato, non tarata a occhio: i numeri vivono in
-  // window.Divina.voiceStats.vad (rms, base, soglia) per la taratura sul campo.
-  var BARGE = String(CFG.barge != null ? CFG.barge : (d.barge != null ? d.barge : "true")) !== "false";
-  // V2: invio automatico a fine parlato (il pulsante resta comunque)
-  var AUTOSEND = String(CFG.autosend != null ? CFG.autosend : (d.autosend != null ? d.autosend : "true")) !== "false";
-  var proCancel = null;   // impostata durante l'ascolto PRO: annulla l'invio in chiusura
-  var vad = { stream:null, ac:null, an:null, buf:null, raf:0, base:0.008, over:0,
-              lastPlayAt:0, armed:false, micOk:false };
-  function vadArm(){
-    vad.lastPlayAt = performance.now();
-    if (!BARGE || !hasMR || vad.armed) return;
-    if (vad.micOk){ vadStart(); return; }
-    // senza permesso già concesso NON apriamo il microfono solo per riprodurre audio
-    if (navigator.permissions && navigator.permissions.query){
-      navigator.permissions.query({ name: "microphone" })
-        .then(function(st){ if (st.state === "granted") vadStart(); }).catch(function(){});
-    }
-  }
-  function vadStart(){
-    if (vad.armed) return; vad.armed = true;
-    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:true, noiseSuppression:true, autoGainControl:true } })
-      .then(function(st){
-        if (!vad.armed || !voutBusy()){ try{ st.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} vad.armed = false; return; }
-        vad.stream = st; vad.micOk = true;
-        var AC = window.AudioContext || window.webkitAudioContext; vad.ac = new AC();
-        vad.an = vad.ac.createAnalyser(); vad.an.fftSize = 1024;
-        vad.ac.createMediaStreamSource(st).connect(vad.an);
-        vad.buf = new Uint8Array(vad.an.fftSize);
-        vad.over = 0; vadLoop();
-      }).catch(function(){ vad.armed = false; });
-  }
-  function vadLoop(){
-    if (!vad.armed || !vad.an) return;
-    vad.an.getByteTimeDomainData(vad.buf);
-    var s = 0, i, v;
-    for (i = 0; i < vad.buf.length; i++){ v = (vad.buf[i] - 128) / 128; s += v * v; }
-    var rms = Math.sqrt(s / vad.buf.length);
-    var now = performance.now();
-    var blind = (now - vad.lastPlayAt) < 350;
-    if (!blind && rms < Math.max(0.004, vad.base) * 1.5) vad.base = vad.base * 0.995 + rms * 0.005;
-    var soglia = Math.max(0.045, vad.base * 4);
-    VSTATS.vad = { rms:+rms.toFixed(4), base:+vad.base.toFixed(4), soglia:+soglia.toFixed(4) };
-    if (!voutBusy()){ vadIdle(); return; }                 // la risposta è finita: microfono giù
-    if (!blind && rms > soglia){
-      if (!vad.over) vad.over = now;
-      else if (now - vad.over > 220){ vadTrigger(rms, soglia); return; }
-    } else vad.over = 0;
-    vad.raf = requestAnimationFrame(vadLoop);
-  }
-  function vadTrigger(rms, soglia){
-    VSTATS.interruptions++;
-    try{ console.info("[voce] interruzione a metà frase", { rms:+rms.toFixed(4), soglia:+soglia.toFixed(4) }); }catch(e){}
-    stopAudio();                                           // la voce di Divina si ferma ADESSO
-    if (askCtl){ try{ askCtl.abort(); }catch(e){} }        // …e anche la generazione in corso
-    toggleListen();                                        // la parola passa all'utente
-  }
-  function vadIdle(){
-    vad.armed = false; vad.over = 0;
-    if (vad.raf){ cancelAnimationFrame(vad.raf); vad.raf = 0; }
-    try{ vad.stream && vad.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
-    try{ vad.ac && vad.ac.close(); }catch(e){}
-    vad.stream = null; vad.ac = null; vad.an = null;
+  function speakBrowserBasic(t){   // solo se il modulo non è arrivato
+    if (!synth) return;
+    try{
+      synth.cancel();
+      var u = new SpeechSynthesisUtterance(String(t).replace(/[*`_#>[\]]/g, ""));
+      u.lang = LANG; u.rate = 1.02; u.pitch = 1;
+      var vs = synth.getVoices() || [];
+      var v = vs.filter(function(x){ return x.lang && x.lang.toLowerCase().indexOf(LANG.slice(0,2).toLowerCase()) === 0; })[0];
+      if (v) u.voice = v;
+      synth.speak(u);
+    }catch(e){}
   }
 
   // ── SSE reader (token per token) ──
@@ -654,7 +491,7 @@
           if (event === "sources") sources = obj.sources;
           else if (event === "error"){ acc += (acc?"\n":"") + "⚠️ " + (obj.message || "Errore."); }
           else if (event === "done"){ /* fine */ }
-          else if (obj.delta){ acc += obj.delta; voutFeed(obj.delta); }   // PR1: la voce parte alla prima frase
+          else if (obj.delta){ acc += obj.delta; if (speakOn && vce) vce.speakFeed(obj.delta); }   // la voce parte alla prima frase
           // aggiorna testo mantenendo il cursore in coda (veloce, niente markdown durante lo stream)
           cursor.remove(); msg.textContent = acc; msg.appendChild(cursor);
           body.scrollTop = body.scrollHeight;
@@ -667,7 +504,7 @@
     }
     cursor.remove();
     if (interrotta){ acc = acc ? acc + " —" : "—"; }
-    else voutFeed("", true);                       // flush: anche l'ultima frase senza punto si sente
+    else if (speakOn && vce) vce.speakFlush();     // flush: anche l'ultima frase senza punto si sente
     if (!acc) acc = "(nessuna risposta)";
     finalizeMsg(msg, acc, sources, q);
     hist.push({role:"assistant", content:acc});   // memoria per i follow-up
@@ -692,8 +529,8 @@
     var t = typing();
     // PR1: t0 = invio. La misura che conta è da QUI alla prima sillaba.
     stopAudio();
-    vout.spoke = false;                      // nuova domanda, nuova lettura (o nessuna)
-    if (speakOn && canSpeak) voutReset(performance.now());
+    liveSpoke = false;                       // nuova domanda, nuova lettura (o nessuna)
+    if (speakOn && canSpeak && engine()){ liveSpoke = true; vce.speakStart(performance.now()); }
     askCtl = window.AbortController ? new AbortController() : null;
     try{
       var url = PROXY || (API + "/chat");
@@ -708,7 +545,7 @@
       } else {
         var data = await r.json(); t.remove();
         var ans = data.answer || "(nessuna risposta)";
-        if (speakOn && canSpeak) voutFeed(ans, true);   // niente stream: stessa coda per frasi
+        if (speakOn && canSpeak && engine()){ liveSpoke = true; vce.speak(ans); }   // niente stream: stessa coda
         finalizeMsg(addMsg("a",""), ans, data.sources, q);
         hist.push({role:"assistant", content:ans});
       }
@@ -721,17 +558,31 @@
     send.disabled = false; input.focus();
   }
 
-  // ── Voce: riconoscimento (STT) ──
-  function setupRec(){
-    if (!canListen) return;
-    rec = new SR(); rec.lang = LANG; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+  // ── Voce: riconoscimento — il modulo fa tutto (parziali, invio a fine
+  // parlato, annullo); qui solo il pulsante e il fallback senza modulo. ──
+  function toggleListen(){
+    var e2 = engine();
+    if (e2){
+      if (e2.listening()){
+        if (e2.inClosing()){ e2.cancelListen(); return; }   // durante «Invio…» il tocco ANNULLA
+        e2.stopListen(); return;                            // stop manuale → invia (come sempre)
+      }
+      stopAudio(); e2.listen();
+      return;
+    }
+    loadVoce(function(){ if (window.DivinaVoce) toggleListen(); else browserListenBasic(); });
+  }
+  function browserListenBasic(){   // solo se il modulo non è arrivato
+    if (!SR) return;
+    if (rec){ try{ rec.stop(); }catch(e){} return; }
+    rec = new SR(); rec.lang = LANG; rec.interimResults = true; rec.continuous = false;
     var finalTxt = "";
-    rec.onstart = function(){ listening = true; mic.classList.add("live"); input.placeholder = TT("listening"); };
-    rec.onerror = function(){ stopListen(); };
+    rec.onstart = function(){ listening = true; if (mic) mic.classList.add("live"); input.placeholder = TT("listening"); };
+    rec.onerror = function(){};
     rec.onend = function(){
-      var t = (finalTxt || input.value).trim(); finalTxt = "";
-      stopListen();
-      if (t){ ask(t); }            // hands-free: invia a fine dettatura
+      var t = (finalTxt || input.value).trim(); finalTxt = ""; rec = null;
+      listening = false; if (mic) mic.classList.remove("live"); input.placeholder = TT("ph");
+      if (t) ask(t);
     };
     rec.onresult = function(ev){
       var interim = "";
@@ -741,131 +592,7 @@
       }
       input.value = (finalTxt + interim).trim();
     };
-  }
-  function stopListen(){ listening = false; if(mic) mic.classList.remove("live"); input.placeholder = TT("ph"); }
-
-  // STT PRO (PR3): registra e TRASCRIVE MENTRE PARLI — chiavi sempre sul server.
-  // MediaRecorder con timeslice: ogni ~1.2s l'audio accumulato va a /voice/stt e
-  // il parziale compare nell'input: si vede che il sistema ascolta davvero.
-  // Si rimanda sempre il blob COMPLETO (solo il primo chunk webm ha l'header del
-  // contenitore: i pezzi successivi da soli non si decodificano). Ultimo-vince:
-  // una risposta arrivata fuori ordine non sovrascrive un parziale più nuovo;
-  // una sola richiesta in volo (la successiva riparte col chunk dopo).
-  async function proListenStart(){
-    var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    vad.micOk = true;                        // permesso concesso: il barge-in può armarsi
-    mr = new MediaRecorder(stream); var chunks = [];
-    var pseq = 0, pshown = 0, pbusy = false, t0rec = performance.now();
-    // V2 «mani libere»: la fine del parlato invia da sola. Stessa misura RMS del
-    // barge-in ma nel verso opposto: prima ≥400ms di parlato VERO (una stanza
-    // vuota non invia nulla), poi 900ms di silenzio continuo sotto la soglia
-    // adattiva → finestra «Invio…» di 500ms ANNULLABILE: tocca il mic per
-    // annullare (chi si ferma a pensare non vuole aver già inviato), o riprendi
-    // a parlare e la finestra svanisce (una pausa di respiro NON è una fine).
-    // Il pulsante resta e funziona come prima; spegnibile: data-autosend="false".
-    // I numeri per la taratura sul campo vivono in Divina.voiceStats.autosend.
-    var as = { ac:null, an:null, buf:null, raf:0, base:0.008, speechMs:0, sil0:0, closing:0, last:0, done:false };
-    var asCancel = false;
-    function asStop(){ as.done = true; if (as.raf){ cancelAnimationFrame(as.raf); as.raf = 0; }
-      try{ as.ac && as.ac.close(); }catch(e){} as.ac = null; as.an = null; }
-    function asLoop(){
-      if (as.done || !as.an || !listening) return;
-      as.an.getByteTimeDomainData(as.buf);
-      var s2 = 0, i2, v2;
-      for (i2 = 0; i2 < as.buf.length; i2++){ v2 = (as.buf[i2] - 128) / 128; s2 += v2 * v2; }
-      var rms = Math.sqrt(s2 / as.buf.length);
-      var now = performance.now(), dt = Math.min(100, now - as.last); as.last = now;
-      if (rms < Math.max(0.004, as.base) * 1.5) as.base = as.base * 0.995 + rms * 0.005;
-      var soglia = Math.max(0.045, as.base * 4);
-      var parlato = rms > soglia;
-      if (parlato) as.speechMs += dt;
-      VSTATS.autosend = { rms:+rms.toFixed(4), base:+as.base.toFixed(4), soglia:+soglia.toFixed(4), speechMs:Math.round(as.speechMs) };
-      if (as.closing){
-        if (parlato){ as.closing = 0; as.sil0 = 0; input.placeholder = TT("listening"); mic.classList.remove("em-close"); }
-        else if (now - as.closing > 500){
-          VSTATS.autosend.silenzioMs = Math.round(now - as.sil0);
-          try{ console.info("[voce] invio automatico a fine parlato", VSTATS.autosend); }catch(e){}
-          asStop(); mic.classList.remove("em-close");
-          try{ mr && mr.stop(); }catch(e){}
-          return;
-        }
-      } else if (as.speechMs >= 400){
-        if (!parlato){
-          if (!as.sil0) as.sil0 = now;
-          else if (now - as.sil0 > 900){ as.closing = now; input.placeholder = TT("autosend"); mic.classList.add("em-close"); }
-        } else as.sil0 = 0;
-      }
-      as.raf = requestAnimationFrame(asLoop);
-    }
-    proCancel = function(){          // tocco sul mic durante «Invio…» = annulla, non invia
-      if (!as.closing || as.done) return false;
-      asCancel = true; asStop(); mic.classList.remove("em-close");
-      try{ mr && mr.stop(); }catch(e){}
-      return true;
-    };
-    async function parziale(){
-      if (pbusy || !listening) return;
-      pbusy = true; var mySeq = ++pseq;
-      try{
-        var blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
-        if (blob.size < 1200) return;        // troppo poco audio: niente da trascrivere
-        var fd = new FormData(); fd.append("file", blob, "audio.webm");
-        var r = await fetch(VBASE + "/voice/stt", { method:"POST", headers: voiceHeaders({}), body: fd });
-        if (!r.ok) return;
-        var j = await r.json();
-        if (listening && j && j.text != null && mySeq > pshown){ pshown = mySeq; input.value = j.text; }
-      }catch(e){}
-      finally{ pbusy = false; }
-    }
-    mr.ondataavailable = function(e){
-      if (e.data && e.data.size) chunks.push(e.data);
-      // parziali per i primi 90s (oltre: solo la trascrizione finale, costi sotto controllo)
-      if (listening && (performance.now() - t0rec) < 90000) parziale();
-    };
-    mr.onstop = async function(){
-      try{ stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){}
-      asStop(); proCancel = null;
-      stopListen();
-      pseq += 1000;                          // invalida ogni parziale ancora in volo
-      if (asCancel) return;                  // annullato: il parziale resta nell'input, niente invio
-      try{
-        var blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
-        var fd = new FormData(); fd.append("file", blob, "audio.webm");
-        var r = await fetch(VBASE + "/voice/stt", { method:"POST", headers: voiceHeaders({}), body: fd });
-        if (!r.ok) throw new Error("stt " + r.status);
-        var j = await r.json(); input.value = "";
-        if (j && j.text) ask(j.text);
-      }catch(e){ input.placeholder = TT("dictFail"); }
-    };
-    listening = true; mic.classList.add("live"); input.placeholder = TT("listening"); stopAudio();
-    if (AUTOSEND){
-      try{
-        var AC2 = window.AudioContext || window.webkitAudioContext; as.ac = new AC2();
-        as.an = as.ac.createAnalyser(); as.an.fftSize = 1024;
-        as.ac.createMediaStreamSource(stream).connect(as.an);
-        as.buf = new Uint8Array(as.an.fftSize); as.last = performance.now(); asLoop();
-      }catch(e){}                            // senza WebAudio si torna al walkie-talkie: il pulsante c'è
-    }
-    mr.start(1200);                          // timeslice: un pezzo ogni 1.2s → parziali live
-  }
-
-  function toggleListen(){
-    if (PRO){
-      if (listening){
-        if (proCancel && proCancel()) return;   // V2: durante «Invio…» il tocco ANNULLA
-        try{ mr && mr.stop(); }catch(e){}       // altrimenti: stop manuale → invia (come sempre)
-        return;
-      }
-      proListenStart().catch(function(){ if (SR) browserListen(); });
-      return;
-    }
-    browserListen();
-  }
-  function browserListen(){
-    if (!SR) return;
-    if (!rec) setupRec();
-    if (listening){ try{ rec.stop(); }catch(e){} return; }
-    try{ stopAudio(); input.value=""; rec.start(); }catch(e){}
+    try{ stopAudio(); input.value = ""; rec.start(); }catch(e){}
   }
 
   // ── Open/close ──
@@ -909,5 +636,5 @@
 
   // API pubblica minima (+ voiceStats: le misure della voce continua — prima
   // sillaba in ms, interruzioni, numeri del VAD — per il collaudo sul campo)
-  window.Divina = window.Divina || { open:function(){toggle(true);}, close:function(){toggle(false);}, ask:function(t){toggle(true);ask(t);}, voiceStats:VSTATS };
+  window.Divina = window.Divina || { open:function(){toggle(true);}, close:function(){toggle(false);}, ask:function(t){toggle(true);ask(t);}, voiceStats:null };
 })();

@@ -23,22 +23,29 @@ def test_chunker_frasi_del_widget():
     assert r.returncode == 0, f"chunker KO:\n{r.stdout}\n{r.stderr}"
 
 
-def test_marcatori_presenti_nel_widget():
-    """Senza marcatori il test node non estrae nulla: guard esplicito."""
-    src = (ROOT / "widget" / "embed.js").read_text(encoding="utf-8")
+def test_marcatori_presenti_nel_modulo():
+    """Senza marcatori il test node non estrae nulla: guard esplicito.
+    U1: il chunker vive nel MOTORE VOCALE UNICO widget/voce.js."""
+    src = (ROOT / "widget" / "voce.js").read_text(encoding="utf-8")
     assert "EM_SENTENZE_BEGIN" in src and "EM_SENTENZE_END" in src
 
 
-def _blocco(path: Path) -> str:
-    import re
-    src = path.read_text(encoding="utf-8")
-    m = re.search(r"EM_SENTENZE_BEGIN.*?\*/(.*?)/\* EM_SENTENZE_END", src, re.S)
-    assert m, f"blocco chunker non trovato in {path.name}"
-    # normalizza la sola indentazione (widget: dentro la IIFE; console: top-level)
-    return "\n".join(l.strip() for l in m.group(1).splitlines() if l.strip())
+def test_motore_vocale_unico_widget_e_console():
+    """U1: la console usa LO STESSO modulo del widget. panel/voce.js è la copia
+    byte-identica di widget/voce.js (come per la console nei due repo): se
+    divergono, qualcuno ha modificato la voce in un posto solo dei due — e
+    questo test esplode. Togliere una funzione = toccarla UNA volta + cp."""
+    w = (ROOT / "widget" / "voce.js").read_bytes()
+    p = (ROOT / "panel" / "voce.js").read_bytes()
+    assert w == p, "widget/voce.js e panel/voce.js divergono: ricopiare il modulo"
 
 
-def test_chunker_identico_widget_e_console():
-    """PR4: la console riusa lo STESSO chunker del widget (copiato, file unici
-    senza build). La parità è un contratto: se divergono, questo test esplode."""
-    assert _blocco(ROOT / "widget" / "embed.js") == _blocco(ROOT / "panel" / "index.html")
+def test_il_motore_vocale_non_e_duplicato_nella_console():
+    """La meccanica della voce NON deve rientrare in panel/index.html: se
+    ricompare un chunker o una coda di sintesi lì dentro, U1 è stato disfatto."""
+    src = (ROOT / "panel" / "index.html").read_text(encoding="utf-8")
+    for vietato in ("EM_SENTENZE_BEGIN", "function emSentenze", "vadTrigger", "function speakPro"):
+        assert vietato not in src, f"«{vietato}» è tornato in panel/index.html: la voce va in voce.js"
+    src_w = (ROOT / "widget" / "embed.js").read_text(encoding="utf-8")
+    for vietato in ("EM_SENTENZE_BEGIN", "function emSentenze", "vadTrigger"):
+        assert vietato not in src_w, f"«{vietato}» è tornato in widget/embed.js: la voce va in voce.js"

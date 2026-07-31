@@ -186,4 +186,9 @@ def synthesize_stream(text: str):
 
     gen = _gen()
     first = next(gen, b"")                    # forza connessione+status: gli errori esplodono ORA
+    if not first:
+        # Buco del fallback (PR #31): stream a zero byte → sarebbe uscito un 200
+        # vuoto e il widget restava MUTO invece di ripiegare sulla voce del
+        # browser. Un errore esplicito qui diventa 502 → fallback, come da contratto.
+        raise RuntimeError("stream TTS vuoto (0 byte dal provider)")
     return itertools.chain([first], gen), "audio/mpeg"

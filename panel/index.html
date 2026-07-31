@@ -418,6 +418,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 </div>
 
 <script src="brain3d.js"></script>
+<script src="voce.js"></script>
 <script>
 /* ══════════ STATO ══════════ */
 const LS={engBase:'dv_eng_base',engTok:'dv_eng_tok',tenantKey:'dv_tenant_key',orchBase:'dv_orch_base',orchTok:'dv_orch_tok',tenant:'dv_tenant',demo:'dv_demo',theme:'dv_theme',tts:'dv_tts',comp:'dv_comp'};
@@ -1116,21 +1117,8 @@ function setOrb(mode,comp){
   }
   const a=document.getElementById('orbAgent');if(a){const c=o.comp||'divina';a.textContent='agente attivo · '+c.charAt(0).toUpperCase()+c.slice(1);a.style.color=ORB_COLS[o.comp]||'';}
 }
-async function startOrbMic(){
-  try{
-    const st=await navigator.mediaDevices.getUserMedia({audio:true});state._orbStream=st;
-    const AC=window.AudioContext||window.webkitAudioContext;const ac=new AC();state._orbAC=ac;
-    const an=ac.createAnalyser();an.fftSize=256;ac.createMediaStreamSource(st).connect(an);
-    const buf=new Uint8Array(an.frequencyBinCount);
-    const tick=()=>{const o=state._orb;if(!o||!state._orbAC)return;an.getByteTimeDomainData(buf);let s=0;for(let i=0;i<buf.length;i++)s+=Math.abs(buf[i]-128);o.mic=Math.min(0.8,(s/buf.length)/34);requestAnimationFrame(tick);};
-    tick();
-  }catch(_){}
-}
-function stopOrbMic(){
-  try{state._orbStream&&state._orbStream.getTracks().forEach(t=>t.stop());}catch(_){}
-  try{state._orbAC&&state._orbAC.close();}catch(_){}
-  state._orbStream=null;state._orbAC=null;if(state._orb)state._orb.mic=0;
-}
+/* (U1) l'ampiezza del microfono arriva dal modulo voce (onAmp): niente più
+   stream separato solo per l'orb. */
 
 /* ── V3 · Modo vocale a tutto schermo ─────────────────────────────────────
    «Parla» apre la conversazione a voce: orb GRANDE al centro (stesso motore
@@ -1138,19 +1126,18 @@ function stopOrbMic(){
    con prefers-reduced-motion), trascritto piccolo sotto (serve a capire se
    ha sentito bene, non a essere letto), stato a colpo d'occhio. Loop:
    in ascolto (Web Speech API) → sto pensando (chatTurn: la STESSA memoria
-   della chat scritta) → sto parlando (speakPro: l'orb respira con
+   della chat scritta) → sto parlando (modulo voce: l'orb respira con
    l'ampiezza reale) → riascolto. Escape o ✕ chiudono, il focus resta nel
    dialogo. La chat scritta resta esattamente com'è. */
 function voxOpen(){
   if(state._vox&&state._vox.open)return;
-  const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SRC){toast('Dettatura non supportata da questo browser','bad');return;}
+  if(!vce()){toast('Voce non disponibile: modulo voce.js non caricato','bad');return;}
   if(!state.demo&&!state.tenantKey&&!state.clientMode){toast('Configura una chiave tenant (X-Tenant-Key) per parlare','bad');openConn();return;}
   const M=document.getElementById('voxMode');if(!M)return;
   state._vox={open:true,paused:false,rec:null,ret:document.activeElement};
   M.hidden=false;M.classList.add('open');
   const log=document.getElementById('voxLog');if(log)log.innerHTML='';
-  initOrb('voxOrb',320);startOrbMic();
+  initOrb('voxOrb',320);
   setOrb('ascolto',state._compSel||'divina');
   const micB=document.getElementById('voxMic');if(micB){micB.textContent='Pausa';micB.onclick=voxToggleMic;}
   document.getElementById('voxClose').onclick=voxClose;
@@ -1171,8 +1158,7 @@ function voxKeys(e){
 function voxClose(){
   const v=state._vox;if(!v||!v.open)return;
   v.open=false;state._voxAfter=null;
-  try{v.rec&&v.rec.stop();}catch(_){}v.rec=null;
-  stopVoiceOut();stopOrbMic();
+  if(_vce)_vce.stop();
   const M=document.getElementById('voxMode');
   if(M){M.classList.remove('open');M.hidden=true;M.removeEventListener('keydown',voxKeys);}
   state._vox=null;
@@ -1183,7 +1169,7 @@ function voxToggleMic(){
   const v=state._vox;if(!v||!v.open)return;
   v.paused=!v.paused;
   const b=document.getElementById('voxMic');if(b)b.textContent=v.paused?'Riprendi':'Pausa';
-  if(v.paused){try{v.rec&&v.rec.stop();}catch(_){}v.rec=null;setOrb('idle');}
+  if(v.paused){if(_vce)_vce.cancelListen();setOrb('idle');}
   else voxListen();
 }
 function voxLine(role,text,interim){
@@ -1202,15 +1188,11 @@ function voxLine(role,text,interim){
   log.scrollTop=log.scrollHeight;
 }
 function voxListen(){
+  /* U1: ascolto tramite il MODULO (quindi /voice/stt + parziali + invio a fine
+     parlato + barge-in), non più SpeechRecognition per conto della console. */
   const v=state._vox;if(!v||!v.open||v.paused)return;
-  const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SRC)return;
-  setOrb('ascolto');
-  const r=new SRC();v.rec=r;r.lang='it-IT';r.interimResults=true;r.continuous=false;
-  let fin='';
-  r.onresult=e=>{let tmp='';for(const res of e.results){if(res.isFinal)fin+=res[0].transcript;else tmp+=res[0].transcript;}voxLine('user',(fin+tmp).trim(),true);};
-  r.onerror=()=>{};
-  r.onend=()=>{if(v.rec===r)v.rec=null;const t=fin.trim();if(!v.open)return;if(t)voxSend(t);else if(!v.paused)voxListen();};
-  try{r.start();}catch(_){}
+  const e=vce();if(!e)return;
+  _voicePro().then(()=>{if(v.open&&!v.paused&&!e.listening())e.listen({autosend:true});});
 }
 async function voxSend(text){
   const v=state._vox;if(!v||!v.open)return;
@@ -1234,169 +1216,76 @@ async function voxSend(text){
   }
 }
 
-/* ---- VOCE (dettatura + lettura) + PR4 «la voce continua»: la lettura va per
-   FRASI (parte prima), usa la voce PRO del motore quando c'è, e l'orb respira
-   con l'AMPIEZZA REALE dell'audio in uscita (WebAudio analyser), come già fa
-   col microfono in ascolto. Stesso chunker del widget (blocco marcato: la
-   parità è verificata da tests/test_voce_sentenze.py). ---- */
-/* EM_SENTENZE_BEGIN — estratto e testato da scripts/test_voce_sentenze.js */
-var EM_ABBR = ("dott dott.ssa sig sig.ra sig.na dr prof ing arch avv geom rag on sen " +
-  "gen col mons art artt lett n nn p pp pag pagg par cap capp vol fig figg tab all " +
-  "es ecc etc ca cfr tel cell fax min max sec srl spa snc sas vs " +
-  "s.r.l s.p.a s.n.c s.a.s s.s p.es u.s c.m c.a n.ro co kg mg km cm mm ml cl kw kwh mq").split(" ");
-function emSentenze(buf, flush){
-  // Ritorna { frasi:[…], resto:"…" }: le frasi sono complete e pronunciabili,
-  // il resto va tenuto nel buffer. Con flush=true anche il resto diventa frase.
-  var frasi = [], start = 0, i, ch;
-  for (i = 0; i < buf.length; i++){
-    ch = buf.charAt(i);
-    var punto = (ch === "." || ch === "!" || ch === "?" || ch === "…");
-    if (!punto && ch !== "\n") continue;
-    if (punto){
-      var next = buf.charAt(i + 1);
-      if (!next) break;                                   // fine buffer: la conferma non è arrivata
-      if (ch === "."){
-        if (next >= "0" && next <= "9") continue;         // 1.234 · v2.5 · art.3 attaccato
-        var m = buf.slice(start, i).match(/([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.]*)$/);
-        var w = m ? m[1].toLowerCase() : "";
-        if (w.length === 1) continue;                     // iniziale: "G. Verdi", elenco "A."
-        if (EM_ABBR.indexOf(w) !== -1) continue;          // "Dott." "S.r.l." "art." …
-        if (next !== " " && next !== "\n") continue;      // "3.x", url, sigle senza spazio
-      }
-      while (i + 1 < buf.length && ".!?…".indexOf(buf.charAt(i + 1)) !== -1) i++;   // "?!", "..."
-      if (i + 1 >= buf.length && buf.charAt(i) !== "\n"){ if (!flush) break; }
-      if (ch === "…" || (ch === "." && buf.charAt(i - 1) === ".")){
-        // puntini di sospensione: confine solo se poi si riparte con la maiuscola
-        var j = i + 1; while (j < buf.length && buf.charAt(j) === " ") j++;
-        var c2 = buf.charAt(j);
-        if (!c2){ if (!flush) break; }                    // aspetta di sapere come continua
-        else if (/[a-zà-ÿ]/.test(c2)) continue;           // "Vediamo... forse" resta unita
-      }
-    }
-    var s = buf.slice(start, i + 1).trim();
-    if (/[0-9A-Za-zÀ-ÿ]{2}/.test(s)) frasi.push(s);       // niente segmenti vuoti ("1.", "-")
-    start = i + 1;
-  }
-  var resto = buf.slice(start);
-  if (flush){
-    var r0 = resto.trim();
-    if (/[0-9A-Za-zÀ-ÿ]{2}/.test(r0)) frasi.push(r0);
-    resto = "";
-  }
-  return { frasi: frasi, resto: resto };
-}
-/* EM_SENTENZE_END */
-function emPulisci(s){   // testo → pronunciabile: via markdown e marcatori di elenco
-  return String(s).replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").replace(/[*`_#>[\]]/g, "").trim();
-}
-let _rec=null;
+/* ---- VOCE (U1 · MOTORE VOCALE UNICO) --------------------------------------
+   Frasi, coda ordinata, barge-in, invio automatico, parziali e ampiezza vivono
+   in voce.js — LO STESSO modulo del widget (copia byte-identica, parità
+   verificata da tests/test_voce_sentenze.py). La console non usa più
+   SpeechRecognition per conto suo: l'ascolto passa dal modulo (quindi da
+   /voice/stt quando la voce PRO c'è — stessa qualità del widget, deciso, non
+   capitato), col fallback browser dentro il modulo. Qui solo il cablaggio. */
+let _vce=null;
 async function _voicePro(){
-  /* La voce PRO del motore c'è? (chiavi SUL SERVER, la console usa solo il
-     proxy /voice/tts con la chiave tenant). In demo/cliente: voce del browser. */
+  /* La voce PRO del motore c'è? (chiavi SUL SERVER: la console usa solo il
+     proxy /voice/* con la chiave tenant). In demo/cliente: voce del browser. */
   if(state.demo||state.clientMode||!state.tenantKey||!state.engBase)return false;
   if(state._voiceProOk!=null)return state._voiceProOk;
   try{const h=await api('engine','/health');state._voiceProOk=!!(h&&h.voice&&h.voice!=='browser');}
   catch(_){state._voiceProOk=false;}
   return state._voiceProOk;
 }
+function vce(){
+  if(_vce||!window.DivinaVoce)return _vce;
+  _vce=window.DivinaVoce({
+    base:()=> (state.engBase||'').replace(/\/$/,''),
+    headers:()=>{const h={};if(!state.clientMode&&state.tenantKey)h['X-Tenant-Key']=state.tenantKey;return h;},
+    pro:()=> !!state._voiceProOk&&!state.demo&&!state.clientMode,
+    lang:'it-IT',autosend:true,barge:true,
+    onState:s=>{
+      const map={fermo:'idle',ascolta:'ascolto',pensa:'ragionando',parla:'parlando'};
+      setOrb(map[s]||'idle');
+      if(s==='fermo')dictUiOff();
+    },
+    onAmp:v=>{const o=state._orb;if(!o)return;o.amp=(o.amp||0)*0.72+v*0.28;   // lisciata per l'orb
+      if(o.mode==='ascolto')o.mic=Math.min(0.8,v);
+      else if(o.mode==='parlando'){o.out=Math.min(1,v);o.outLive=true;}},
+    onPartial:t=>{
+      if(state._vox&&state._vox.open){voxLine('user',t,true);return;}
+      const ta=$('#chatMsg');if(ta)ta.value=((state._dict||'')+t).trim();
+    },
+    onFinal:t=>{
+      if(state._vox&&state._vox.open){const v=state._vox;if(t)voxSend(t);else if(!v.paused)setTimeout(voxListen,250);return;}
+      const ta=$('#chatMsg');if(ta&&t)ta.value=((state._dict||'')+t).trim();
+      state._dict=null;dictUiOff();
+    },
+    onNotify:k=>{if(k==='speech-end')voxAfter();},   // fine lettura → il modo vocale riascolta
+  });
+  return _vce;
+}
+function dictUiOff(){const m=$('#chatMic');if(m)m.classList.remove('rec');}
 function speak(text,force){
   if(!state.tts&&!force)return;                      // force: nel modo vocale si parla sempre
-  stopVoiceOut();
-  const gen=state._vGen;
-  const frasi=[];
-  const r=emSentenze(String(text).slice(0,2000),true);
-  r.frasi.forEach(f=>{const t=emPulisci(f);if(t)frasi.push(t);});
-  if(!frasi.length){voxAfter();return;}              // niente da dire: il loop vocale riparte comunque
-  _voicePro().then(pro=>{if(gen!==state._vGen)return;if(pro)speakPro(frasi,gen);else speakBrowser(frasi,gen);});
+  const e=vce();
+  if(!e){voxAfter();return;}                         // modulo assente: il loop vocale non resta appeso
+  _voicePro().then(()=>{e.speak(String(text).slice(0,4000));});
 }
-function voxAfter(){                                  // fine lettura → il modo vocale riascolta
-  const f=state._voxAfter;if(!f)return;state._voxAfter=null;f();
-}
-function speakPro(frasi,gen){
-  /* Coda ORDINATA per frase su /voice/tts (max 2 sintesi in volo): la prima
-     frase si sente mentre le altre si preparano. L'audio in uscita passa da un
-     analyser → o.out = ampiezza reale → l'orb respira col suono (PR4). */
-  const base=(state.engBase||'').replace(/\/$/,'');
-  const items=frasi.map(t=>({t,blob:null,err:false,state:null}));
-  let next=0,playing=null,inflight=0,anyOk=false;
-  let ac=null,an=null,buf=null;
-  try{const AC=window.AudioContext||window.webkitAudioContext;ac=new AC();an=ac.createAnalyser();an.fftSize=512;an.connect(ac.destination);buf=new Uint8Array(an.fftSize);}catch(_){}
-  state._outAC=ac;
-  const tick=()=>{
-    if(gen!==state._vGen)return;
-    const o=state._orb;
-    if(o&&an&&playing){an.getByteTimeDomainData(buf);let s2=0;for(let i=0;i<buf.length;i++){const v=(buf[i]-128)/128;s2+=v*v;}o.out=Math.min(1,Math.sqrt(s2/buf.length)*4);o.outLive=true;}
-    requestAnimationFrame(tick);
-  };
-  const fine=()=>{
-    if(gen!==state._vGen)return;
-    const o=state._orb;if(o){o.out=0;o.outLive=false;}
-    try{ac&&ac.close();}catch(_){}if(state._outAC===ac)state._outAC=null;
-    if(!anyOk){speakBrowser(frasi,gen);return;}          // PRO giù: rete di sicurezza browser
-    setOrb('idle');voxAfter();
-  };
-  const avanti=()=>{
-    if(gen!==state._vGen||playing)return;
-    const it=items[next];
-    if(!it){fine();return;}
-    if(it.state!=='pronta')return;                        // la sintesi richiama avanti()
-    next++;
-    if(it.err||!it.blob){avanti();return;}                // frase saltata, mai silenzio totale
-    const a=new Audio(URL.createObjectURL(it.blob));
-    playing=a;state._outAudio=a;anyOk=true;
-    if(an){try{ac.createMediaElementSource(a).connect(an);}catch(_){}}
-    a.onplaying=()=>{if(gen===state._vGen)setOrb('parlando');};
-    a.onended=a.onerror=()=>{try{URL.revokeObjectURL(a.src);}catch(_){}if(playing===a){playing=null;if(state._outAudio===a)state._outAudio=null;}avanti();};
-    a.play().catch(()=>{if(playing===a){playing=null;if(state._outAudio===a)state._outAudio=null;}avanti();});
-  };
-  const pump=()=>{
-    if(gen!==state._vGen)return;
-    for(const it of items){
-      if(inflight>=2)break;
-      if(it.state)continue;
-      it.state='sintesi';inflight++;
-      fetch(base+'/voice/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Tenant-Key':state.tenantKey},body:JSON.stringify({text:it.t.slice(0,2000)})})
-        .then(r2=>{if(!r2.ok)throw new Error('tts '+r2.status);return r2.blob();})
-        .then(b=>{it.blob=b;it.state='pronta';})
-        .catch(()=>{it.err=true;it.state='pronta';})
-        .finally(()=>{if(gen!==state._vGen)return;inflight--;pump();avanti();});
-    }
-  };
-  tick();pump();
-}
-function speakBrowser(frasi,gen){
-  if(!('speechSynthesis' in window)){voxAfter();return;}   // muto: il loop vocale non resta appeso
-  try{
-    speechSynthesis.cancel();
-    frasi.forEach((t,i)=>{
-      const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';
-      if(i===0)u.onstart=()=>{if(gen===state._vGen)setOrb('parlando');};
-      u.onend=()=>{if(gen===state._vGen&&!speechSynthesis.pending&&!speechSynthesis.speaking){setOrb('idle');voxAfter();}};
-      speechSynthesis.speak(u);                            // la coda del browser è già ordinata
-    });
-  }catch(_){voxAfter();}
-}
+function voxAfter(){const f=state._voxAfter;if(!f)return;state._voxAfter=null;f();}
 function stopVoiceOut(){
-  state._vGen=(state._vGen||0)+1;                          // invalida le code in corso
-  try{state._outAudio&&state._outAudio.pause();}catch(_){}state._outAudio=null;
-  try{state._outAC&&state._outAC.close();}catch(_){}state._outAC=null;
-  if('speechSynthesis' in window)try{speechSynthesis.cancel();}catch(_){}
-  const o=state._orb;if(o){o.out=0;o.outLive=false;}
+  if(_vce)_vce.stopSpeak();
+  const o=state._orb;if(o){o.out=0;o.outLive=false;o.amp=0;}
 }
-function stopVoice(){if(_rec){try{_rec.stop();}catch(_){}_rec=null;}stopVoiceOut();}
+function stopVoice(){if(_vce)_vce.stop();state._dict=null;dictUiOff();stopVoiceOut();}
 function initVoice(){
   const mic=$('#chatMic'),tts=$('#chatTts');if(!mic)return;
   tts.onclick=()=>{state.tts=!state.tts;localStorage.setItem(LS.tts,state.tts?'1':'0');tts.innerHTML=icon(state.tts?'speakon':'speakoff',18);if(!state.tts)stopVoice();toast(state.tts?'Lettura vocale attiva':'Lettura vocale disattivata','info');};
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){mic.onclick=()=>toast('Dettatura non supportata da questo browser','bad');mic.style.opacity=.45;return;}
-  mic.onclick=()=>{
-    if(_rec){_rec.stop();return;}
-    const ta=$('#chatMsg');if(!ta)return;const base=ta.value?ta.value.trim()+' ':'';
-    _rec=new SR();_rec.lang='it-IT';_rec.interimResults=true;_rec.continuous=true;
-    _rec.onresult=e=>{let fin='',tmp='';for(const r of e.results){if(r.isFinal)fin+=r[0].transcript;else tmp+=r[0].transcript;}ta.value=(base+fin+tmp).trim();ta.dispatchEvent(new Event('input'));};
-    _rec.onend=()=>{_rec=null;mic.classList.remove('rec');stopOrbMic();setOrb('idle');const t=$('#chatMsg');if(t)t.focus();};
-    _rec.onerror=()=>{};
-    mic.classList.add('rec');try{_rec.start();setOrb('ascolto');startOrbMic();toast('Ti ascolto… premi di nuovo il microfono per fermare','info');}catch(_){mic.classList.remove('rec');_rec=null;}
+  mic.onclick=async()=>{
+    const e=vce();
+    if(!e){toast('Modulo voce non caricato (voce.js)','bad');return;}
+    if(e.listening()){e.stopListen();return;}
+    const ta=$('#chatMsg');state._dict=ta&&ta.value?ta.value.trim()+' ':'';
+    await _voicePro();                               // PRO o browser: lo decide il modulo
+    mic.classList.add('rec');
+    e.listen({autosend:false});                      // dettatura: si ferma col pulsante
+    toast('Ti ascolto… premi di nuovo il microfono per fermare','info');
   };
 }
 async function askAgent(agentId){route('router');await new Promise(r=>setTimeout(r,60));const ta=$('#rInput');if(ta){ta.placeholder=`Scrivi il compito da affidare a ${agentId}…`;ta.focus();}}
@@ -1517,7 +1406,7 @@ function route(view){
   if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}   /* B1: mai animazioni accumulate */
   state._brainOn=false;
   if(state._orb)state._orb.on=false;
-  stopOrbMic();
+  
   if(_rec)stopVoice();
   state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
   $$('.bottombar button').forEach(b=>b.classList.toggle('active',b.dataset.bv===view));
