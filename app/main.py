@@ -657,6 +657,7 @@ class TaskTransitionIn(BaseModel):
     to: str                    # in-approvazione | approvata | in-esecuzione | fatta | fallita | archiviata
     by: str = ""               # obbligatorio per approvata/fatta/archiviata (decide un umano)
     error: str = ""            # per 'fallita'
+    note: str = ""             # opzionale: si AGGIUNGE alla nota (perché/misura della decisione)
 
 
 @app.get("/admin/tasks")
@@ -705,7 +706,8 @@ def admin_tasks_transition(body: TaskTransitionIn, authorization: str = Header(d
     richiedono `by` (decide un umano — mai automatico); 'fallita' registra
     l'errore. Transizioni fuori catalogo → 422. Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
-    ok = braintasks.transition(body.id, body.to, by=body.by, error=body.error)
+    ok = braintasks.transition(body.id, body.to, by=body.by, error=body.error,
+                               note=body.note)
     if not ok:
         raise HTTPException(422, "Transizione non valida (stato di partenza, "
                                  "nome mancante o task inesistente).")
