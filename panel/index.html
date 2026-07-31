@@ -378,7 +378,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07d · miglioramenti</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07e · in corso dice il vero</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -707,9 +707,15 @@ const VIEWS={
         peso:'',stato:t.status==='fatta'?'fatte':(['in-approvazione','approvata','in-esecuzione'].includes(t.status)?'incorso':'dafare'),
         quando:t.updated_at||t.created_at||'',k:'tk-'+(t.idempotency_key||t.id)});
     });
+    /* C2 · «in corso» significa: qualcuno ci sta lavorando ORA. Un file
+       statico (roadmap.py) non può saperlo: le sue voci 'parziale'/'in-corso'
+       sono DA FARE, al massimo «iniziate» — in corso ci va solo la coda VIVA
+       (brain_tasks), dove lo stato lo muove una persona. Prima: IN CORSO 16.
+       Dopo: quello che sta davvero accadendo. */
     ((rm&&rm.tasks)||[]).forEach(t=>items.push({titolo:t.title,nota:t.description||'',
       origine:'roadmap',peso:t.effort||'',
-      stato:t.status==='fatto'?'fatte':(['in-corso','parziale'].includes(t.status)?'incorso':'dafare'),
+      stato:t.status==='fatto'?'fatte':'dafare',
+      iniziata:['in-corso','parziale'].includes(t.status),
       quando:'',k:'rm-'+t.id}));
     ((pp&&pp.proposals)||[]).forEach(t=>items.push({titolo:t.title,nota:t.detail||'',
       origine:'proposta',peso:t.count?t.count+'×':'',stato:'dafare',quando:'',k:'pr-'+t.id,pid:t.id}));
@@ -1661,6 +1667,7 @@ function renderImprove(){
     return `<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)">
       <div style="min-width:0"><div style="font-size:13px;font-weight:600">${esc(x.titolo)}</div>${x.nota?`<div class="small muted" style="margin-top:2px">${esc(x.nota.slice(0,180))}</div>`:''}</div>
       <div class="row" style="gap:7px;flex-shrink:0;align-items:center">
+        ${x.iniziata?`<span class="tag warn" title="lavoro iniziato in passato, non attivo adesso">iniziata</span>`:''}
         ${x.peso?`<span class="pill" title="peso">${esc(x.peso)}</span>`:''}
         <span class="scope-chip" style="background:color-mix(in srgb,${oc} 14%,transparent);color:${oc};border-color:${oc}55">${ol}</span>
         ${x.stato==='fatte'&&x.quando?`<span class="small muted" title="chiusa">${timeAgoIso(x.quando)}</span>`:''}
@@ -1669,7 +1676,7 @@ function renderImprove(){
   };
   const blocco=([id,label,col])=>{
     const g=vis.filter(x=>x.stato===id);
-    return `<div class="card" id="imp-${id}" style="margin-bottom:14px"><div class="card-head"><div><h3 style="color:${col}">${label}</h3><p>${id==='incorso'?'quello che sta accadendo adesso':id==='dafare'?'in coda, per origine':'chiuse — con quando'}</p></div><span class="pill">${g.length}</span></div>
+    return `<div class="card" id="imp-${id}" style="margin-bottom:14px"><div class="card-head"><div><h3 style="color:${col}">${label}</h3><p>${id==='incorso'?'qualcuno ci sta lavorando ADESSO (solo la coda viva può dirlo)':id==='dafare'?'in coda — «iniziata» = toccata in passato, non attiva ora':'chiuse — con quando'}</p></div><span class="pill">${g.length}</span></div>
       ${g.length?g.map(riga).join(''):`<div class="small muted">niente qui${id==='incorso'?' — scegli dalla coda DA FARE':''}</div>`}</div>`;
   };
   C.innerHTML=`

@@ -39,13 +39,14 @@ function trovaChromium() {
   let chromium;
   try { ({ chromium } = require("playwright")); }
   catch (e) { console.error("SKIP: playwright non installato"); process.exit(2); }
+  // Con un path locale (sandbox) lo si usa; senza, Playwright lancia il SUO
+  // Chromium (in CI: `npx playwright install chromium`). Skip solo se manca tutto.
   const exe = trovaChromium();
-  if (!exe) { console.error("SKIP: chromium non trovato"); process.exit(2); }
-
-  const b = await chromium.launch({
-    executablePath: exe,
-    args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
-  });
+  const lancio = { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] };
+  if (exe) lancio.executablePath = exe;
+  let b;
+  try { b = await chromium.launch(lancio); }
+  catch (e) { console.error("SKIP: chromium non avviabile: " + String(e.message).split("\n")[0]); process.exit(2); }
   const page = await b.newPage();
   const errori = [];
   // il rumore di rete (siamo offline, file://) non è un guasto della console:
@@ -120,4 +121,4 @@ function trovaChromium() {
   if (!chiuso) { console.error("FAIL: Escape non chiude il modo vocale"); ko = 1; }
   if (ko) process.exit(1);
   console.log(`Console VIVA: navigazione ok · modo vocale aperto · orb disegnato (${vox.css ? "fallback css" : vox.px + " px"}) · Escape chiude.`);
-})();
+})().catch(e => { console.error("FAIL (eccezione della prova): " + String(e.message).split("\n")[0]); process.exit(1); });
