@@ -13,8 +13,8 @@ La tesi dei «cinque endpoint fantasma» del documento [B] nasce da un checkout 
 chatbot-ember NON allineato (HEAD dichiarato `520041f`, che non corrisponde a
 origin/main): il pannello aggiornato è stato confrontato con un motore vecchio.
 Su origin/main le famiglie /admin/brain, /admin/tasks, /admin/proposals,
-/admin/roadmap, /admin/clients esistono tutte — coi DDL (db/ovyon_graph.sql,
-db/ovyon_tasks.sql, db/ovyon_client_access.sql) e i relativi test.
+/admin/roadmap, /admin/clients esistono tutte — coi DDL (db/brain_graph.sql,
+db/brain_tasks.sql, db/client_access.sql) e i relativi test.
 
 ## Contratto console → servizio `engine`
 32 rotte trovate · 0 mancanti · 0 dinamiche

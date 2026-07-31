@@ -501,7 +501,7 @@ TASKS = [
                      "HttpOnly, lockout 5 tentativi, chiave tenant cifrata a "
                      "riposo con CONTENT_ENC_KEY, master vietata, fail-closed "
                      "senza CLIENT_SESSION_SECRET. Login cliente: "
-                     "/panel/#cliente. DDL: db/ovyon_client_access.sql.")},
+                     "/panel/#cliente. DDL: db/client_access.sql.")},
     {"id": "i18n-console", "area": "business", "priority": "bassa",
      "status": "da-fare", "effort": "M", "repo": "entrambi",
      "title": "Console bilingue (IT/EN)",

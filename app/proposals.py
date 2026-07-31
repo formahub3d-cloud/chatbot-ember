@@ -43,7 +43,7 @@ def _candidates() -> list[dict]:
         out.append({"source": "sistema", "scope": "",
                     "title": "Attiva la persistenza della coda task",
                     "detail": ("La coda gira in-memory e si azzera al redeploy: applica "
-                               "db/ovyon_tasks.sql su Supabase e verifica "
+                               "db/brain_tasks.sql su Supabase e verifica "
                                "GRANTS_BACKEND=supabase + DATABASE_URL."),
                     "count": 1, "last_at": 0})
     if not events.enabled():

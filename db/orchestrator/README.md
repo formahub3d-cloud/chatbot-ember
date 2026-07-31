@@ -1,7 +1,7 @@
 # DIVINA — Fase 1: schema dati (PROPOSTA)
 
 > Stato: **in revisione — NON applicato**. Questi file sono la consegna della Fase 1
-> del progetto OVY Orchestrator ("Divina"). Vivranno nel repo `ovy-orchestrator`
+> dell'orchestratore Divina. Vivranno nel repo `ovy-orchestrator`
 > appena esiste; nel frattempo sono versionati qui (solo file, zero impatto su Divina).
 
 ## File
@@ -12,7 +12,7 @@
 | `002_divina_role.sql` | Ruolo Postgres `divina` a minimo privilegio (mai api_keys, niente DELETE, RLS attiva) |
 
 Entrambi passano il parser PostgreSQL (pglast). Sono **additivi**: nessuna modifica
-alle tabelle esistenti dello schema OVYON.
+alle tabelle esistenti dello schema del motore (i nomi SQL interni, es. lo schema `ovyon`, restano invariati: sono contratti).
 
 ## Decisioni di design (dalle risposte dell'11/07)
 

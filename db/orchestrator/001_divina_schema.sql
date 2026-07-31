@@ -15,7 +15,7 @@
 --   · Le contraddizioni NON si risolvono mai in automatico (resolved_by = umano).
 --   · wiki_nodes vive SOLO qui (Q7): il vault resta la fonte di verità FORMA;
 --     la promozione bozza→nota del vault è manuale.
--- Prerequisiti: ovyon_schema.sql già applicato (funzioni ovyon.grants/is_master/
+-- Prerequisiti: schema.sql già applicato (funzioni ovyon.grants/is_master/
 -- can_read/touch_updated_at, tabelle organizations/tenants, RLS attiva).
 -- ═══════════════════════════════════════════════════════════════════════════
 

@@ -1,6 +1,6 @@
-# Divina — Chatbot sul Cervello OVY
+# Divina — il chatbot e il suo cervello
 
-Motore RAG **multi-tenant** che risponde attingendo al cervello OVY (vault Obsidian),
+Motore RAG **multi-tenant** che risponde attingendo al cervello di Divina (un vault Obsidian),
 con **accessi per settore**: ogni tenant (FORMA, ATS, HRH…) vede solo le aree consentite
 dalla sua chiave. Provider-agnostico: LLM **Mistral** o **Claude**, embeddings **Mistral**.
 
@@ -21,10 +21,10 @@ Lo **scope** è la chiave-permesso: `forma/clienti/ats/...` → scope `ats`; `fo
 `forma-core`; `andrea-aloia/...` → `andrea`; `ovyon/...` → `ovyon`. Un tenant interroga
 solo i propri scope: fuori area risponde "Non ho questa informazione".
 
-## Integrazione OVYON (modello a tre livelli)
+## Il modello a tre livelli (org · tenant · sub_tenant)
 
-Divina è **il chatbot integrato in OVYON**. Lo `scope` mappa sul livello **`tenant`** del
-modello OVYON (org > tenant > sotto-tenant): `ingest.segments_for` deriva dal path anche
+Lo `scope` mappa sul livello **`tenant`** del
+modello a tre livelli (org > tenant > sotto-tenant): `ingest.segments_for` deriva dal path anche
 `org` e `sub_tenant` in modo additivo, e `rag.build_filter` accetta grant a tre livelli
 (retro-compatibile con `allowed_scopes`). Dettagli: `ovyon/docs/doc-ovyon-ember-scope` nel cervello.
 
@@ -42,7 +42,7 @@ Il **connettore MCP** (server FastMCP) è in `mcp-connector/` (vedi il suo READM
 **Backend Supabase (opzionale, `GRANTS_BACKEND=supabase` + `DATABASE_URL`).** Layer
 identità/permessi/audit: risoluzione chiavi da `api_keys`, audit su `access_logs` in
 sessione RLS, e sync dei metadati nota in `documents` durante l'ingest. Schema e istruzioni
-in `db/` (`ovyon_schema.sql`, `README.md`). Setup completo di produzione: `OVYON-SETUP.md`.
+in `db/` (`schema.sql`, `README.md`). Setup completo di produzione: `SETUP-PRODUZIONE.md`.
 
 ## Setup
 

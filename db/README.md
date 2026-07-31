@@ -1,6 +1,6 @@
-# OVYON — Schema Supabase / Postgres
+# Divina — Schema Supabase / Postgres
 
-Layer dati a tre livelli del cervello OVY (Sezione 4.1 del doc di architettura),
+Layer dati a tre livelli del cervello (Sezione 4.1 del doc di architettura),
 con **RLS multi-livello** (Sezione 9). Corrisponde all'**Opzione 1** della nota
 `ovyon/docs/doc-ovyon-ember-scope`: **Supabase come layer identità / permessi /
 audit; Qdrant resta il vector store**.
@@ -9,17 +9,17 @@ audit; Qdrant resta il vector store**.
 
 | File | Contenuto |
 |---|---|
-| `ovyon_schema.sql` | tabelle ER, indici, trigger, funzioni helper e policy RLS |
+| `schema.sql` | tabelle ER, indici, trigger, funzioni helper e policy RLS |
 | `seed.example.sql` | esempio di seed (org/tenant/chiavi) — **non** con chiavi reali |
 
 ## Applicare
 
 ```bash
-psql "$DATABASE_URL" -f db/ovyon_schema.sql
+psql "$DATABASE_URL" -f db/schema.sql
 psql "$DATABASE_URL" -f db/seed.example.sql   # opzionale, per un ambiente di prova
 ```
 
-Su Supabase: incolla `ovyon_schema.sql` nel SQL editor ed esegui.
+Su Supabase: incolla `schema.sql` nel SQL editor ed esegui.
 
 ## Modello
 

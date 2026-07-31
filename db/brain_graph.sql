@@ -1,6 +1,6 @@
 -- ═════════════════════════════════════════════════════════════════════════
 -- OVYON · brain_graph — il grafo REALE del cervello (additiva)
--- Da applicare DOPO ovyon_schema.sql. Tranche 2 della convergenza console:
+-- Da applicare DOPO schema.sql. Tranche 2 della convergenza console:
 -- nodi = note del vault, sinapsi = [[link]] tra note, ricostruito a ogni
 -- ingest completa (app/ingest.py passo 5 → app/brain.save_graph) e mostrato
 -- nella tab «Cervello vivo» della console (/admin/brain/graph).

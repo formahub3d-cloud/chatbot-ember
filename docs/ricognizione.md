@@ -1,6 +1,6 @@
-# Ricognizione — Fase 0 del progetto "OVY Orchestrator"
+# Ricognizione — Fase 0 dell'orchestratore (documento storico, 2026-07-08)
 
-> Report tecnico preliminare (2026-07-08) per il potenziamento del sistema Cervello OVY
+> Report tecnico preliminare (2026-07-08) per il potenziamento del cervello
 > + Divina verso: orchestratore multi-agente, skill library, auto-miglioramento continuo,
 > generazione documenti, connettori clienti. **Nessun codice applicativo è stato scritto.**
 > Da leggere e approvare prima della Fase 1 (schema dati).
@@ -33,7 +33,7 @@
 - Auto-miglioramento già esistente (embrione): gap/👎 → `/admin/learning` → `learning_to_bozze.py`
   → bozze in `_bozze/` → revisione umana → ingest.
 
-### Schema Supabase attuale (da `db/ovyon_schema.sql`, schema OVYON)
+### Schema Supabase attuale (da `db/schema.sql`)
 - `organizations` / `tenants` / `sub_tenants` — anagrafica 3 livelli (code testuali = scope Qdrant).
 - `documents` — metadati nota + `content_encrypted` (Fernet); code denormalizzati per RLS veloce.
 - `access_logs` — audit trail (RLS: insert in sessione, read solo master).
@@ -46,7 +46,7 @@
 
 ## 2. Punti di estensione naturali (dove l'orchestrator si aggancia SENZA toccare Divina)
 
-1. **Stesso Supabase, tabelle nuove**: lo schema OVYON è già multi-tenant con RLS a funzioni
+1. **Stesso Supabase, tabelle nuove**: lo schema è già multi-tenant con RLS a funzioni
    riusabili (`ovyon.can_read`); le nuove tabelle (Fase 1) possono citare `tenant_id` uuid
    FK a `tenants` + code denormalizzato, e riusare le stesse policy-pattern.
 2. **API Divina già pronte per l'orchestrator** (nessuna modifica richiesta):
@@ -104,7 +104,7 @@ Razionale: i gap sono già tracciati e il ciclo bozze esiste — l'auto-migliora
 5. **LLM dell'orchestrator**: stesso stack (Mistral small per classificazione/ingest,
    Claude opzionale per generazione documenti di qualità)? Impatta i costi per run.
 6. **Agenti di dominio** (Fase 2.3): per FORMA i vincoli sono chiari (anonimizzare, range
-   di prezzo, fonti verificate). Per OVYON/HRH/ATS servono da te: scopo dell'agente,
+   di prezzo, fonti verificate). Per FORMA/HRH/ATS servono da te: scopo dell'agente,
    tono, cosa può/non può dire — anche solo 3 righe ciascuno.
 7. **`wiki_nodes` vs vault**: i nodi wiki vivono SOLO su Supabase (per-tenant, RLS) e il
    vault resta la fonte del tenant FORMA, con promozione manuale bozza→nota? (mia

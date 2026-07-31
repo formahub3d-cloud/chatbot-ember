@@ -23,7 +23,7 @@
 In alternativa: ripristina l'ultimo snapshot dalla console Qdrant (Collections → Snapshots → Restore).
 
 ### 2. Supabase perso
-1. Nuovo progetto Supabase (region UE) → applica `db/ovyon_schema.sql`.
+1. Nuovo progetto Supabase (region UE) → applica `db/schema.sql`.
 2. Riemetti le chiavi tenant: `python -m app.manage_apikeys add <nome> ...` usando
    `backup/<data>/api_keys.json` come riferimento per grant/branding/quote
    (le chiavi in chiaro NON esistono da nessuna parte: vanno riemesse e ridistribuite).

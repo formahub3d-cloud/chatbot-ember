@@ -7,7 +7,7 @@ devono sopravvivere al redeploy. È la prima tranche della task di roadmap
 «coda-task-persistente» (vedi app/roadmap.py).
 
 Regole (coerenti col resto dell'ecosistema Divina):
-  - Persistenza best-effort su Supabase quando configurato (DDL: db/ovyon_tasks.sql);
+  - Persistenza best-effort su Supabase quando configurato (DDL: db/brain_tasks.sql);
     altrimenti fallback IN-MEMORY (dev/test): l'API non fallisce mai per la coda.
   - Nessun DELETE: una task si chiude ('fatta') o si archivia ('archiviata'),
     SEMPRE col nome di chi decide (`closed_by`), come le contraddizioni.

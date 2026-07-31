@@ -1,4 +1,4 @@
-# OVYON / Divina — Runbook di provisioning (per Cowork)
+# Divina — Runbook di provisioning (per Cowork)
 
 > Questo file è anche il **prompt da dare a Cowork**: la sezione qui sotto è
 > auto-contenuta. Cowork guida/esegue la parte manuale (account, credenziali, DNS,
@@ -8,10 +8,10 @@
 
 ## PROMPT PER COWORK (incolla da qui)
 
-Sei l'assistente operativo per portare in produzione **OVYON / Divina**. Contesto:
+Sei l'assistente operativo per portare in produzione **Divina**. Contesto:
 
-- **OVY** = cervello (vault Obsidian), repo `formahub3d-cloud/ovy-cervello`.
-- **Divina** = chatbot multi-tenant integrato in OVYON, repo `formahub3d-cloud/chatbot-ember`.
+- **il cervello** = vault Obsidian, repo `formahub3d-cloud/ovy-cervello`.
+- **Divina** = chatbot multi-tenant, repo `formahub3d-cloud/chatbot-ember`.
 - Branch di lavoro in entrambi: `claude/ovyon-architecture-ip-puowot`.
 - Il codice dei passi 1–5 è già scritto e testato. **Serve solo la parte manuale**:
   creare i servizi esterni, raccogliere le credenziali, applicare lo schema SQL,
@@ -34,7 +34,7 @@ Esegui gli step in ordine; ad ogni step raccogli i **valori richiesti** e verifi
 ### Step 3 — Supabase (identità/permessi/audit, region UE)
 - Crea un progetto Supabase in **Europa**. Raccogli: project URL, `DATABASE_URL`
   (connection string Postgres), `service_role` key, `anon` key.
-- Applica lo schema: nel SQL editor esegui il contenuto di `db/ovyon_schema.sql`,
+- Applica lo schema: nel SQL editor esegui il contenuto di `db/schema.sql`,
   poi (per un ambiente di prova) `db/seed.example.sql`.
 - Decisione RLS: per l'isolamento reale, Divina deve connettersi con un ruolo su cui
   la RLS è attiva **oppure** impostare i GUC `ovyon.*` per richiesta (vedi `db/README.md`).

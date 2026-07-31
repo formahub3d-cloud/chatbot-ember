@@ -67,7 +67,7 @@ if not _tok_boot or _tok_boot.lower() in _WEAK_ADMIN_TOKENS or len(_tok_boot) < 
                  "risponderanno 503 finché non viene impostato un token forte "
                  "(consigliato: >= 32 caratteri casuali). RUOTARE SUBITO.")
 
-app = FastAPI(title="Divina — Cervello OVY", version="0.3.0")
+app = FastAPI(title="Divina", version="0.3.0")
 
 # CORS: consente al widget di chat (browser) di chiamare l'API.
 # I domini autorizzati arrivano da settings.cors_origins (vedi config.py):
@@ -619,7 +619,7 @@ def admin_brain(authorization: str = Header(default="")):
 @app.get("/admin/brain/graph")
 def admin_brain_graph(authorization: str = Header(default="")):
     """Il grafo REALE del cervello: nodi = note, sinapsi = [[link]] tra note,
-    ricostruito a ogni ingest completa (persistito su Supabase, db/ovyon_graph.sql).
+    ricostruito a ogni ingest completa (persistito su Supabase, db/brain_graph.sql).
     404 finché non è stata eseguita almeno una ingest. Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
     g = brain.graph()
