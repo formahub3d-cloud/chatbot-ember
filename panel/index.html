@@ -387,7 +387,7 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
     <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07i · pronta quando è pronta</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07j · gli stati veri</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -556,6 +556,7 @@ function demoData(service, path, opts){
       return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats'],free:msg.includes('business')||msg.includes('mercato')});
     }
     if(path.startsWith('/admin/tasks/close')||path.startsWith('/admin/tasks/transition')) return Promise.resolve({ok:true});
+    if(path.startsWith('/document')) return Promise.resolve({slug:'workspace-potenziamento-divina',title:'(DEMO) Schema di potenziamento — dove sta Divina e cosa manca',path:'forma/workspace/workspace-potenziamento-divina.md',tenant:'forma-core',text:'(DEMO — in produzione qui c\'è la nota vera, letta dal cervello)\n\n# Schema di potenziamento\n\n| Area | Punteggio |\n|---|---|\n| **Affidabilità e controlli** | **9 / 10** |\n| **Voce** | **8 / 10** |\n| **Struttura dell\'interfaccia** | **5 / 10** |\n| **Contenuto del cervello** | **5 / 10** |\n| **Conversazione** | **4 / 10** |\n| **Vendibilità** | **3 / 10** |\n\n**Media: 5,7 / 10** (era 3,8 stamattina).'});
     if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:100},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));/* M5: stesso numero di stats.notes (100), un dato solo */gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
     if(path.startsWith('/admin/proposals/approve')) return Promise.resolve({ok:true,task:{id:'t-demo',kind:'gap',status:'aperta'}});
@@ -1708,12 +1709,52 @@ function renderImprove(){
   C.innerHTML=`
     ${state._impPersist?'':`<div class="card" style="margin-bottom:14px;border-color:var(--orange)55"><div class="small" style="color:var(--orange)">${icon('alert',12)} Coda NON persistente (Supabase spento): le task del cervello vivono in memoria e si azzerano al redeploy. Roadmap e proposte restano comunque visibili.</div></div>`}
     <div class="orbit-tabs" style="margin-bottom:12px;flex-wrap:wrap">${chipO}<span style="flex:1"></span>${chipS}</div>
+    <div id="quadroBox"></div>
     <div id="auditShelf"></div>
     ${gruppi.map(blocco).join('')}`;
   $$('[data-io]').forEach(b=>b.onclick=()=>{state._impF.origine=b.dataset.io;renderImprove();});
   $$('[data-is]').forEach(b=>b.onclick=()=>{const el=document.getElementById('imp-'+b.dataset.is);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});
   $$('[data-papp]').forEach(b=>b.onclick=async()=>{try{await api('engine','/admin/proposals/approve',{method:'POST',body:{id:b.dataset.papp}});toast('Approvata: ora è una task del cervello','info');route('improve');}catch(e){toast('✕ '+e.message,'bad');}});
   renderAuditShelf();
+  renderQuadro();
+}
+/* ── X3 · Lo schema di potenziamento: COLLEGAMENTO alla nota vera del cervello
+   (slug workspace-potenziamento-divina), MAI una copia. I punteggi si leggono
+   dalla nota al momento in cui si apre la vista: se il pannello ne tenesse una
+   copia, in due settimane le due divergerebbero — stessa lezione della console
+   duplicata nei due repo. Se la tabella cambia forma, si degrada con onestà:
+   la nota intera resta apribile. */
+const QUADRO_SLUG='workspace-potenziamento-divina';
+async function renderQuadro(){
+  const el=document.getElementById('quadroBox');if(!el)return;
+  let doc=null,errore='';
+  try{doc=await api('engine','/document?slug='+QUADRO_SLUG,{auth:false,tenantKey:true});}
+  catch(e){errore=e.message||'non raggiungibile';}
+  if(!document.getElementById('quadroBox'))return;          // vista cambiata nel frattempo
+  if(!doc||!doc.text){
+    el.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Schema di potenziamento</h3><p>La nota vive nel cervello (<span class="mono">${esc(QUADRO_SLUG)}</span>) e qui si legge, non si copia</p></div></div><div class="small muted">${errore?esc('Nota non raggiungibile — '+errore):'Nota non nello scope della chiave, o ingest non ancora girata su forma/workspace/.'}</div></div>`;
+    return;
+  }
+  // punteggi letti VIVI dalla tabella della nota: | **Area** | **N / 10** | …
+  const punte=[];let media='';
+  for(const riga of String(doc.text).split('\n')){
+    const m=riga.match(/^\|\s*\*\*(.+?)\*\*\s*\|\s*\*\*(\d+(?:[.,]\d+)?)\s*\/\s*10\*\*/);
+    if(m)punte.push({area:m[1],voto:parseFloat(m[2].replace(',','.'))});
+    const mm=riga.match(/\*\*Media:\s*([\d.,]+)\s*\/\s*10\*\*/);
+    if(mm)media=mm[1];
+  }
+  const barra=p=>{const col=p.voto>=7?'var(--cyan)':p.voto>=5?'var(--orange)':'var(--magenta)';
+    return `<div style="flex:1;min-width:170px"><div class="row" style="justify-content:space-between;margin-bottom:3px"><span class="small">${esc(p.area)}</span><b class="small">${p.voto}</b></div><div style="height:5px;border-radius:99px;background:var(--surface-2);overflow:hidden"><div style="width:${Math.max(4,Math.min(100,p.voto*10))}%;height:100%;background:${col}"></div></div></div>`;};
+  el.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Schema di potenziamento ${media?`<span class="pill">media ${esc(media)} / 10</span>`:''}</h3><p>Vive nel cervello e si aggiorna lì — qui si legge la nota vera, adesso</p></div><button class="btn sm" id="quadroApri">Apri la nota</button></div>${punte.length?`<div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-end">${punte.map(barra).join('')}</div>`:`<div class="small muted">La nota c'è ma la tabella dei punteggi non si riconosce più: aprila per intero.</div>`}</div>`;
+  const b=document.getElementById('quadroApri');
+  if(b)b.onclick=()=>{
+    const back=document.createElement('div');back.className='modal-back open';
+    back.innerHTML=`<div class="modal" style="max-width:760px"><div class="card-head"><div><h3>${esc(doc.title||'Schema di potenziamento')}</h3><p class="mono small">${esc(doc.path||QUADRO_SLUG)} · letta dal cervello adesso</p></div><button class="btn sm ghost" id="quadroChiudi">Chiudi</button></div><pre class="mono small" style="white-space:pre-wrap;color:var(--text);margin-top:10px">${esc(doc.text)}</pre></div>`;
+    document.body.appendChild(back);
+    const via=()=>back.remove();
+    back.onclick=e=>{if(e.target===back)via();};
+    back.querySelector('#quadroChiudi').onclick=via;
+  };
 }
 /* ── M3 · Gli audit DENTRO il pannello: non sono task, sono i documenti da cui
    le task nascono. Registro pensato per PIÙ audit nel tempo (data+titolo, il
