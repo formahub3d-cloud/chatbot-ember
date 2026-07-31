@@ -94,6 +94,33 @@
       .replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").replace(/[*`_#>[\]]/g, "").trim();
   }
 
+  /* EM_VAD_BEGIN — estratto e testato da scripts/test_voce_vad.js.
+     C3 · Il barge-in si auto-interrompeva: la soglia imparava solo nel
+     SILENZIO (rms < base*1.5), quindi mentre la voce parlava restava al
+     pavimento 0.045 e l'eco residua dagli altoparlanti — echoCancellation
+     attenua, non annulla, meno che mai su un iMac — la superava per 220ms:
+     scatto, ritorno in ascolto, da capo. La soglia ora è RELATIVA a quanto
+     forte sta parlando la voce: eco attesa = uscita × accoppiamento K
+     APPRESO durante la riproduzione (veloce a scendere, lento a salire:
+     la voce dell'utente non lo gonfia), con margine. Numeri in STATS.vad. */
+  function vadSoglia(base, k, out){
+    // pavimento ambiente 0.045 · rumore appreso ×4 · eco attesa × margine 1.6
+    return Math.max(0.045, Math.max(0.004, base) * 4, (out || 0) * k * 1.6);
+  }
+  function vadImparaK(k, rms, out, fresco){
+    // accoppiamento osservato uscita→microfono, SOLO mentre l'uscita suona.
+    // Scende in fretta (l'eco vera è più bassa: la sensibilità si recupera).
+    // In salita: nell'ATTACCO della riproduzione (fresco) impara svelto — lì è
+    // quasi certamente eco pura; a regime un salto grande è la voce
+    // dell'UTENTE, non una deriva dell'eco, e NON deve alzare la soglia.
+    if (!(out > 0.02)) return k;
+    var kObs = rms / out;
+    if (kObs < k) return k * 0.7 + kObs * 0.3;
+    if (fresco) return Math.min(3, k * 0.9 + kObs * 0.1);
+    if (kObs > k * 1.5) return k;
+    return Math.min(3, k * 0.99 + kObs * 0.01);
+  }
+  /* EM_VAD_END */
   function rmsDi(an, buf){
     an.getByteTimeDomainData(buf);
     var s = 0, i, v;
@@ -216,9 +243,13 @@
         outAC.createMediaElementSource(a).connect(outAn);
       }catch(e){}
     }
+    var outNow = 0;   // RMS dell'USCITA audio adesso (C3: serve al barge-in, non solo all'orb)
     function ampOutLoop(){
       if (!outAn) return;
-      if (vout.playing) emit("Amp", Math.min(1, rmsDi(outAn, outBuf) * 4));
+      if (vout.playing){
+        outNow = rmsDi(outAn, outBuf);
+        emit("Amp", Math.min(1, outNow * 4));
+      } else outNow = 0;
       requestAnimationFrame(ampOutLoop);
     }
     function fraseBrowser(t){
@@ -267,7 +298,7 @@
     // (base*4, pavimento 0.045), con 350ms ciechi a inizio riproduzione.
     // Si arma SOLO se il permesso microfono è già concesso.
     var vad = { stream:null, ac:null, an:null, buf:null, raf:0, base:0.008, over:0,
-                lastPlayAt:0, armed:false };
+                lastPlayAt:0, armed:false, k:1.2 };   // k: accoppiamento uscita→mic (C3), appreso
     function vadArm(){
       vad.lastPlayAt = performance.now();
       if (!BARGE || !hasMR || vad.armed || udito.on) return;   // col mic già aperto ci pensa l'autosend
@@ -294,9 +325,16 @@
       var rms = rmsDi(vad.an, vad.buf);
       var now = performance.now();
       var blind = (now - vad.lastPlayAt) < 350;
-      if (!blind && rms < Math.max(0.004, vad.base) * 1.5) vad.base = vad.base * 0.995 + rms * 0.005;
-      var soglia = Math.max(0.045, vad.base * 4);
-      STATS.vad = { rms:+rms.toFixed(4), base:+vad.base.toFixed(4), soglia:+soglia.toFixed(4) };
+      // rumore ambiente: si impara nei momenti a uscita quasi muta
+      if (!blind && outNow < 0.02 && rms < Math.max(0.004, vad.base) * 1.5) vad.base = vad.base * 0.995 + rms * 0.005;
+      // C3: l'accoppiamento si aggiorna MENTRE la voce parla — dove prima
+      // l'apprendimento era di fatto morto ogni volta che contava
+      if (!blind) vad.k = vadImparaK(vad.k, rms, outNow, (now - vad.lastPlayAt) < 900);
+      // voce del browser (synth): niente analyser d'uscita → pavimento alzato
+      var eco = outNow || ((synth && synth.speaking) ? 0.06 : 0);
+      var soglia = vadSoglia(vad.base, vad.k, eco);
+      STATS.vad = { rms:+rms.toFixed(4), base:+vad.base.toFixed(4), out:+(outNow||0).toFixed(4),
+                    k:+vad.k.toFixed(3), soglia:+soglia.toFixed(4) };
       if (!parlaAttiva()){ vadIdle(); return; }
       if (!blind && rms > soglia){
         if (!vad.over) vad.over = now;
@@ -469,6 +507,8 @@
       interrupt: function(){ interrompi(); },
       stop: function(){ udito.cancel = true; stopListen(); stopSpeak(); setStato("fermo"); },
       stats: function(){ return STATS; },
+      setBarge: function(v){ BARGE = !!v; if (!BARGE) vadIdle(); },   // C3: spegnibile a caldo
+      barge: function(){ return BARGE; },
       stato: function(){ return stato; }
     };
   };
