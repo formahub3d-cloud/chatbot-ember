@@ -1052,33 +1052,14 @@ function initOrb(cvId='orbCv',maxPx=160){
     S=(Number.isFinite(w)&&w>8)?Math.max(40,Math.min(maxPx,w)):72;   // mai 0/NaN (V3: l'orb grande passa maxPx)
     el.width=Math.round(S*DPR);el.height=Math.round(S*DPR);
     ctx.setTransform(DPR,0,0,DPR,0,0);
+    const o=state._orb;if(o){o.S=S;o.ctx=ctx;}
   };
-  const t0=performance.now();let raf=0;
-  const draw=now=>{
-    const o=state._orb;const k=S/72;
-    const t=(now-t0)/1000;const col=ORB_COLS[o.comp]||ORB_COLS.divina;
-    let target=0.10+(reduced?0:0.03*Math.sin(t*1.1));
-    if(o.mode==='ascolto')target=0.16+Math.min(0.7,o.mic);
-    else if(o.mode==='parlando')target=o.outLive?0.20+0.55*Math.min(1,o.out||0):0.28+0.30*Math.abs(Math.sin(t*7.3)*0.6+Math.sin(t*3.1)*0.4);   // PR4: ampiezza REALE in uscita; sinusoide solo senza analyser (voce browser)
-    else if(o.mode==='ragionando')target=0.20+0.10*Math.sin(t*2.4);
-    else if(o.mode==='azione')target=0.52+0.18*Math.sin(t*9);
-    o.level+=(target-o.level)*0.16;
-    ctx.clearRect(0,0,S,S);
-    const cx=S/2,cy=S/2,r=k*(15+15*o.level);
-    const g=ctx.createRadialGradient(cx-4*k,cy-5*k,2*k,cx,cy,r+12*k);
-    g.addColorStop(0,'#ffffffbb');g.addColorStop(0.28,col);g.addColorStop(1,col+'00');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,Math.min(r+12*k,S/2),0,6.283);ctx.fill();
-    ctx.globalAlpha=.92;ctx.fillStyle=col;ctx.beginPath();ctx.arc(cx,cy,r*0.6,0,6.283);ctx.fill();ctx.globalAlpha=1;
-  };
-  const frame=now=>{
-    const o=state._orb;if(!o||!o.on||o.cvId!==cvId||!document.getElementById(cvId))return;
-    draw(now);
-    if(!reduced)raf=requestAnimationFrame(frame);
-  };
+  state._orb.reduced=reduced;state._orb.t0=performance.now();
   const kick=()=>{
-    cancelAnimationFrame(raf);
     const o=state._orb;if(!o||!o.on||o.cvId!==cvId||!document.getElementById(cvId))return;
-    size();raf=requestAnimationFrame(frame);
+    size();
+    if(reduced){orbDraw(o,o.t0);return;}     // UN frame statico disegnato, mai canvas vuoto
+    orbLoopStart();
   };
   if(window.ResizeObserver){
     if(state._orbRO)state._orbRO.disconnect();
@@ -1096,6 +1077,102 @@ function initOrb(cvId='orbCv',maxPx=160){
   console.info('[orb] init',{cvId,cssW:cv.clientWidth,dpr:DPR,backingW:cv.width,backingH:cv.height,reduced,ctxOk:true,usedFallback:false});
   kick();
 }
+
+/* ── U2 · L'orb «onda sonora» (trattamento B, scelto da Andrea) ─────────────
+   Sette anelli concentrici deformati da due sinusoidi, mossi dall'ampiezza
+   VERA (onAmp del modulo voce, lisciata 0.72/0.28) — non da un'animazione a
+   tempo: si muove PERCHÉ c'è un suono. Colori = stato (parla magenta ·
+   ascolta ciano · fermo grigio). I companion sono solidi in filo di ferro
+   (Dante cubo · Beatrice piramide col vertice in basso · Virgilio cilindro a
+   14 lati): stesso motore, la forma cambia, il linguaggio no.
+   UN SOLO requestAnimationFrame per tutta la pagina (c'è un solo orb attivo:
+   state._orb); fermo con document.hidden o canvas assente (riparte da
+   visibilitychange/kick). Con prefers-reduced-motion: un frame statico. */
+let _orbRaf=0;
+function orbLoopStart(){
+  if(_orbRaf)return;
+  const tick=now=>{
+    _orbRaf=0;
+    const o=state._orb;
+    if(!o||!o.on||o.reduced)return;
+    const el=document.getElementById(o.cvId);
+    if(!el||el.classList.contains('orb-css'))return;         // vista smontata o fallback CSS
+    if(document.hidden)return;                               // riparte da visibilitychange
+    orbDraw(o,now);
+    _orbRaf=requestAnimationFrame(tick);
+  };
+  _orbRaf=requestAnimationFrame(tick);
+}
+const ORB_STATE_COLS={parlando:'#dd24f2',ascolto:'#2ee6f2'}; // il resto: grigio «fermo»
+const ORB_AMP_FLOOR={idle:0.12,ascolto:0.14,ragionando:0.18,parlando:0.25,azione:0.30};
+function orbAmp(o){
+  let amp=Math.max(ORB_AMP_FLOOR[o.mode]!=null?ORB_AMP_FLOOR[o.mode]:0.12,Math.min(1,o.amp||0));
+  if(o.mode==='ascolto')amp=Math.max(amp,Math.min(1,o.mic||0));
+  else if(o.mode==='parlando'&&o.outLive)amp=Math.max(amp,Math.min(1,o.out||0));
+  return amp;
+}
+function orbDraw(o,now){
+  const ctx=o.ctx;if(!ctx)return;
+  const S=o.S||72,t=(now-(o.t0||0))/1000,amp=orbAmp(o);
+  ctx.clearRect(0,0,S,S);
+  const comp=o.comp||'divina';
+  if(comp!=='divina'&&ORB_SOLIDS[comp]){orbSolid(ctx,S,t,amp,ORB_SOLIDS[comp]);return;}
+  const col=ORB_STATE_COLS[o.mode]||'#7f8aa0';
+  const R=S*0.31,cx=S/2,cy=S/2,SEG=110;   // 110 segmenti: sotto si vedono gli spigoli, sopra non si guadagna
+  ctx.lineWidth=1.1;ctx.strokeStyle=col;
+  for(let l=0;l<7;l++){
+    const f=l/6,rad=R*(0.45+0.62*f);
+    ctx.beginPath();
+    for(let g2=0;g2<=SEG;g2++){
+      const th=g2/SEG*6.2832;
+      const m=1+amp*(0.20*Math.sin(5*th-3.4*t+l)+0.13*Math.sin(9*th+2.1*t))*(0.4+f);
+      const r=rad*m,x=cx+r*Math.cos(th),y=cy+r*Math.sin(th);
+      if(g2===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.globalAlpha=(0.16+0.55*(1-f))*(0.5+0.5*amp);   // interni più densi, tutti più vivi col suono
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
+/* Solidi companion: vertici in coordinate unitarie, spigoli come coppie. */
+const ORB_SOLIDS=(()=>{
+  const cubo={col:'#f2711f',v:[],e:[]};
+  for(let i=0;i<8;i++)cubo.v.push([(i&1?1:-1)*0.72,(i&2?1:-1)*0.72,(i&4?1:-1)*0.72]);
+  for(let i=0;i<8;i++)for(let b of [1,2,4]){const j=i^b;if(j>i)cubo.e.push([i,j]);}
+  const pir={col:'#dd24f2',v:[[-0.78,-0.62,-0.78],[0.78,-0.62,-0.78],[0.78,-0.62,0.78],[-0.78,-0.62,0.78],[0,0.88,0]],e:[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[2,4],[3,4]]};  // base in alto, VERTICE IN BASSO (y canvas cresce in giù)
+  const cil={col:'#2ee6f2',v:[],e:[]};
+  for(let i=0;i<14;i++){const a=i/14*6.2832;cil.v.push([Math.cos(a)*0.75,-0.72,Math.sin(a)*0.75]);}
+  for(let i=0;i<14;i++){const a=i/14*6.2832;cil.v.push([Math.cos(a)*0.75,0.72,Math.sin(a)*0.75]);}
+  for(let i=0;i<14;i++){cil.e.push([i,(i+1)%14]);cil.e.push([14+i,14+(i+1)%14]);cil.e.push([i,14+i]);}
+  return {dante:cubo,beatrice:pir,virgilio:cil};
+})();
+function orbSolid(ctx,S,t,amp,sol){
+  // Proiezione prospettica semplice; rotazione continua su Y + oscillazione su
+  // X; spigoli con opacità per profondità, vertici come punti; la SCALA pulsa
+  // con l'ampiezza, come la sfera.
+  const cx=S/2,cy=S/2,Rs=S*0.27*(1+0.28*amp),pers=3.2;
+  const ay=t*0.9,ax=0.42+0.30*Math.sin(t*0.7);
+  const cA=Math.cos(ay),sA=Math.sin(ay),cB=Math.cos(ax),sB=Math.sin(ax);
+  const P=sol.v.map(v=>{
+    let x=v[0]*cA+v[2]*sA,z=-v[0]*sA+v[2]*cA,y=v[1];
+    const y2=y*cB-z*sB,z2=y*sB+z*cB;
+    const k=pers/(pers-z2);
+    return {x:cx+x*k*Rs,y:cy+y2*k*Rs,z:z2};
+  });
+  ctx.strokeStyle=sol.col;ctx.fillStyle=sol.col;ctx.lineWidth=1.1;
+  const viva=0.5+0.5*amp;
+  for(const [a,b] of sol.e){
+    const z=(P[a].z+P[b].z)/2;                       // z alto = davanti
+    ctx.globalAlpha=(0.18+0.62*Math.max(0,Math.min(1,(z+1)/2)))*viva;
+    ctx.beginPath();ctx.moveTo(P[a].x,P[a].y);ctx.lineTo(P[b].x,P[b].y);ctx.stroke();
+  }
+  for(const q of P){
+    ctx.globalAlpha=(0.30+0.60*Math.max(0,Math.min(1,(q.z+1)/2)))*viva;
+    ctx.beginPath();ctx.arc(q.x,q.y,1.6,0,6.2832);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
 /* Selettore companion: 'divina' = smistamento automatico; un companion esplicito
    colora subito l'orb e viaggia in /chat come `companion` (che implica agent:true). */
 function pickComp(c){
@@ -1105,6 +1182,7 @@ function pickComp(c){
 }
 function setOrb(mode,comp){
   const o=state._orb;if(!o)return;if(mode)o.mode=mode;if(comp)o.comp=comp;
+  if(o.reduced&&o.ctx)orbDraw(o,o.t0||0);   // reduced-motion: il frame statico segue lo stato
   if(o.fallback){                       // orb CSS puro: colore e ritmo via attributi
     const el=document.getElementById(o.cvId||'orbCv');
     if(el&&el.classList.contains('orb-css')){el.style.setProperty('--oc',ORB_COLS[o.comp]||ORB_COLS.divina);el.dataset.mode=o.mode;}
