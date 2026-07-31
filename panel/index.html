@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
 <title>Divina · Console</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b0d12">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Divina">
 <style>
 /* ══════════════════════════════════════════════════════════════════
    DIVINA · Console unica — chatbot + orchestratore del cervello
@@ -288,9 +293,39 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .live-feed{display:flex;flex-direction:column;gap:10px}
 .live-row{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;animation:fade .3s ease}
 .live-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0}
+/* ── V2 · Fase 5: la chat sempre presente ─────────────────────────────
+   Desktop (≥1101px): terza colonna della griglia, ridimensionabile (drag sul
+   bordo, preferenza ricordata) e comprimibile. Mobile: pannello a tutta
+   pagina, aperto dalla barra in basso. Un solo DOM, mai smontato. */
+#sideChat{display:none}
+.diag-group .nav-item{font-size:12px;padding-left:26px;opacity:.85}
+.diag-toggle{color:var(--text-3)}
+body.chat-aperta{--chatw:380px}
+@media(min-width:1101px){
+  body.chat-aperta:not(.clientmode) .app{grid-template-columns:var(--nav-w) minmax(0,1fr) var(--chatw)}
+  body.chat-aperta:not(.clientmode) #sideChat{display:flex;flex-direction:column;border-left:1px solid var(--border);background:var(--surface);position:sticky;top:0;height:100vh;min-width:0}
+}
+@media(max-width:1100px){
+  body.chat-mobile #sideChat{display:flex;flex-direction:column;position:fixed;inset:0;z-index:88;background:var(--bg);padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+}
+#chatRiapri{position:fixed;right:16px;bottom:20px;z-index:70;display:none;width:52px;height:52px;border-radius:50%;border:1px solid var(--border-strong);background:linear-gradient(135deg,var(--magenta),var(--cyan));color:#fff;font-size:22px;cursor:pointer;box-shadow:var(--shadow);align-items:center;justify-content:center}
+@media(min-width:1101px){body.chat-chiusa:not(.clientmode) #chatRiapri{display:flex}}
+.ct-head{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.ct-tabs{display:flex;gap:6px;flex:1;overflow-x:auto;scrollbar-width:none}
+.ct-tab{border:1px solid var(--border);background:transparent;color:var(--text-3);border-radius:999px;padding:4px 12px;font-size:11px;font-weight:800;letter-spacing:.04em;cursor:pointer;white-space:nowrap;min-height:30px}
+.ct-tab.active{color:var(--text);border-color:var(--border-strong);background:var(--surface-2)}
+.ct-body{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
+.ct-body .chat{height:100%;min-height:0}
+#agentPane{overflow:auto;flex:1}
+.ct-resizer{position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:5}
+.trace-line{font-size:11.5px;color:var(--text-3);line-height:1.5}
+.perm-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px dashed var(--border)}
+#subnav{margin:10px 22px 0;display:none;gap:6px;flex-wrap:wrap}
+#subnav.on{display:flex}
 /* ── Task 18 · L'allarme del cervello fermo: visibile ovunque, non a piè di pagina ── */
 #brainAlert{margin:10px 22px 0;padding:10px 16px;border-radius:12px;border:1px solid var(--orange);background:color-mix(in srgb,var(--orange) 12%,transparent);color:var(--orange);font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
 #brainAlert[hidden]{display:none}
+[hidden]{display:none!important}   /* l'attributo hidden vince SEMPRE, anche sui .btn */
 /* ── P3 · La console non si finge pronta ─────────────────────────────
    La classe `preboot` sta nell'HTML statico: menu, barra mobile, topbar e
    composer restano spenti finché lo script di boot non la toglie (bootDone).
@@ -363,32 +398,30 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
       <div><div class="brand-name">Divina</div><div class="brand-sub">Il tuo mondo. La tua AI.</div></div>
     </div>
 
-    <div class="nav-label"><span class="ld" style="background:linear-gradient(90deg,var(--magenta),var(--cyan))"></span> Conversa</div>
-    <button class="nav-item active" data-view="home"><span class="ic" data-ic="world" data-ics="17"></span> Il tuo mondo</button>
-    <button class="nav-item" data-view="chat"><span class="ic" data-ic="chat" data-ics="17"></span> Lavora con Divina</button>
+<!-- V2 · Fase 4: SEI PORTE, scritte come intenzione, non come meccanismo.
+     La divisione tecnica (motore/orchestratore) resta nel codice, non arriva
+     allo schermo. Tutte le viste vecchie esistono ancora: quelle uscite dal
+     menu vivono in Diagnostica, e le rotte vecchie continuano a funzionare. -->
+    <button class="nav-item active" data-view="home"><span class="ic" data-ic="world" data-ics="17"></span> Mondo</button>
+    <button class="nav-item" data-view="brain"><span class="ic" data-ic="brain" data-ics="17"></span> Cervello</button>
+    <button class="nav-item" data-view="clienti"><span class="ic" data-ic="key" data-ics="17"></span> Clienti</button>
+    <button class="nav-item" data-view="agents"><span class="ic" data-ic="sparks" data-ics="17"></span> Squadra <span class="badge" id="b-agents">3</span></button>
+    <button class="nav-item" data-view="integrazioni"><span class="ic" data-ic="plug" data-ics="17"></span> Integrazioni</button>
+    <button class="nav-item" data-view="impostazioni"><span class="ic" data-ic="gear" data-ics="17"></span> Impostazioni</button>
 
-    <div class="nav-label"><span class="ld" style="background:var(--cyan)"></span> Cervello · motore</div>
-    <button class="nav-item" data-view="dashboard"><span class="ic" data-ic="dash" data-ics="17"></span> Dashboard</button>
-    <button class="nav-item" data-view="cruscotto"><span class="ic" data-ic="coins" data-ics="17"></span> Cruscotto FORMA</button>
-    <button class="nav-item" data-view="brain"><span class="ic" data-ic="brain" data-ics="17"></span> Cervello vivo</button>
-    <button class="nav-item" data-view="scopes"><span class="ic" data-ic="layers" data-ics="17"></span> Scope</button>
-    <button class="nav-item" data-view="insights"><span class="ic" data-ic="signal" data-ics="17"></span> Segnali</button>
-    <button class="nav-item" data-view="learning"><span class="ic" data-ic="spark" data-ics="17"></span> Apprendimento <span class="badge" id="b-learning">0</span></button>
-    <button class="nav-item" data-view="improve"><span class="ic" data-ic="check" data-ics="17"></span> Miglioramenti <span class="badge" id="b-improve">0</span></button>
-    <button class="nav-item" data-view="usage"><span class="ic" data-ic="coins" data-ics="17"></span> Uso &amp; costi</button>
-    <button class="nav-item" data-view="events"><span class="ic" data-ic="list" data-ics="17"></span> Eventi</button>
-    <button class="nav-item" data-view="tenants"><span class="ic" data-ic="key" data-ics="17"></span> Tenant</button>
-
-    <div class="nav-label"><span class="ld" style="background:var(--magenta)"></span> Orchestra · agenti</div>
-    <button class="nav-item" data-view="agents"><span class="ic" data-ic="sparks" data-ics="17"></span> Agenti &amp; skill <span class="badge" id="b-agents">3</span></button>
-    <button class="nav-item" data-view="live"><span class="ic" data-ic="live" data-ics="17"></span> Regia live</button>
-    <button class="nav-item" data-view="router"><span class="ic" data-ic="swap" data-ics="17"></span> Router / esegui</button>
-    <button class="nav-item" data-view="nodes"><span class="ic" data-ic="nodes" data-ics="17"></span> Nodi wiki</button>
-    <button class="nav-item" data-view="contradictions"><span class="ic" data-ic="alert" data-ics="17"></span> Contraddizioni <span class="badge" id="b-contra">0</span></button>
-    <button class="nav-item" data-view="docs"><span class="ic" data-ic="doc" data-ics="17"></span> Documenti</button>
-
-    <div class="nav-label"><span class="ld" style="background:var(--text-3)"></span> Sistema</div>
-    <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="17"></span> Stato &amp; audit</button>
+    <button class="nav-item diag-toggle" id="diagToggle" style="margin-top:14px"><span class="ic" data-ic="gear" data-ics="15"></span> ⚙ Diagnostica <span class="badge" id="b-improve">0</span></button>
+    <div id="diagGroup" class="diag-group" hidden>
+      <button class="nav-item" data-view="improve"><span class="ic" data-ic="check" data-ics="15"></span> Miglioramenti</button>
+      <button class="nav-item" data-view="insights"><span class="ic" data-ic="signal" data-ics="15"></span> Segnali</button>
+      <button class="nav-item" data-view="learning"><span class="ic" data-ic="spark" data-ics="15"></span> Apprendimento <span class="badge" id="b-learning">0</span></button>
+      <button class="nav-item" data-view="dashboard"><span class="ic" data-ic="dash" data-ics="15"></span> Dashboard</button>
+      <button class="nav-item" data-view="cruscotto"><span class="ic" data-ic="coins" data-ics="15"></span> Cruscotto FORMA</button>
+      <button class="nav-item" data-view="usage"><span class="ic" data-ic="coins" data-ics="15"></span> Uso &amp; costi</button>
+      <button class="nav-item" data-view="events"><span class="ic" data-ic="list" data-ics="15"></span> Eventi</button>
+      <button class="nav-item" data-view="tenants"><span class="ic" data-ic="key" data-ics="15"></span> Chiavi tenant</button>
+      <button class="nav-item" data-view="scopes"><span class="ic" data-ic="layers" data-ics="15"></span> Scope (tecnico)</button>
+      <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="15"></span> Stato &amp; audit</button>
+    </div>
 
     <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07k · ondata A</div>
   </aside>
@@ -397,8 +430,8 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
     <button data-bv="home"><span data-ic="world" data-ics="20"></span>Mondo</button>
     <button data-bv="chat"><span data-ic="chat" data-ics="20"></span>Chat</button>
     <button data-bv="brain"><span data-ic="brain" data-ics="20"></span>Cervello</button>
-    <button data-bv="tasks"><span data-ic="check" data-ics="20"></span>Task</button>
-    <button data-bv="proposals"><span data-ic="shield" data-ics="20"></span>Audit</button>
+    <button data-bv="agents"><span data-ic="sparks" data-ics="20"></span>Squadra</button>
+    <button data-bv="improve"><span data-ic="check" data-ics="20"></span>Diagnosi</button>
   </nav>
 
   <div class="main">
@@ -413,9 +446,14 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
       </div>
     </header>
     <div id="brainAlert" hidden></div>
+    <div id="subnav" class="orbit-tabs"></div>
     <main class="content" id="content"></main>
   </div>
+  <!-- V2 · Fase 5: la chat SEMPRE presente — un solo DOM, vive fuori da
+       #content: route() non può smontarla, la conversazione resta. -->
+  <aside class="sidechat" id="sideChat" aria-label="Chat con Divina"></aside>
 </div>
+<button id="chatRiapri" title="Apri la chat con Divina">💬</button>
 
 <div class="modal-back" id="connModal"><div class="modal">
   <h3>Connessione a Divina</h3>
@@ -685,7 +723,9 @@ const VIEWS={
           ${!connected?`<button class="btn" onclick="openConn()">${icon('plug',16)} Connetti i servizi</button>`:''}
         </div>
       </div>
-    </div>`;
+    </div>
+    <div class="grid g-2" id="homeWidgets" style="margin-top:14px"></div>`;
+    caricaHomeWidgets();
     const sub=$('#homeSub');
     /* M5 · UN numero solo per un dato solo: i neuroni si contano in UN posto
        (stats.notes di /admin/brain, la stessa fonte del Cervello vivo). Il
@@ -758,28 +798,89 @@ const VIEWS={
     renderImprove();
   },
 
+  /* ---------- CLIENTI (Fase 8: le schede coi numeri in vista) ---------- */
+  async clienti(){
+    C.innerHTML=skeleton(4);
+    let notes=[];try{const r=await api('engine','/admin/brain/notes?'+q({limit:500}));notes=r.notes||[];}catch(_){}
+    let acc=[];try{const r=await api('engine','/admin/clients');acc=r.clients||[];}catch(_){}
+    const cli={};
+    notes.forEach(n=>{const m=(n.path||'').match(/^forma\/clienti\/([^/]+)\//);if(!m)return;
+      const c=cli[m[1]]=cli[m[1]]||{id:m[1],label:m[1],n:0,ultimo:''};
+      c.n++;if((n.updated_at||'')>c.ultimo)c.ultimo=n.updated_at||'';
+      if(n.slug==='cliente-'+m[1])c.label=(n.title||m[1]).replace(/^Cliente\s*[—–-]?\s*/i,'');});
+    const righe=Object.values(cli).sort((a2,b2)=>b2.n-a2.n);
+    C.innerHTML=`
+    <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>I tuoi clienti</h3><p>Divina di FORMA vede tutto; ogni cliente vede SOLO la propria sfera — il confine è un filtro sul database, non una preferenza</p></div><button class="btn primary sm" id="cliAdd">+ Aggiungi cliente</button></div>
+    ${righe.length?`<div class="grid g-2">${righe.map(c=>`<div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div><h3 style="font-size:15px">${esc(c.label)}</h3><p class="mono small">forma/clienti/${esc(c.id)}/</p></div><span class="pill" title="note nel cervello — il numero che conta, in vista">${c.n} not${c.n===1?'a':'e'}</span></div><div class="small ${c.n<3?'':'muted'}" ${c.n<3?'style="color:var(--orange)"':''}>${c.n<3?'scheda quasi vuota — il valore del cervello si costruisce qui':'scheda viva'}${c.ultimo?' · aggiornata '+timeAgoIso(c.ultimo):''}</div></div>`).join('')}</div>`
+    :emptyBox(icon('key',36),'Nessuna cartella cliente nel cervello','Le schede vivono in forma/clienti/&lt;nome&gt;/ — aggiungi il primo cliente qui sopra, o lancia una ingest se il vault le ha già.')}
+    </div>
+    <div class="card"><div class="card-head"><div><h3>Accessi cliente</h3><p>Email + codice a 6 cifre, gestiti da FORMA</p></div><button class="btn sm" onclick="route('tenants')">Chiavi tenant →</button></div>
+    ${acc.length?`<div class="tbl-wrap"><table><thead><tr><th>Email</th><th>Nome</th><th>Stato</th><th>Ultimo accesso</th></tr></thead><tbody>${acc.map(a2=>`<tr><td>${esc(a2.email)}</td><td>${esc(a2.display_name||'')}</td><td><span class="tag ${a2.locked?'mut':'pos'}">${a2.locked?'bloccato':esc(a2.status||'attivo')}</span></td><td class="small muted">${a2.last_login_at?timeAgoIso(a2.last_login_at):'mai entrato'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="small muted">Nessun accesso cliente ancora creato.</div>'}</div>`;
+    $('#cliAdd').onclick=cliAggiungi;
+  },
+
+  /* ---------- INTEGRAZIONI (Fase 10.3/10.4: catalogo ASTRATTO + consenso) ---------- */
+  async integrazioni(){
+    const CAT=[
+      {id:'gmail',n:'Gmail',c:'Comunicazione',d:'bozze email preparate dagli agenti — mai inviate senza di te'},
+      {id:'gcal',n:'Google Calendar',c:'Calendario',d:'il widget di casa si accende coi tuoi impegni'},
+      {id:'gdrive',n:'Google Drive',c:'Documenti',d:'i documenti generati finiscono nelle tue cartelle'},
+      {id:'notion',n:'Notion',c:'Documenti',d:'schede e pagine sincronizzate'},
+      {id:'linkedin',n:'LinkedIn',c:'Social',d:'i post di Beatrice pronti da pubblicare'},
+      {id:'ig',n:'Instagram',c:'Social',d:'reel e caroselli programmati'},
+      {id:'stripe',n:'Stripe',c:'Pagamenti',d:'incassi e fatture sotto gli occhi di Dante'},
+      {id:'whatsapp',n:'WhatsApp Business',c:'Comunicazione',d:'risposte ai clienti nel loro canale'},
+    ];
+    const filtro=state._intF||(state._intF={q:'',tab:'tutte'});
+    const collegate=CONNETTORE.collegate();
+    const rendi=()=>{
+      const ql=filtro.q.toLowerCase();
+      const vis=CAT.filter(i=>(filtro.tab!=='collegate'||collegate.includes(i.id))&&(!ql||(i.n+i.c+i.d).toLowerCase().includes(ql)));
+      const box=$('#intGrid');if(!box)return;
+      box.innerHTML=vis.length?vis.map(i=>`<div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div><h3 style="font-size:15px">${esc(i.n)}</h3><p>${esc(i.c)}</p></div><span class="tag ${collegate.includes(i.id)?'pos':'mut'}">${collegate.includes(i.id)?'collegata':'da collegare'}</span></div><div class="small muted">${esc(i.d)}</div><div class="row" style="margin-top:10px"><button class="btn sm" data-int="${i.id}">${collegate.includes(i.id)?'Gestisci':'Collega'}</button></div></div>`).join('')
+        :emptyBox(icon('plug',36),'Niente qui','Cambia ricerca o scheda.');
+      box.querySelectorAll('[data-int]').forEach(b=>b.onclick=()=>CONNETTORE.collega(CAT.find(i=>i.id===b.dataset.int)));
+    };
+    C.innerHTML=`
+    <div class="card"><div class="card-head"><div><h3>Integrazioni</h3><p>Ogni collegamento passa PRIMA da una schermata di consenso nostra: quali permessi, a quale agente, per fare cosa, come si revoca</p></div></div>
+    <div class="row" style="margin-bottom:12px;flex-wrap:wrap"><input id="intQ" placeholder="Cerca uno strumento…" style="max-width:260px"><span style="flex:1"></span>
+      <button class="orbit-tab ${filtro.tab==='tutte'?'active':''}" data-itab="tutte">Tutte</button>
+      <button class="orbit-tab ${filtro.tab==='collegate'?'active':''}" data-itab="collegate">Collegate (${collegate.length})</button></div>
+    <div class="grid g-2" id="intGrid"></div></div>`;
+    rendi();
+    $('#intQ').oninput=e=>{filtro.q=e.target.value;rendi();};
+    $$('[data-itab]').forEach(b=>b.onclick=()=>{filtro.tab=b.dataset.itab;route('integrazioni');});
+  },
+
+  /* ---------- IMPOSTAZIONI (Fase 7: i tre livelli + le due frasi in prima fila) ---------- */
+  async impostazioni(){
+    const liv3=localStorage.getItem('dv_liv3')==='1';
+    C.innerHTML=`
+    <div class="card" style="margin-bottom:14px;border-color:color-mix(in srgb,var(--cyan) 40%,var(--border))"><div style="font-size:16px;font-weight:800;line-height:1.6">${icon('lock',16)} Ogni azione con effetto esterno passa dalla <span style="color:var(--cyan)">tua approvazione</span>.<br>${icon('brain',16)} Ogni risposta <span style="color:var(--magenta)">cita le fonti</span> da cui viene.</div><div class="small muted" style="margin-top:6px">Sono i due motivi per cui Divina si può usare per lavoro vero. Quello che ci distingue va mostrato, non confessato.</div></div>
+    <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Cosa può fare Divina</h3><p>Tre livelli, in ordine di rischio. Non serve sapere cosa sia uno «scope»: leggere · costruire · toccare il mondo fuori.</p></div></div>
+      <div class="perm-row"><div><b>1 · Azioni base</b><div class="small muted">leggere e cercare nel cervello, preparare note (con la tua conferma), assegnare compiti agli agenti</div></div><span class="tag pos">sempre attivo</span></div>
+      <div class="perm-row"><div><b>2 · Costruire e configurare</b><div class="small muted">creare capacità, orbite e cruscotti dentro la console</div></div><span class="tag pos">sempre attivo</span></div>
+      <div class="perm-row"><div><b>3 · Cancellare e agire fuori</b><div class="small muted">inviare email, pubblicare, scrivere su strumenti esterni — <b>anche da acceso, ogni azione resta ferma finché non la approvi tu</b> (la coda di approvazione non si può scavalcare)</div></div><button class="btn sm ${liv3?'':'primary'}" id="liv3Btn">${liv3?'Acceso — spegni':'Spento (consigliato) — accendi'}</button></div>
+      <div class="small muted" style="margin-top:8px">Il livello 3 spento è il default, anche per i pannelli cliente: da spento, le azioni esterne non si accodano nemmeno.</div></div>
+    <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Connessione e aspetto</h3><p>URL, token e chiave tenant restano nel tuo browser</p></div></div>
+      <div class="row" style="flex-wrap:wrap"><button class="btn sm" onclick="openConn()">${icon('plug',14)} Connessione…</button><button class="btn sm" onclick="setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark')">Tema chiaro/scuro</button><button class="btn sm" onclick="route('usage')">Uso &amp; costi →</button><button class="btn sm" onclick="route('system')">Stato &amp; audit →</button></div></div>
+    <div class="card"><div class="card-head"><div><h3>Divina sul telefono</h3><p>La console si installa come app: niente store, niente attese</p></div></div>
+      <div class="row" style="flex-wrap:wrap;margin-bottom:8px"><button class="btn sm primary" id="pwaInstall" hidden>${icon('spark',14)} Installa Divina</button><span class="small muted" id="pwaStato"></span></div>
+      <div class="small muted">Su <b>iPhone/iPad</b>: Condividi → «Aggiungi alla schermata Home». Le notifiche push su iOS arrivano <b>solo</b> se l'app è installata in Home (iOS 16.4+) — meglio saperlo prima che scoprirlo.</div></div>`;
+    const b=$('#liv3Btn');
+    b.onclick=()=>{const on=localStorage.getItem('dv_liv3')==='1';localStorage.setItem('dv_liv3',on?'0':'1');toast(on?'Livello 3 spento: le azioni esterne non si accodano più':'Livello 3 acceso: le azioni esterne si POSSONO accodare — ma nessuna parte senza la tua approvazione','info');route('impostazioni');};
+    pwaBottone();
+  },
+
   /* ---------- CHAT ---------- */
   async chat(){
+    /* V2 · Fase 5: 'chat' non è più una vista — è il pannello SEMPRE presente.
+       La rotta resta valida (nessun link si rompe): route() la intercetta e
+       apre il pannello. Qui si arriva solo in MODALITÀ CLIENTE, dove la chat
+       resta l'unica cosa e occupa il contenuto, come prima. */
     C.classList.add('chatmode');
-    C.innerHTML=`<div class="chat"><div class="orbbar"><canvas id="orbCv"></canvas><div><div class="orb-state" id="orbState">Inattivo</div><div class="orb-agent" id="orbAgent">agente attivo · Divina</div></div><div class="orb-picks" id="orbPicks"><button class="orb-pick" data-oc="divina" title="Smistamento automatico">${icon('spark',12)} Divina</button><button class="orb-pick" data-oc="dante" title="Finanza & numeri">Dante</button><button class="orb-pick" data-oc="virgilio" title="Legale & operazioni">Virgilio</button><button class="orb-pick" data-oc="beatrice" title="Marketing & contenuti">Beatrice</button></div><div class="orb-gov">${icon('lock',12)} ogni azione con effetto esterno passa dalla tua approvazione</div></div><div class="orbits" id="orbitStrip"></div><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
-      <div id="focusBar"></div>
-      <div class="composer"><div class="composer-inner">
-        <textarea id="chatMsg" placeholder="Scrivi o detta al cervello… (Invio per inviare, Shift+Invio a capo)" rows="1"></textarea>
-        <button class="btn" id="voxBtn" title="Modo vocale a tutto schermo — parla con Divina" style="white-space:nowrap">${icon('mic',15)} Parla</button>
-        <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">${icon('mic',18)}</button>
-        <button class="icon-btn" id="chatTts" title="Lettura vocale delle risposte">${icon(state.tts?'speakon':'speakoff',18)}</button>
-        <button class="btn primary" id="chatSend" style="min-width:52px">${icon('send',18)}</button></div></div></div>`;
-    renderChat();
-    const ta=$('#chatMsg');
-    ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(160,ta.scrollHeight)+'px';});
-    ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
-    $('#chatSend').onclick=sendChat;initVoice();initOrb();
-    const vb=$('#voxBtn');if(vb)vb.onclick=voxOpen;
-    loadOrbite();renderFocusBar();
-    $$('#orbPicks .orb-pick').forEach(b=>b.onclick=()=>pickComp(b.dataset.oc));
-    pickComp(state._compSel||'divina');
-    if(!state.demo&&!state.tenantKey&&!state.clientMode){const st=$('#orbState');if(st)st.textContent='In attesa di connessione';}
-    ta.focus();
+    C.innerHTML=chatTemplate();
+    wireChat();
   },
 
   /* ---------- CRUSCOTTO FORMA (migrato dal portale cervello.formahub.it) ----------
@@ -1113,6 +1214,117 @@ async function salvaScrivi(){
     state._salva=null;renderChat();
   }catch(e){toast('✕ '+e.message,'bad');}
 }
+/* ── V2 · Fase 5: il DOM della chat, costruito UNA volta ────────────────── */
+function chatTemplate(){
+  return `<div class="chat" id="chatWrap"><div class="orbbar"><canvas id="orbCv"></canvas><div><div class="orb-state" id="orbState">Inattivo</div><div class="orb-agent" id="orbAgent">agente attivo · Divina</div></div><div class="orb-picks" id="orbPicks"><button class="orb-pick" data-oc="divina" title="Smistamento automatico">${icon('spark',12)} Divina</button><button class="orb-pick" data-oc="dante" title="Finanza & numeri">Dante</button><button class="orb-pick" data-oc="virgilio" title="Legale & operazioni">Virgilio</button><button class="orb-pick" data-oc="beatrice" title="Marketing & contenuti">Beatrice</button></div><div class="orb-gov">${icon('lock',12)} ogni azione con effetto esterno passa dalla tua approvazione</div></div><div class="orbits" id="orbitStrip"></div><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
+      <div id="focusBar"></div>
+      <div class="composer"><div class="composer-inner">
+        <textarea id="chatMsg" placeholder="Scrivi o detta al cervello… (Invio per inviare, Shift+Invio a capo)" rows="1"></textarea>
+        <button class="btn" id="voxBtn" title="Modo vocale a tutto schermo — parla con Divina" style="white-space:nowrap">${icon('mic',15)} Parla</button>
+        <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">${icon('mic',18)}</button>
+        <button class="icon-btn" id="chatTts" title="Lettura vocale delle risposte">${icon(state.tts?'speakon':'speakoff',18)}</button>
+        <button class="btn primary" id="chatSend" style="min-width:52px">${icon('send',18)}</button></div></div></div>`;
+}
+function wireChat(){
+  renderChat();
+  const ta=$('#chatMsg');if(!ta)return;
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(160,ta.scrollHeight)+'px';});
+  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
+  $('#chatSend').onclick=sendChat;initVoice();initOrb('orbCv');
+  const vb=$('#voxBtn');if(vb)vb.onclick=voxOpen;
+  loadOrbite();renderFocusBar();
+  $$('#orbPicks .orb-pick').forEach(b=>b.onclick=()=>pickComp(b.dataset.oc));
+  pickComp(state._compSel||'divina');
+  if(!state.demo&&!state.tenantKey&&!state.clientMode){const st=$('#orbState');if(st)st.textContent='In attesa di connessione';}
+}
+function buildChatPanel(){
+  const el=document.getElementById('sideChat');
+  if(!el||state._chatDom||state.clientMode)return;
+  state._chatDom=true;
+  el.innerHTML=`<div class="ct-head"><div class="ct-tabs" id="chatTabs"></div><button class="icon-btn" id="chatShrink" title="Riduci il pannello (si riapre col bottone in basso a destra)">✕</button></div><div class="ct-resizer" id="chatResizer" title="Trascina per allargare o stringere"></div><div class="ct-body"><div id="agentPane" hidden></div>${chatTemplate()}</div>`;
+  wireChat();renderChatTabs();
+  document.getElementById('chatShrink').onclick=chiudiChat;
+  document.getElementById('chatRiapri').onclick=()=>apriChat(true);
+  /* ridimensiona col mouse (preferenza ricordata); chi non usa il mouse ha
+     comunque riduci/riapri — il drag non è mai l'unico modo */
+  const rz=document.getElementById('chatResizer');
+  rz.onmousedown=e=>{
+    e.preventDefault();
+    const move=ev=>{const w=Math.max(300,Math.min(640,innerWidth-ev.clientX));document.body.style.setProperty('--chatw',w+'px');};
+    const up=()=>{removeEventListener('mousemove',move);removeEventListener('mouseup',up);
+      localStorage.setItem('dv_chatw',getComputedStyle(document.body).getPropertyValue('--chatw').trim());};
+    addEventListener('mousemove',move);addEventListener('mouseup',up);
+  };
+  rz.ondblclick=()=>{document.body.style.removeProperty('--chatw');localStorage.removeItem('dv_chatw');};
+  const w=localStorage.getItem('dv_chatw');if(w)document.body.style.setProperty('--chatw',w);
+}
+function apriChat(focus){
+  if(state.clientMode)return;
+  if(innerWidth<=1100){document.body.classList.add('chat-mobile');}
+  else{document.body.classList.add('chat-aperta');document.body.classList.remove('chat-chiusa');localStorage.setItem('dv_chat','1');}
+  if(focus){const ta=$('#chatMsg');if(ta)ta.focus();}
+  if(state._orbKick)state._orbKick();
+}
+function chiudiChat(){
+  if(innerWidth<=1100){document.body.classList.remove('chat-mobile');return;}
+  document.body.classList.remove('chat-aperta');document.body.classList.add('chat-chiusa');localStorage.setItem('dv_chat','0');
+}
+/* ── Le TAB per interlocutore: DIVINA sempre, i companion SOLO quando
+   lavorano — «attivi a seconda del lavoro che sta svolgendo, oppure non
+   ci sono». La tab di un agente mostra il brief che ha ricevuto, la
+   traccia e il risultato; «Visto, chiudi» la fa sparire. ── */
+function agLavora(agent,info){
+  if(!agent||agent==='divina')return;
+  state._agLavori=state._agLavori||{};
+  const L=state._agLavori[agent]=state._agLavori[agent]||{trace:[]};
+  Object.assign(L,info,{done:false});
+  renderChatTabs();
+}
+function agFinisce(agent,info){
+  if(!agent||agent==='divina')return;
+  state._agLavori=state._agLavori||{};
+  const L=state._agLavori[agent]=state._agLavori[agent]||{trace:[]};
+  Object.assign(L,info,{done:true});
+  renderChatTabs();if(state._tabAttiva===agent)renderTabPane();
+}
+function renderChatTabs(){
+  const el=document.getElementById('chatTabs');if(!el)return;
+  const lav=state._agLavori||{};
+  const att=state._tabAttiva||'divina';
+  el.innerHTML=[`<button class="ct-tab ${att==='divina'?'active':''}" data-ct="divina">DIVINA</button>`]
+    .concat(Object.keys(lav).map(a2=>{const L=lav[a2];const col=ORB_COLS[a2]||'';
+      return `<button class="ct-tab ${att===a2?'active':''}" data-ct="${a2}" style="${att===a2?'':'color:'+col+';'}border-color:${col}66">${a2.toUpperCase()} ${L.done?'●':'⋯'}</button>`;})).join('');
+  el.querySelectorAll('[data-ct]').forEach(b=>b.onclick=()=>{state._tabAttiva=b.dataset.ct;renderChatTabs();renderTabPane();});
+}
+function renderTabPane(){
+  const pane=document.getElementById('agentPane'),wrap=document.getElementById('chatWrap');
+  if(!pane||!wrap)return;
+  const a2=state._tabAttiva||'divina';
+  if(a2==='divina'||!(state._agLavori||{})[a2]){pane.hidden=true;wrap.style.display='';renderChat();return;}
+  const L=state._agLavori[a2],col=ORB_COLS[a2]||'var(--magenta)';
+  wrap.style.display='none';pane.hidden=false;
+  pane.innerHTML=`<div class="card" style="margin:12px"><div class="card-head"><div><h3 style="color:${col}">${a2.charAt(0).toUpperCase()+a2.slice(1)}</h3><p>${L.done?'lavoro finito':'sta lavorando…'}${L.role?' · '+esc(L.role):''}</p></div>${L.done?`<button class="btn sm" id="agVisto">Visto, chiudi</button>`:''}</div>
+    <div class="small"><b>Brief ricevuto</b><div class="muted" style="margin:4px 0 10px">${esc(L.brief||'—')}</div>
+    <b>Traccia</b>${(L.trace||[]).map(t=>`<div class="trace-line">✓ ${esc(t)}</div>`).join('')||'<div class="muted">in corso…</div>'}
+    ${L.output?`<div style="margin-top:10px"><b>Risultato</b><pre class="mono small" style="white-space:pre-wrap;margin-top:4px">${esc(String(L.output).slice(0,1500))}</pre></div>`:''}</div></div>`;
+  const v=document.getElementById('agVisto');
+  if(v)v.onclick=()=>{delete state._agLavori[a2];state._tabAttiva='divina';renderChatTabs();renderTabPane();};
+}
+/* Chip → NOTA: dalla chat si apre la nota vera (letta ADESSO dal cervello),
+   col ponte verso il neurone nel Cervello vivo. Non si incolla il contenuto
+   in chat: si crea l'oggetto e si dà il collegamento. */
+async function apriNota(slug){
+  let doc=null;
+  try{doc=await api('engine','/document?slug='+encodeURIComponent(slug),{auth:false,tenantKey:true});}catch(_){}
+  if(!doc||!doc.text){state._pendingFire=slug;route('brain');return;}   // fallback: il neurone
+  const back=document.createElement('div');back.className='modal-back open';
+  back.innerHTML=`<div class="modal" style="max-width:720px"><div class="card-head"><div><h3>${esc(doc.title||slug)}</h3><p class="mono small">${esc(doc.path||slug)} · dal cervello, adesso</p></div><div class="row" style="gap:6px"><button class="btn sm" id="ntCervello">Nel Cervello vivo</button><button class="btn sm ghost" id="ntChiudi">Chiudi</button></div></div><pre class="mono small" style="white-space:pre-wrap;color:var(--text);margin-top:10px">${esc(doc.text)}</pre></div>`;
+  document.body.appendChild(back);
+  const via=()=>back.remove();
+  back.onclick=e=>{if(e.target===back)via();};
+  back.querySelector('#ntChiudi').onclick=via;
+  back.querySelector('#ntCervello').onclick=()=>{via();state._pendingFire=slug;route('brain');};
+}
 function renderChat(){
   const inner=$('#chatInner');if(!inner)return;
   if(!state.chat.length){
@@ -1130,10 +1342,11 @@ function renderChat(){
     const bb=bubbleHtml(m.text);
     const salva=(!state.clientMode&&!state.demo&&m.text&&!m.text.startsWith('✕'))
       ?`<button class="btn sm ghost" id="sv-${i}" onclick="salvaForm(${i})" style="margin-top:6px;min-height:28px;padding:2px 10px">${icon('doc',12)} Salva nel cervello</button>`:'';
-    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${bb.h}</div>${bb.fuori?`<div class="small" style="color:var(--orange);margin-top:4px">${icon('alert',11)} le parti evidenziate NON vengono dal cervello: ragionamento, non fonte</div>`:''}${src?`<div class="sources">${src}</div>`:''}${salva}</div></div>`;
+    const traccia=(m.trace||[]).length?`<div style="margin-top:5px">${m.trace.map(t=>`<div class="trace-line">✓ ${esc(t)}</div>`).join('')}</div>`:'';
+    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${bb.h}</div>${bb.fuori?`<div class="small" style="color:var(--orange);margin-top:4px">${icon('alert',11)} le parti evidenziate NON vengono dal cervello: ragionamento, non fonte</div>`:''}${traccia}${src?`<div class="sources">${src}</div>`:''}${salva}</div></div>`;
   }).join('');
   const sc=$('#chatScroll');if(sc)sc.scrollTop=sc.scrollHeight;
-  $$('#chatInner [data-fire]').forEach(p=>p.onclick=()=>{state._pendingFire=p.dataset.fire;route('brain');});
+  $$('#chatInner [data-fire]').forEach(p=>p.onclick=()=>apriNota(p.dataset.fire));
 }
 async function sendChat(){
   const ta=$('#chatMsg');if(!ta)return;const text=ta.value.trim();if(!text)return;
@@ -1150,12 +1363,25 @@ async function sendChat(){
   if(state.orchOk){brainTimer=setInterval(async()=>{try{
     const d=await api('orch','/agents/dispatches?limit=1');const e=(d.dispatches||[])[0];
     const el=document.getElementById('typingStatus');
-    if(el&&e&&e.at>=t0-2&&e.routed){const col=AG_COLORS[e.agent]||'var(--magenta)';el.innerHTML=`<b style="color:${col}">${icon('spark',12)} ${esc(e.agent)}</b> · ${esc(e.role||e.skill||'')} sta lavorando…`;setOrb('ragionando',e.agent);}
+    if(el&&e&&e.at>=t0-2&&e.routed){const col=AG_COLORS[e.agent]||'var(--magenta)';el.innerHTML=`<b style="color:${col}">${icon('spark',12)} ${esc(e.agent)}</b> · ${esc(e.role||e.skill||'')} sta lavorando…`;setOrb('ragionando',e.agent);agLavora(e.agent,{brief:text,role:e.role||e.skill||''});}
   }catch(_){}},1500);}
   try{
     const r=await chatTurn(text,history);
     state.chat.pop();
-    state.chat.push({role:'bot',text:r.answer,sources:r.sources});
+    /* Fase 5.3 · La TRACCIA dei tool nella conversazione: la frase corta che
+       dice cosa ha fatto — non un log tecnico. */
+    const ag=(r.sources||[]).find(s=>s.type==='agent');
+    const trace=[];
+    if(ag)trace.push(`smistata a ${ag.agent}${ag.skill?' · '+ag.skill:''}`);
+    const nFonti=(r.sources||[]).filter(s=>!s.type&&(s.slug||s.title)).length;
+    if(nFonti)trace.push(`ricerca sul cervello — ${nFonti} font${nFonti===1?'e':'i'}`);
+    if((r.web_sources||[]).length)trace.push(`ricerca web — ${r.web_sources.length} risultati`);
+    if(r.free)trace.push('ragionamento fuori dal cervello, marcato');
+    state.chat.push({role:'bot',text:r.answer,sources:r.sources,trace});
+    if(ag){
+      agFinisce(ag.agent,{output:r.answer,trace,brief:text});
+      toast(`${ag.agent.charAt(0).toUpperCase()+ag.agent.slice(1)} ha finito — apri la sua tab per il dettaglio`,'ok');
+    }
     setOrb(state.tts?null:'idle',r.agent||comp||'divina');
     speak(r.answer);
   }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'✕ '+e.message,sources:[]});setOrb('idle');}
@@ -1688,6 +1914,108 @@ async function chatApprove(tid,to){
    in testa (origine + salto di stato), righe con titolo · origine · peso ·
    data di chiusura. Nessuna sotto-scheda da scegliere prima di capire. ── */
 const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)']};
+/* ── Fase 10 · I widget di casa: i VUOTI parlano — dicono cosa ci finirà
+   dentro e come farcelo arrivare, mai uno zero muto. ── */
+async function caricaHomeWidgets(){
+  const box=document.getElementById('homeWidgets');if(!box)return;
+  const [ft,disp,contra]=await Promise.all([
+    api('engine','/admin/tasks?status=fatta&limit=3').catch(()=>null),
+    api('orch','/agents/dispatches?limit=3').catch(()=>null),
+    api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'})).catch(()=>null)]);
+  if(!document.getElementById('homeWidgets'))return;
+  const ora=new Date();
+  const fatte=((ft&&ft.tasks)||[]).filter(t=>t.status==='fatta');
+  const dd=((disp&&disp.dispatches)||[]);
+  const nc=((contra&&contra.contradictions)||[]).length;
+  box.innerHTML=`
+  <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:4px"><div><h3 style="font-size:15px">Adesso</h3><p>${esc(ora.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'}))}</p></div><span class="pill">${esc(ora.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))}</span></div>
+    <div class="small muted">Il calendario si accende quando colleghi il tuo: <a href="#" onclick="route('integrazioni');return false" style="color:var(--cyan)">porta Integrazioni → Google Calendar</a>.</div></div>
+  <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:4px"><div><h3 style="font-size:15px">La squadra</h3><p>Dante · Virgilio · Beatrice</p></div></div>
+    ${dd.length?dd.slice(0,3).map(e2=>`<div class="small" style="margin-top:4px"><b style="color:${AG_COLORS[e2.agent]||'var(--text-2)'}">${esc(e2.agent||'—')}</b> · ${esc(e2.role||e2.skill||'')} <span class="muted">${e2.esito?'· '+esc(e2.esito):''}</span></div>`).join('')
+      :'<div class="small muted">Nessuno al lavoro in questo momento. Si attivano quando affidi loro qualcosa dalla chat — e compaiono lì, come tab.</div>'}</div>
+  <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:4px"><div><h3 style="font-size:15px">Fatte di recente</h3><p>il lavoro che si vede</p></div></div>
+    ${fatte.length?fatte.map(t=>`<div class="small" style="margin-top:4px">✓ ${esc(t.title)} <span class="muted">${t.closed_by?'· '+esc(t.closed_by):''} ${t.closed_at?'· '+timeAgoIso(t.closed_at):''}</span></div>`).join('')
+      :'<div class="small muted">Le task chiuse compariranno qui, con chi le ha chiuse. Si chiudono da Diagnostica → Miglioramenti.</div>'}</div>
+  <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:4px"><div><h3 style="font-size:15px">Contraddizioni</h3><p>il cervello che si controlla</p></div></div>
+    ${nc?`<div class="small" style="color:var(--orange)">${icon('alert',12)} ${nc} da risolvere — le decide un umano, mai l'automatismo. <a href="#" onclick="route('contradictions');return false" style="color:var(--orange)">Vai alla coda</a></div>`
+      :`<div class="small" style="color:var(--cyan)">✓ Nessuna contraddizione da risolvere — è una buona notizia: le note concordano fra loro.</div>`}</div>`;
+}
+/* ── Fase 8 · Aggiungi cliente: crea la SCHEDA nel cervello via /writeback,
+   sempre in due tempi (anteprima → conferma umana), mai una scrittura muta. ── */
+function cliAggiungi(){
+  const back=document.createElement('div');back.className='modal-back open';
+  back.innerHTML=`<div class="modal"><h3>Nuovo cliente</h3><p class="desc">Crea la scheda in <span class="mono">forma/clienti/&lt;cartella&gt;/</span> del cervello. Prima vedi l'anteprima, poi confermi: nessuna scrittura senza di te.</p>
+    <label class="fld"><span class="lt">Nome</span><input id="ncNome" placeholder="Home Restaurant Hotel"></label>
+    <label class="fld"><span class="lt">Cartella (scope)</span><input id="ncSlug" placeholder="home-restaurant-hotel"></label>
+    <label class="fld"><span class="lt">Referente</span><input id="ncRef" placeholder="nome e ruolo"></label>
+    <label class="fld"><span class="lt">Stato</span><select id="ncStato"><option>attivo</option><option>in trattativa</option><option>fermo</option></select></label>
+    <div id="ncOut" class="small" style="margin-top:8px"></div>
+    <div class="modal-foot"><button class="btn ghost" id="ncAnnulla">Annulla</button><button class="btn primary" id="ncAnteprima">Anteprima</button></div></div>`;
+  document.body.appendChild(back);
+  const via=()=>back.remove();
+  back.onclick=e=>{if(e.target===back)via();};
+  back.querySelector('#ncAnnulla').onclick=via;
+  const slugAuto=()=>{const n=back.querySelector('#ncNome').value.trim();const s=back.querySelector('#ncSlug');if(!s.value.trim()&&n)s.value=n.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');};
+  back.querySelector('#ncNome').addEventListener('blur',slugAuto);
+  back.querySelector('#ncAnteprima').onclick=async()=>{
+    slugAuto();
+    const nome=back.querySelector('#ncNome').value.trim(),slug=back.querySelector('#ncSlug').value.trim();
+    const ref=back.querySelector('#ncRef').value.trim(),st=back.querySelector('#ncStato').value;
+    const out=back.querySelector('#ncOut');
+    if(!nome||!slug){out.textContent='Servono nome e cartella.';return;}
+    const corpo=`# Cliente — ${nome}\n\n- Stato: ${st}\n- Referente: ${ref||'da definire'}\n- Creato dal pannello Divina\n\n## Note\n\n(da riempire — questa scheda è il posto dove il valore si accumula)`;
+    try{
+      const prev=await api('engine','/writeback',{method:'POST',auth:false,tenantKey:true,
+        body:{scope:slug,title:'Cliente — '+nome,body:corpo,origin:'conversazione',confirm:false}});
+      out.innerHTML=`<b>Anteprima</b> — ancora nessuna scrittura:<pre style="white-space:pre-wrap;font-size:11px;max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:4px">${esc(String(prev.preview||corpo).slice(0,1200))}</pre>
+        <div class="row" style="margin-top:8px"><button class="btn sm primary" id="ncScrivi">✓ Confermo: crea la scheda</button></div>`;
+      back.querySelector('#ncScrivi').onclick=async()=>{
+        try{
+          const r=await api('engine','/writeback',{method:'POST',auth:false,tenantKey:true,
+            body:{scope:slug,title:'Cliente — '+nome,body:corpo,origin:'conversazione',confirm:true}});
+          toast('Scheda creata nel cervello ('+(r.path||slug)+') · comparirà qui dopo la prossima ingest','ok');via();route('clienti');
+        }catch(e2){out.innerHTML='<span style="color:var(--neg)">✕ '+esc(e2.message)+'</span> — se lo scope non esiste ancora, la cartella va creata nel vault (o da Cowork) prima della scheda.';}
+      };
+    }catch(e2){out.innerHTML='<span style="color:var(--neg)">✕ '+esc(e2.message)+'</span>';}
+  };
+}
+/* ── Fase 10.3 · Il CONNETTORE è un'interfaccia astratta: la scelta del
+   fornitore (Composio · Pipedream · Nango · connettori nostri) è APERTA
+   (decisione GDPR di Andrea) e non entra nei componenti. Il consenso è
+   NOSTRO e viene PRIMA di qualunque OAuth — Zoey non ce l'ha, noi sì. ── */
+const CONNETTORE={
+  collegate(){try{return JSON.parse(localStorage.getItem('dv_integrazioni')||'[]');}catch(_){return [];}},
+  collega(item){
+    if(!item)return;
+    const back=document.createElement('div');back.className='modal-back open';
+    back.innerHTML=`<div class="modal"><h3>Collega ${esc(item.n)}</h3>
+      <p class="desc">Prima di qualsiasi accesso, ecco l'accordo — chiaro e revocabile:</p>
+      <div class="small" style="line-height:1.9">
+      <b>Quali permessi</b> · solo ciò che serve a «${esc(item.d)}» — niente di più.<br>
+      <b>A quale agente</b> · ${esc(item.c==='Pagamenti'?'Dante':item.c==='Social'?'Beatrice':'Divina, che delega al companion giusto')}.<br>
+      <b>Per fare cosa</b> · preparare bozze e letture; <b>ogni invio o scrittura esterna passa dalla tua approvazione</b>.<br>
+      <b>Come si revoca</b> · da questa pagina, «Gestisci → Scollega», in un clic; il fornitore riceve la revoca.</div>
+      <div class="modal-foot"><button class="btn ghost" id="cnNo">Annulla</button><button class="btn primary" id="cnSi">Ho capito, procedi</button></div></div>`;
+    document.body.appendChild(back);
+    const via=()=>back.remove();
+    back.onclick=e=>{if(e.target===back)via();};
+    back.querySelector('#cnNo').onclick=via;
+    back.querySelector('#cnSi').onclick=()=>{
+      via();
+      toast('Il consenso è pronto; il cavo non ancora. Il fornitore dei collegamenti (Composio / Pipedream / Nango / nostro) è una decisione aperta di Andrea: appena presa, questo pulsante collega davvero.','info');
+    };
+  },
+};
+/* ── Fase 9 · PWA: il prompt d'installazione si PROPONE, non si impone ── */
+let _pwaEvt=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();_pwaEvt=e;pwaBottone();});
+function pwaBottone(){
+  const b=document.getElementById('pwaInstall'),s=document.getElementById('pwaStato');
+  if(!b)return;
+  if(matchMedia('(display-mode: standalone)').matches){b.hidden=true;if(s)s.textContent='già installata ✓';return;}
+  if(_pwaEvt){b.hidden=false;b.onclick=async()=>{_pwaEvt.prompt();const r=await _pwaEvt.userChoice.catch(()=>null);if(r&&r.outcome==='accepted'){toast('Divina installata','ok');}_pwaEvt=null;pwaBottone();};}
+  else if(s)s.textContent='il browser proporrà l\'installazione quando è pronto (serve HTTPS)';
+}
 function renderImprove(){
   if(state.view!=='improve'&&!['roadmap','tasks','proposals'].includes(state.view))return;
   const items=state._impItems||[];
@@ -1845,6 +2173,13 @@ function renderAgentOut(r){
 /* Z1 (azioni fidate): la bozza del companion diventa una task 'azione' in-approvazione —
    nessun effetto esterno finché l'owner non la approva in Proposte audit. */
 async function queueAction(){
+  /* Fase 7 · Livello 3 («cancellare e agire fuori») SPENTO = default: le
+     azioni con effetto esterno non si accodano nemmeno. Acceso, si accodano
+     ma restano comunque ferme finché un umano non le approva (Z2). */
+  if(localStorage.getItem('dv_liv3')!=='1'){
+    toast('Il livello 3 (agire fuori) è spento: accendilo in Impostazioni per poter accodare azioni esterne. Anche da acceso, niente parte senza la tua approvazione.','bad');
+    return;
+  }
   const o=state._lastOut;if(!o||!o.output){toast('Nessun esito da accodare','bad');return;}
   let h=0;for(let i=0;i<o.output.length;i++){h=(h*31+o.output.charCodeAt(i))>>>0;}
   try{
@@ -1852,7 +2187,7 @@ async function queueAction(){
     setOrb('azione',o.agent);setTimeout(()=>{const ob=state._orb;if(ob&&ob.mode==='azione')setOrb('idle');},2600);
     const tid=(r.task||{}).id||'';
     state.chat.push({role:'approval',tid,agent:o.agent,title:`[${o.agent}·${o.skill}] azione proposta dal companion`});
-    if(state.view==='chat')renderChat();
+    renderChat();   // la chat è sempre presente: l'approvazione si vede subito
     toast('Azione accodata: decidi qui in chat o in Proposte audit','ok');refreshBadges();
   }catch(e){toast(e.message,'bad');}
 }
@@ -1888,26 +2223,63 @@ function newClientForm(){
 }
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],improve:['Miglioramenti','Da fare · in corso · fatte — audit, roadmap, proposte e gap in un posto solo'],proposals:['Miglioramenti','Da fare · in corso · fatte'],roadmap:['Miglioramenti','Da fare · in corso · fatte'],tasks:['Miglioramenti','Da fare · in corso · fatte'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Tenant','Onboarding & accessi'],agents:['Agenti & skill','I 3 archetipi'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],improve:['Miglioramenti','Da fare · in corso · fatte — audit, roadmap, proposte e gap in un posto solo'],proposals:['Miglioramenti','Da fare · in corso · fatte'],roadmap:['Miglioramenti','Da fare · in corso · fatte'],tasks:['Miglioramenti','Da fare · in corso · fatte'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Chiavi tenant','Onboarding & accessi'],agents:['Squadra','Divina e i tre companion — le capacità, la regia, il router'],clienti:['Clienti','Le schede, le note e gli accessi di ogni cliente'],integrazioni:['Integrazioni','Gli strumenti collegati al tuo mondo'],impostazioni:['Impostazioni','Permessi, connessione, tema, installazione'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 VIEWS.roadmap=VIEWS.tasks=VIEWS.proposals=VIEWS.improve;   // M1: tre nomi, una vista
+/* Le viste che non stanno più nel menu si evidenziano sulla loro PORTA. */
+const VIEW_PORTA={nodes:'brain',docs:'brain',contradictions:'brain',live:'agents',router:'agents',
+                  tasks:'improve',proposals:'improve',roadmap:'improve',clients:'clienti'};
 function route(view){
   if(state.clientMode)view='chat';   /* modalità cliente: esiste solo la chat */
+  /* V2 · Fase 5: 'chat' apre il pannello sempre presente e la vista resta
+     quella corrente — nessun link salvato si rompe. */
+  if(view==='chat'&&!state.clientMode){
+    apriChat(true);
+    view=(state.view&&state.view!=='chat')?state.view:'home';
+    if(view===state.view){return;}                 // pannello aperto, vista invariata
+  }
   if(state._vox&&state._vox.open){console.info('[vox] chiusura richiesta da route('+view+')');voxClose();}
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
   if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}   /* B1: mai animazioni accumulate */
   state._brainOn=false;
-  if(state._orb)state._orb.on=false;
-  
+  /* il pannello chat vive FUORI da #content: il suo orb non si spegne mai qui */
+  if(state._orb){
+    const oel=document.getElementById(state._orb.cvId);
+    if(!oel||C.contains(oel))state._orb.on=false;
+  }
   stopVoice();
-  state.view=view;$$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view));
-  $$('.bottombar button').forEach(b=>b.classList.toggle('active',b.dataset.bv===view));
+  state.view=view;
+  const evid=VIEW_PORTA[view]||view;
+  $$('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===view||n.dataset.view===evid));
+  $$('.bottombar button').forEach(b=>b.classList.toggle('active',b.dataset.bv===view||b.dataset.bv===evid));
   const [t,s]=TITLES[view]||['',''];$('#pageTitle').textContent=t;$('#pageSub').textContent=s;
   $('#side').classList.remove('open');$('#sideBackdrop').classList.remove('open');
-  C.classList.toggle('chatmode',view==='chat');
+  C.classList.toggle('chatmode',state.clientMode&&view==='chat');
+  /* Fase 4 · la porta Cervello e la porta Squadra hanno viste sorelle:
+     si vedono MENTRE si guarda, non da un menu a parte */
+  const SUBNAV={brain:[['brain','Cervello vivo'],['nodes','Nodi wiki'],['docs','Documenti'],['contradictions','Contraddizioni']],
+                agents:[['agents','Capacità'],['live','Regia live'],['router','Router / esegui']]};
+  const fam=SUBNAV[view]||SUBNAV[VIEW_PORTA[view]]||null;
+  const sn=$('#subnav');
+  if(fam){sn.classList.add('on');sn.innerHTML=fam.map(([v2,l])=>`<button class="orbit-tab ${v2===view?'active':''}" data-sn="${v2}">${l}</button>`).join('');
+    sn.querySelectorAll('[data-sn]').forEach(b=>b.onclick=()=>route(b.dataset.sn));}
+  else{sn.classList.remove('on');sn.innerHTML='';}
   (VIEWS[view]||VIEWS.home)();
+  /* dopo il cambio vista, il pannello riprende il SUO orb (se nessuna vista
+     lo ha reclamato) — init idempotente: nessun doppione */
+  if(state._chatDom&&document.getElementById('orbCv')&&(!state._orb||!state._orb.on))initOrb('orbCv');
 }
 $$('.nav-item').forEach(n=>n.onclick=()=>route(n.dataset.view));
-$$('.bottombar button').forEach(b=>b.onclick=()=>route(b.dataset.bv));
+$('#diagToggle').onclick=()=>{
+  const g=$('#diagGroup');g.hidden=!g.hidden;
+  localStorage.setItem('dv_diag',g.hidden?'0':'1');
+  $('#diagToggle').classList.toggle('active',!g.hidden&&false);
+};
+if(localStorage.getItem('dv_diag')==='1')$('#diagGroup').hidden=false;
+$$('.bottombar button').forEach(b=>b.onclick=()=>{
+  if(b.dataset.bv==='chat'&&!state.clientMode){document.body.classList.toggle('chat-mobile');const ta=$('#chatMsg');if(ta&&document.body.classList.contains('chat-mobile'))ta.focus();return;}
+  document.body.classList.remove('chat-mobile');
+  route(b.dataset.bv);
+});
 $('#refreshBtn').onclick=()=>route(state.view);
 $('#burger').onclick=()=>{$('#side').classList.toggle('open');$('#sideBackdrop').classList.toggle('open');};
 $('#sideBackdrop').onclick=()=>{$('#side').classList.remove('open');$('#sideBackdrop').classList.remove('open');};
@@ -2026,10 +2398,19 @@ function bootDone(){
     if(location.hash==='#cliente'){renderClientLogin();return;}
     if(await tryClientMode())return;
     $('#tenantText').textContent=state.tenant;
+    /* V2 · Fase 5: la chat nasce col pannello, una volta sola, e su desktop
+       è aperta di default (preferenza ricordata). */
+    buildChatPanel();
+    if(innerWidth>1100&&localStorage.getItem('dv_chat')!=='0')apriChat(false);
+    else if(innerWidth>1100)document.body.classList.add('chat-chiusa');
     await checkConn();
     refreshBadges();setInterval(refreshBadges,60000);
     if(!state.engOk&&!state.orchOk&&!state.demo)openConn();
     route('home');
+    /* Fase 9 · service worker: solo su http(s), mai da file:// (guardiano) */
+    if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    }
   }finally{bootDone();}   // anche se il boot inciampa, la console non resta spenta
 })();
 </script>
