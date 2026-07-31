@@ -83,6 +83,19 @@ function trovaChromium() {
     await page.waitForTimeout(350);
   }
 
+  // 1b · X3: nella vista Miglioramenti il quadro di potenziamento si legge
+  //      e disegna (collegamento vivo alla nota del cervello; in demo, la
+  //      variante demo). Se il fetch o il parsing esplodono, qui manca il box
+  //      o il bottone «Apri la nota».
+  await page.evaluate(() => route("improve"));
+  await page.waitForTimeout(600);
+  const quadro = await page.evaluate(() => ({
+    box: !!document.getElementById("quadroBox"),
+    apri: !!document.getElementById("quadroApri"),
+  }));
+  await page.evaluate(() => route("chat"));
+  await page.waitForTimeout(300);
+
   // 2 · il modo vocale si apre e l'ORB DISEGNA (pixel ≠ fondo)
   await page.click("#voxBtn");
   await page.waitForTimeout(1000);
@@ -133,6 +146,7 @@ function trovaChromium() {
   if (!boot.hint) { console.error("FAIL (P3): manca #bootHint nell'HTML statico"); ko = 1; }
   if (!bootRiga) { console.error("FAIL (P3): nessuna riga [boot] in console — la misura del boot è sparita"); ko = 1; }
   else console.log("[boot misurato] " + bootRiga);
+  if (!quadro.box || !quadro.apri) { console.error("FAIL (X3): il quadro di potenziamento non si disegna in Miglioramenti (box=" + quadro.box + ", apri=" + quadro.apri + ")"); ko = 1; }
   if (!vox.aperto) { console.error("FAIL: il modo vocale non si è aperto"); ko = 1; }
   else if (vox.canvas && vox.px <= 200 && !vox.css) {
     console.error(`FAIL: l'orb NON disegna (canvas ${vox.w}x${vox.h}, cssW=${vox.cssW}, px=${vox.px})`); ko = 1;

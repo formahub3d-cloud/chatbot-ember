@@ -92,3 +92,37 @@ def test_seed_bis_rilanciato_non_duplica_e_convive_col_primo(post):
     prima = len(braintasks._mem)
     mod2.seed(post)                          # rilancio del bis: zero duplicati
     assert len(braintasks._mem) == prima == 15   # 8 del primo + 7 del bis
+
+
+def _carica_seed_ter():
+    spec = importlib.util.spec_from_file_location(
+        "seed_audit_ter", ROOT / "scripts" / "seed_audit_2026_07_31_ter.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["seed_audit_ter"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_seed_ter_crea_le_sei_task_tutte_da_fare(post):
+    """X2: terzo seed, file NUOVO (i primi due restano riproducibili com'erano);
+    6 task 16-21, tutte DA FARE (nessuna nasce in corso), la 19 è solo Andrea."""
+    mod = _carica_seed_ter()
+    esiti = mod.seed(post)
+    assert len(esiti) == 6
+    assert [e["key"] for e in esiti] == [f"audit-2026-07-31-{n}" for n in range(16, 22)]
+    assert all(e["status"] == "aperta" for e in esiti)
+    titoli = [t["title"] for t in braintasks._mem]
+    assert "Una conversazione normale, non solo risposte dal cervello" in titoli
+    assert "Il case study viene da Centioni, non da ATS" in titoli
+    note19 = [t["note"] for t in braintasks._mem
+              if t.get("idempotency_key") == "audit-2026-07-31-19"][0]
+    assert note19.startswith("SOLO ANDREA")
+    assert all(t["kind"] == "audit" for t in braintasks._mem)
+
+
+def test_seed_ter_rilanciato_non_duplica_e_convive_con_gli_altri(post):
+    mod1, mod2, mod3 = _carica_seed(), _carica_seed_bis(), _carica_seed_ter()
+    mod1.seed(post); mod2.seed(post); mod3.seed(post)
+    prima = len(braintasks._mem)
+    mod3.seed(post)                          # rilancio del ter: zero duplicati
+    assert len(braintasks._mem) == prima == 21   # 8 + 7 + 6

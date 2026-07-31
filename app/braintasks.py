@@ -128,12 +128,16 @@ def list_open(limit: int = 100, status: str = "") -> list[dict]:
         return [dict(t) for t in reversed(_mem) if t["status"] in wanted][:limit]
 
 
-def transition(task_id: str, to: str, by: str = "", error: str = "") -> bool:
+def transition(task_id: str, to: str, by: str = "", error: str = "",
+               note: str = "") -> bool:
     """Muove una task lungo la macchina a stati (TRANSITIONS). Le decisioni umane
     ('approvata', 'fatta', 'archiviata') richiedono `by` (chi decide); 'fallita'
-    registra `error`. Mai DELETE. False se transizione non valida o task assente."""
+    registra `error`. `note` (opzionale) si AGGIUNGE in coda alla nota esistente:
+    lascia sulla task il perché o il numero misurato al momento della decisione,
+    senza cancellare la nota di nascita (X1). Mai DELETE. False se transizione
+    non valida o task assente."""
     to = (to or "").strip()
-    by, error = _clean(by, 80), _clean(error, 400)
+    by, error, note = _clean(by, 80), _clean(error, 400), _clean(note, 400)
     if not (task_id or "").strip() or to in _NEEDS_BY and not by:
         return False
     valid_from = [f for f, tos in TRANSITIONS.items() if to in tos]
@@ -151,6 +155,10 @@ def transition(task_id: str, to: str, by: str = "", error: str = "") -> bool:
                 sets += ["closed_by=%s", "closed_at=now()"]; params += [by or "sistema"]
             if to == "fallita" and error:
                 sets += ["error=%s"]; params += [error]
+            if note:
+                sets += ["note = left(coalesce(note,'') || CASE WHEN "
+                         "coalesce(note,'')='' THEN '' ELSE E'\n' END || %s, 800)"]
+                params += [note]
             params += [task_id, valid_from]
             with tenants._conn() as c:
                 with c.cursor() as cur:
@@ -174,6 +182,8 @@ def transition(task_id: str, to: str, by: str = "", error: str = "") -> bool:
                     t["closed_by"], t["closed_at"] = (by or "sistema"), now_iso
                 if to == "fallita" and error:
                     t["error"] = error
+                if note:
+                    t["note"] = ((t.get("note") or "") + ("\n" if t.get("note") else "") + note)[:800]
                 return True
     return False
 

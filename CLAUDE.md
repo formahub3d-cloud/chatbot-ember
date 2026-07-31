@@ -60,7 +60,7 @@ cervello · non verificato»; i tenant clienti restano vincolati al vault.
 - `app/main.py` — API: `/health` `/ingest` `/chat` (SSE; `focus`; free per owner) `/upload` `/voice/*`; MCP: `/search` `/document` `/context` `/writeback` (con `origin=conversazione` → marcatura server-side «NON verificato»); admin: `/admin/status` (spie voce), `/admin/brain*`, `/admin/tasks` (brain_tasks, kind incl. `audit`), `/admin/roadmap`, `/admin/proposals`, `/admin/clients*`, `/admin/learning`; `/client/*` (accessi cliente via `app/clientauth.py`)
 - `app/tenants.py` `app/rls.py` `app/docstore.py` `app/brain.py` `app/braintasks.py` `app/proposals.py` — chiavi/RLS/metadati/grafo/coda/proposte
 - `db/` — DDL Supabase: `schema.sql`, `brain_tasks*.sql`, `brain_graph.sql`, `client_access.sql` (i nomi SQL interni, es. schema `ovyon`, sono contratti e restano)
-- `scripts/` — `test_console_headless.js` (**il guardiano**: in CI a ogni push), `test_voce_sentenze.js` (17 casi chunker), `test_voce_vad.js` (7 casi barge-in), `contract_console.py` (console↔API, 0 endpoint fantasma), `count_notes.py` (parità perimetro col vault), `verify_ingest.py`, `seed_audit_2026_07_31.py` (8 task audit, idempotente)
+- `scripts/` — `test_console_headless.js` (**il guardiano**: in CI a ogni push), `test_voce_sentenze.js` (17 casi chunker), `test_voce_vad.js` (7 casi barge-in), `contract_console.py` (console↔API, 0 endpoint fantasma), `count_notes.py` (parità perimetro col vault), `verify_ingest.py`, `seed_audit_2026_07_31*.py` (21 task audit come dati, idempotenti) · `close_audit_2026_07_31.py` (chiusure per idempotency_key, con nota di chiusura)
 - `mcp-connector/` — server MCP (5 tool `ovy_*`) · `SETUP-PRODUZIONE.md` — runbook produzione
 
 ## Comandi
@@ -87,8 +87,8 @@ curl -X POST localhost:8000/ingest -H "Authorization: Bearer $ADMIN_TOKEN"   # i
 
 ## Stato (31-07-2026)
 
-- ✅ In produzione: RAG multi-tenant, voce continua (frasi/barge-in/mani libere/modo vocale), orbite+lenti+focus, conversazione libera owner, «Miglioramenti» (44 task, 8 dall'audit), guardiano in CI, accessi cliente, ingest anti-stantio.
-- ⏳ Aperti: task audit 02-08 (skill in italiano, menu a due porte, «dimmi cosa sai» dall'indice, skill in conversazione, approvazione/fonti in prima fila, schede clienti), lente Temi (aspetta i tag `tema/*` decisi da Andrea — proposta in `docs/lenti-temi-proposta.md`), R2/R3 del piano nomi (migrazioni, non rename).
+- ✅ In produzione: RAG multi-tenant, voce continua (frasi/barge-in a turni/mani libere/modo vocale; prima sillaba 55 ms), orbite+lenti+focus, conversazione libera owner, «Miglioramenti» (task audit 01-03, 09, 10 FATTE via `close_audit_*`; quadro di potenziamento collegato alla nota del vault), console che dichiara quando è pronta (riga `[boot]`; produzione 1265 ms), guardiano in CI, accessi cliente, ingest anti-stantio.
+- ⏳ Aperti: task audit 04-08 e 11-21 (conversazione normale, sei sezioni, allarme cervello fermo, valore clienti, voce su telefono, case study Centioni, …), lente Temi (aspetta i tag `tema/*` decisi da Andrea — proposta in `docs/lenti-temi-proposta.md`), R2/R3 del piano nomi (migrazioni, non rename).
 
 ## Riferimenti
 
