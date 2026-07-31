@@ -60,3 +60,35 @@ def test_seed_rilanciato_non_duplica(post):
     prima = len(braintasks._mem)
     mod.seed(post)                                        # rilancio: stesse chiavi
     assert len(braintasks._mem) == prima == 8             # idempotenza vera, zero duplicati
+
+
+def _carica_seed_bis():
+    spec = importlib.util.spec_from_file_location(
+        "seed_audit_bis", ROOT / "scripts" / "seed_audit_2026_07_31_bis.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["seed_audit_bis"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_seed_bis_crea_le_sette_task_e_la_09_e_in_corso(post):
+    """P1: il secondo seed è un file NUOVO (il primo è già girato in produzione
+    e resta riproducibile com'era); 7 task 09-15, la 09 in corso (è P2)."""
+    mod = _carica_seed_bis()
+    esiti = mod.seed(post)
+    assert len(esiti) == 7
+    assert [e["key"] for e in esiti] == [f"audit-2026-07-31-{n:02d}" for n in range(9, 16)]
+    assert esiti[0]["status"] == "in-approvazione"
+    assert all(e["status"] == "aperta" for e in esiti[1:])
+    titoli = [t["title"] for t in braintasks._mem]
+    assert "Il barge-in si riazzera a ogni frase invece che a ogni turno" in titoli
+    assert "Decidere quale console è quella vera" in titoli
+
+
+def test_seed_bis_rilanciato_non_duplica_e_convive_col_primo(post):
+    mod1 = _carica_seed()
+    mod2 = _carica_seed_bis()
+    mod1.seed(post); mod2.seed(post)
+    prima = len(braintasks._mem)
+    mod2.seed(post)                          # rilancio del bis: zero duplicati
+    assert len(braintasks._mem) == prima == 15   # 8 del primo + 7 del bis
