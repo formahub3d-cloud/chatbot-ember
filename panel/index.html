@@ -1682,7 +1682,23 @@ function renderImprove(){
   $$('[data-papp]').forEach(b=>b.onclick=async()=>{try{await api('engine','/admin/proposals/approve',{method:'POST',body:{id:b.dataset.papp}});toast('Approvata: ora è una task del cervello','info');route('improve');}catch(e){toast('✕ '+e.message,'bad');}});
   renderAuditShelf();
 }
-function renderAuditShelf(){}   // (M3) riempita dal registro degli audit
+/* ── M3 · Gli audit DENTRO il pannello: non sono task, sono i documenti da cui
+   le task nascono. Registro pensato per PIÙ audit nel tempo (data+titolo, il
+   più recente in cima): aggiungerne uno = copiare l'HTML in panel/ e una riga
+   qui. L'audit del pannello del 31-07 va copiato da Andrea/Cowork in
+   panel/audit-pannello-divina-2026-07-31.html e aggiunto in testa:
+     {data:'2026-07-31',titolo:'Audit del pannello Divina',file:'audit-pannello-divina-2026-07-31.html'},
+   (niente link a file che non esistono: un 404 è peggio di una riga in meno). */
+const AUDITS=[
+  {data:'2026-07-23',titolo:'Audit ecosistema Divina — punteggi',file:'audit-divina.html'},
+  {data:'2026-07-23',titolo:'Audit visivo chatbot (ex Jarvis)',file:'audit-chatbot-jarvis.html'},
+];
+function renderAuditShelf(){
+  const el=document.getElementById('auditShelf');if(!el)return;
+  const righe=AUDITS.slice().sort((a2,b2)=>b2.data.localeCompare(a2.data))
+    .map(a2=>`<a class="orbit-chip" href="${esc(a2.file)}" target="_blank" rel="noopener" style="text-decoration:none">${icon('doc',13)} ${esc(a2.titolo)}<span class="orbit-meta">${esc(a2.data)}</span></a>`).join('');
+  el.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Gli audit</h3><p>I documenti da cui nascono le task — il più recente in cima</p></div><span class="pill">${AUDITS.length}</span></div><div class="orbit-row">${righe}</div></div>`;
+}
 
 /* ---- CERVELLO VIVO: costellazione animata dei neuroni (note reali per area) ---- */
 /* M5 · L'età del dato NON è un dettaglio tipografico: dopo la settimana del
