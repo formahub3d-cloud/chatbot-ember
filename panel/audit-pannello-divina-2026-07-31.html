@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit critico — la console Divina · 31 luglio 2026</title>
+<style>
+  :root{
+    --bg:#0b0e14; --surface:#121722; --surface2:#171d2b; --line:#242c3d;
+    --txt:#e8ecf4; --mut:#94a0b8; --dim:#6b7689;
+    --magenta:#dd24f2; --cyan:#2ee6f2; --orange:#f2711f; --red:#f2495c; --green:#3ddc84; --yellow:#eab308;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:56px 26px 100px}
+  h1{font-size:clamp(28px,4.4vw,42px);line-height:1.15;letter-spacing:-.5px;margin:0 0 14px}
+  h2{font-size:24px;margin:64px 0 8px;letter-spacing:-.2px;
+     padding-top:26px;border-top:1px solid var(--line)}
+  h3{font-size:17px;margin:30px 0 6px}
+  p{margin:0 0 15px}
+  .lead{font-size:19px;color:#c3cbdb;margin-bottom:26px}
+  .meta{color:var(--dim);font-size:13.5px;margin-bottom:34px;line-height:1.7}
+  .kicker{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--magenta);
+    font-weight:700;margin-bottom:10px}
+  .sub{color:var(--mut);font-size:15px;margin:-4px 0 22px}
+
+  .box{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;margin:20px 0}
+  .box.warn{border-color:#4a3410;background:#1a1508}
+  .box.good{border-color:#17402c;background:#0c1a14}
+
+  .f{background:var(--surface);border:1px solid var(--line);border-left-width:4px;
+    border-radius:12px;padding:18px 20px;margin:14px 0}
+  .f.hi{border-left-color:var(--red)}
+  .f.md{border-left-color:var(--orange)}
+  .f.lo{border-left-color:var(--yellow)}
+  .f h4{margin:0 0 4px;font-size:16.5px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .tag{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;
+    padding:3px 8px;border-radius:5px;white-space:nowrap}
+  .tag.hi{background:rgba(242,73,92,.16);color:#ff8b9b}
+  .tag.md{background:rgba(242,113,31,.16);color:#ffa76b}
+  .tag.lo{background:rgba(234,179,8,.14);color:#e5c454}
+  .f p{margin:8px 0 0;font-size:15px;color:#cfd6e4}
+  .f .fix{margin-top:11px;padding-top:11px;border-top:1px solid var(--line);
+    font-size:14.5px;color:var(--mut)}
+  .f .fix b{color:var(--cyan);font-weight:600}
+  .ev{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+    background:#0a0d14;border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;margin:10px 0 0;color:#9fb0c9;overflow-x:auto}
+
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:12.5px;letter-spacing:.05em;text-transform:uppercase}
+  td strong{color:var(--txt)}
+
+  .score{display:flex;gap:14px;flex-wrap:wrap;margin:26px 0 8px}
+  .sc{flex:1;min-width:150px;background:var(--surface);border:1px solid var(--line);
+    border-radius:12px;padding:16px 18px}
+  .sc .n{font-size:30px;font-weight:800;letter-spacing:-1px;line-height:1.1}
+  .sc .l{font-size:12px;color:var(--mut);margin-top:3px}
+
+  blockquote{margin:18px 0;padding:2px 0 2px 18px;border-left:3px solid var(--magenta);
+    color:#c9d2e2;font-style:italic}
+  ol.prio{counter-reset:p;list-style:none;padding:0}
+  ol.prio li{counter-increment:p;position:relative;padding:14px 0 14px 52px;
+    border-bottom:1px solid var(--line)}
+  ol.prio li::before{content:counter(p);position:absolute;left:0;top:13px;
+    width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
+    background:linear-gradient(140deg,var(--magenta),var(--cyan));color:#fff;font-weight:800;font-size:14px}
+  ol.prio b{display:block;margin-bottom:2px}
+  ol.prio span{color:var(--mut);font-size:14.5px}
+  .foot{margin-top:70px;padding-top:22px;border-top:1px solid var(--line);
+    color:var(--dim);font-size:13.5px}
+  @media print{
+    body{background:#fff;color:#111}
+    .wrap{padding:0;max-width:100%}
+    .box,.f,.sc,.ev{background:#fafafa;border-color:#ddd}
+    h2{border-color:#ddd}
+    .f h4,td strong,.sc .n{color:#111}
+    .f p,td,blockquote{color:#333}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="kicker">Audit critico · console Divina</div>
+<h1>Quello che ho visto, e cosa cambierei</h1>
+<p class="lead">Non è un elenco di opinioni sul design. È il resoconto di una sessione passata dentro il pannello,
+cliccando le sezioni, leggendo la console del browser e confrontando i numeri fra una schermata e l'altra.
+Ogni rilievo qui sotto ha una prova.</p>
+
+<p class="meta">
+31 luglio 2026 · <code>divina.formahub.it/panel/</code> · commit in produzione dopo il merge di PR&nbsp;#33<br>
+Metodo: navigazione manuale delle sezioni, lettura dei messaggi di console, riproduzione dei guasti segnalati,
+confronto incrociato dei dati mostrati.
+</p>
+
+<div class="score">
+  <div class="sc"><div class="n" style="color:var(--cyan)">21</div><div class="l">voci nel menu laterale</div></div>
+  <div class="sc"><div class="n" style="color:var(--orange)">42</div><div class="l">skill, tutte in inglese</div></div>
+  <div class="sc"><div class="n" style="color:var(--red)">2</div><div class="l">numeri diversi per lo stesso dato</div></div>
+  <div class="sc"><div class="n" style="color:var(--yellow)">2</div><div class="l">note per ogni cliente</div></div>
+</div>
+
+<div class="box">
+<p style="margin:0"><b>Il giudizio in una frase.</b> Il motore è più maturo dell'interfaccia che lo mostra.
+Sotto c'è un sistema serio — permessi calcolati dal percorso, fonti citate, approvazione umana —
+ma il pannello lo presenta come un cruscotto per amministratori di sistema, non come lo strumento
+che avevi descritto: «facile e intuitivo, che accompagna dall'idea alla forma».
+Il divario non è tecnico, è di traduzione.</p>
+</div>
+
+<h2>1 · I guasti, visti coi miei occhi</h2>
+<p class="sub">Cose che non funzionano adesso, non pareri.</p>
+
+<div class="f hi">
+<h4>L'orb non si disegna nel modo vocale <span class="tag hi">alta</span></h4>
+<p>Apro «Parla»: lo schermo diventa nero con la scritta <em>IN ASCOLTO</em>, il pulsante Pausa e «Esc per chiudere».
+Della sfera che dovrebbe essere la protagonista non c'è traccia. E la console registra
+<code>[orb] init</code> <strong>tre volte</strong> nello stesso momento: il disegno viene inizializzato
+più volte, probabilmente su una tela che non è quella visibile o che ha dimensione zero.</p>
+<div class="ev">[11:48:16] [orb] init · [11:48:16] [orb] init · [11:48:46] [orb] init</div>
+<p class="fix"><b>Perché conta:</b> tutto il lavoro sull'onda sonora — la formula dei sette anelli, l'ampiezza reale
+dal microfono — oggi non lo vede nessuno. È la funzione più vistosa del prodotto, e in produzione è invisibile.</p>
+</div>
+
+<div class="f hi">
+<h4>Il modo vocale si chiude da solo quando prova a rispondere <span class="tag hi">alta</span></h4>
+<p>Segnalato da te. Non ho potuto riprodurlo perché non ho un microfono, ma il sospetto è preciso e verificabile:
+la funzione che cambia sezione (<code>route()</code>) smonta gli oggetti animati e spegne l'orb.
+Se qualcosa la richiama mentre il modo vocale è aperto — un aggiornamento di stato, il pulsante «Salva nel cervello»,
+la scrittura delle fonti — il pannello si chiude e sembra un crollo.</p>
+<p class="fix"><b>Come si verifica in due minuti:</b> apri il modo vocale, parla, e guarda la console.
+Se compare un'eccezione o una traccia che passa da <code>route</code>, l'ipotesi è confermata.</p>
+</div>
+
+<div class="f hi">
+<h4>Lo stesso dato mostra due numeri diversi <span class="tag hi">alta</span></h4>
+<p>La home dichiara <strong>100 neuroni · 409 sinapsi</strong>. «Cervello vivo», due clic più in là,
+dichiara <strong>104 neuroni · 409 sinapsi</strong>. Stessa metrica, stessa sessione, quattro note di differenza.</p>
+<p class="fix"><b>Perché è più grave di quanto sembri:</b> stai vendendo un prodotto la cui promessa è
+«non invento, cito le fonti». Se due sue schermate non concordano su quante note ha,
+chi guarda non ha modo di sapere quale credere — e la prossima volta dubiterà anche delle risposte.
+Il numero va calcolato in un posto solo.</p>
+</div>
+
+<div class="f md">
+<h4>«Dimmi cosa sai» produce un collage <span class="tag md">media</span></h4>
+<p>L'ho chiesto io. Ha risposto con tre frammenti scollegati — il vecchio portale in dismissione,
+la biografia di Niccolò Centioni — e ha chiuso con «Non ho questa informazione nelle aree a cui ho accesso».
+Le fonti le cita, gli scope funzionano: non è un guasto di permessi né di indice.</p>
+<p class="fix"><b>La causa:</b> è una domanda <em>sul sistema</em>, non sul contenuto. La ricerca semantica
+cerca note simili alla frase, e nessuna nota parla di «cosa so»: restituisce frammenti arbitrari.
+Nessuna taratura può aggiustarlo — serve che a queste domande si risponda <b>dall'indice</b>
+(quante note, quali aree, quali clienti, dove sono i buchi). Ed è la prima domanda che fa chiunque.</p>
+</div>
+
+<div class="f lo">
+<h4>Il menu non risponde sempre al primo clic <span class="tag lo">bassa</span></h4>
+<p>Due volte su tre, cliccando «Lavora con Divina» nella barra laterale la vista è rimasta su «Il tuo mondo».
+Nessun errore in console. Col pulsante grande nella home ha funzionato subito.</p>
+<p class="fix"><b>Effetto:</b> l'utente pensa che il sistema sia lento e clicca di nuovo. È il tipo di attrito
+che non viene mai segnalato come bug, ma che fa dire «non è pronto».</p>
+</div>
+
+<div class="f lo">
+<h4>Il grafo ha tre ore e lo dice in grigio chiaro <span class="tag lo">bassa</span></h4>
+<p>In fondo a «Cervello vivo»: «sinapsi REALI dai [[link]] · 409 collegamenti · <em>grafo 3h fa</em>».
+L'informazione c'è, ma nella posizione e nel colore di una nota a piè di pagina.</p>
+<p class="fix">Dopo la settimana in cui il cervello è rimasto congelato senza che nessuno se ne accorgesse,
+<b>l'età del dato non è un dettaglio tipografico</b>: è la cosa che ti salva. Va detta dove si guarda.</p>
+</div>
+
+<h2>2 · La lingua, e il marchio</h2>
+<p class="sub">Il punto che hai già intuito chiedendo un rebranding — ma è peggio di un problema estetico.</p>
+
+<div class="f hi">
+<h4>Quarantadue skill, tutte in inglese, in un prodotto italiano <span class="tag hi">alta</span></h4>
+<p>«Cash Watcher», «Debt Chaser», «Payroll Planner», «Skill Forge», «Docs Fetcher», «Word Smith»,
+«Ghostwriter», «Bait Master». E i tre companion si presentano con
+<em>«Run the day-to-day money side on autopilot»</em>, <em>«Build, design and safeguard what you ship»</em>,
+<em>«Find customers, tell the story, close the books»</em>.</p>
+<p>Peggio: i titoli sono inglesi e i sottotitoli italiani, nella stessa riga —
+«Cash Watcher / fotografa la cassa».</p>
+<p class="fix"><b>Perché è una questione di vendita, non di gusto:</b> il tuo cliente è un artigiano o un
+professionista del beneventano. «Bait Master» non gli dice niente, e soprattutto gli dice
+che questo prodotto non è stato pensato per lui. I nomi dovrebbero descrivere <em>il lavoro</em>
+in italiano — «Sollecita le fatture in ritardo» dice più di «Debt Chaser» in qualunque lingua.</p>
+</div>
+
+<div class="f md">
+<h4>Tre marchi in una riga sola <span class="tag md">media</span></h4>
+<p>In alto a sinistra: <strong>Divina</strong> · <em>by FORMA · Cervello OVY</em>.
+Tre nomi propri prima ancora di aver fatto qualcosa. Chi entra deve capire in che rapporto stanno
+fra loro, e nessuno glielo spiega.</p>
+<p class="fix"><b>La gerarchia esiste già, va solo detta:</b> Divina è il prodotto, FORMA è chi lo fa,
+OVY è il cervello che c'è dentro. Solo il primo serve nell'intestazione. Gli altri due stanno
+in un «chi siamo», non addosso al logo.</p>
+</div>
+
+<div class="f md">
+<h4>Nomi da amministratore di sistema <span class="tag md">media</span></h4>
+<p>Nel menu: <em>Scope</em>, <em>Segnali</em>, <em>Router / esegui</em>, <em>Nodi wiki</em>,
+<em>Contraddizioni</em>, <em>Proposte audit</em>, <em>Task del cervello</em>.
+Sono nomi corretti — descrivono davvero cosa c'è dentro — ma descrivono il <em>meccanismo</em>,
+non il beneficio.</p>
+<p class="fix">Chi entra non cerca «i segnali»: cerca <b>di sapere cosa non ha funzionato</b>.
+Non cerca «lo scope»: cerca <b>chi vede cosa</b>. La traduzione da meccanismo a intenzione
+è quasi tutto il lavoro di rendere un sistema «intuitivo».</p>
+</div>
+
+<h2>3 · La struttura</h2>
+<p class="sub">Ventun sezioni, due famiglie separate, e un utente lasciato a indovinare.</p>
+
+<div class="f hi">
+<h4>Ventun voci in un menu piatto <span class="tag hi">alta</span></h4>
+<p>Il tuo mondo, Lavora con Divina, Dashboard, Cruscotto FORMA, Cervello vivo, Scope, Segnali,
+Apprendimento, Proposte audit, Roadmap, Task del cervello, Uso &amp; costi, Eventi, Tenant,
+Agenti &amp; skill, Regia live, Router/esegui, Nodi wiki, Contraddizioni, Documenti, Stato &amp; audit.</p>
+<p>Sono tutte legittime. Ma un prodotto che promette «facile e intuitivo» non può aprire
+con ventun scelte, di cui almeno dodici comprensibili solo a chi lo ha costruito.</p>
+<p class="fix"><b>La prova del nove:</b> se dovessi mostrarlo a un cliente domani, quante di queste
+voci gli faresti vedere? Quella è la console. Il resto è la <b>cassetta degli attrezzi</b>,
+e sta dietro una porta.</p>
+</div>
+
+<div class="f hi">
+<h4>Le due metà non si parlano — e lo dice il menu stesso <span class="tag hi">alta</span></h4>
+<p>Il menu è diviso in «CERVELLO · MOTORE» e «ORCHESTRA · AGENTI». È l'architettura interna
+esposta come navigazione: l'utente deve sapere <em>quale organo</em> interrogare prima di poter chiedere qualcosa.</p>
+<p class="fix"><b>Ma nessuno pensa per organi, si pensa per compiti.</b> «Voglio sollecitare una fattura»
+non è né motore né orchestra: è una cosa da fare. La divisione tecnica è reale e va mantenuta
+nel codice — semplicemente non deve arrivare fino allo schermo.</p>
+</div>
+
+<div class="f md">
+<h4>Le skill sono un catalogo da guardare, non cose da lanciare <span class="tag md">media</span></h4>
+<p>«Agenti &amp; skill» mostra quarantadue riquadri ordinati. Bello da vedere, e completamente separato
+dal posto in cui si lavora. Per usare una skill devi uscire dalla conversazione, cercarla,
+e tornare indietro.</p>
+<p class="fix">È esattamente l'incorporamento che chiedevi: <b>le capacità devono comparire dove serve il lavoro</b>.
+Se stai parlando di una fattura in ritardo, il sollecito si propone lì — non in una pagina che devi ricordarti di aprire.</p>
+</div>
+
+<h2>4 · Il vuoto, e la povertà che si vede</h2>
+
+<div class="f md">
+<h4>Cinque zeri in prima pagina <span class="tag md">media</span></h4>
+<p>Conversazioni 0 · Utilità (una lineetta) · Task aperte 0 · Da decidere 0.
+E nel menu: Apprendimento 0, Proposte audit 0, Task del cervello 0.</p>
+<p class="fix"><b>Uno zero non è un dato, è un'assenza</b> — e presentata così sembra un guasto.
+Ogni sezione vuota dovrebbe dire cosa ci finirà dentro e come farcelo arrivare.
+«Nessuna contraddizione da risolvere» è una buona notizia: scrivila come tale.</p>
+</div>
+
+<div class="f hi">
+<h4>Ogni cliente ha due note <span class="tag hi">alta</span></h4>
+<p>Nelle orbite si legge: ATS 2 note · HRH 2 note · Parbonetti 2 note · Centioni 2 note ·
+Libero Pensiero 2 note. La nuova interfaccia funziona benissimo — mostra la verità a colpo d'occhio,
+ed è che <strong>il cervello dei clienti è quasi vuoto</strong>.</p>
+<p class="fix">Non è un difetto del pannello, è il difetto che il pannello finalmente rende visibile.
+Ma vale la pena saperlo prima di mostrarlo a qualcuno: <b>nessuna interfaccia salva un bot
+che ha due note da cui rispondere.</b> Le 217 marcature «da definire» sono la stessa storia
+vista dall'altro lato.</p>
+</div>
+
+<div class="f md">
+<h4>Nessun avvio guidato <span class="tag md">media</span></h4>
+<p>Entri, e la sola indicazione sono tre domande di esempio: «Quali servizi offre FORMA?»,
+«Prezzi della stampa 3D?», «Orari e sede». Sono domande da chatbot di un sito vetrina,
+non da strumento che dovrebbe accompagnarti «dall'idea alla forma».</p>
+<p class="fix">Il primo minuto dovrebbe insegnare <b>una</b> cosa che nessun altro strumento fa —
+per esempio: fai una domanda, guarda le fonti citate, e nota che non ha inventato.
+È la dimostrazione della tua promessa, e oggi non la fa nessuno.</p>
+</div>
+
+<h2>5 · Il tuo argomento migliore, sepolto</h2>
+
+<div class="box warn">
+<p style="margin:0 0 10px"><b>In alto a destra, in grigio, corpo dieci:</b></p>
+<blockquote style="margin:0">«ogni azione con effetto esterno passa dalla tua approvazione»</blockquote>
+<p style="margin:12px 0 0">Questa frase è la ragione per cui un commercialista, un avvocato o un artigiano
+possono adottare un sistema come questo senza avere paura. È la differenza fra Divina e un assistente
+che «fa cose» al posto tuo. Ed è scritta più piccola del nome del tenant.</p>
+<p style="margin:10px 0 0;color:var(--mut)">Lo stesso vale per le <b>fonti citate</b> sotto ogni risposta:
+sono la prova vivente che non inventa, e sono grigie e minuscole. Quello che ti distingue va mostrato,
+non confessato.</p>
+</div>
+
+<h2>6 · Cosa farei, in che ordine</h2>
+<p class="sub">Ordinato per rapporto fra ciò che cambia e ciò che costa — non per gravità.</p>
+
+<ol class="prio">
+<li><b>Aggiusta l'orb invisibile e il modo vocale che si chiude</b>
+<span>Sono due guasti, non due opinioni, e riguardano la funzione più vistosa del prodotto.
+Finché la sfera non si vede, tutto il lavoro sulla voce è invisibile.</span></li>
+
+<li><b>Un numero solo per un dato solo</b>
+<span>100 contro 104 va chiuso subito e alla radice: il conteggio si calcola in un posto e tutte le
+schermate leggono quello. Insieme, l'età del dato va portata dove si guarda, non a piè di pagina.</span></li>
+
+<li><b>Traduci le quarantadue skill in italiano, e chiamale col lavoro che fanno</b>
+<span>È l'intervento con il miglior rapporto fra effetto e fatica: non tocca il codice, cambia
+completamente a chi sembra rivolto il prodotto. «Sollecita le fatture in ritardo», non «Debt Chaser».</span></li>
+
+<li><b>Dividi il menu in due porte: «lavorare» e «amministrare»</b>
+<span>Cinque o sei voci davanti — parlare, il cervello, i clienti, i compiti, i costi.
+Tutto il resto dietro una voce sola. Non si cancella niente: si smette di chiedere all'utente
+di scegliere fra ventuno cose per fare la prima.</span></li>
+
+<li><b>Fai rispondere «dimmi cosa sai» dall'indice</b>
+<span>È la prima domanda che fa chiunque, e oggi è la peggiore risposta che dà.
+Non è taratura del recupero: è una risposta diversa, costruita sui metadati.</span></li>
+
+<li><b>Porta le skill dentro la conversazione</b>
+<span>Le capacità si propongono nel punto in cui servono, invece di vivere in un catalogo
+che bisogna ricordarsi di aprire. È l'incorporamento che chiedevi.</span></li>
+
+<li><b>Metti in prima fila l'approvazione umana e le fonti</b>
+<span>Sono i due motivi per cui qualcuno ti sceglierebbe invece di un assistente qualunque,
+e oggi sono le due cose scritte più piccole nella pagina.</span></li>
+
+<li><b>Riempi le schede clienti prima di mostrarlo a un cliente</b>
+<span>Due note per cliente si vedono adesso, dalle orbite. Cinquanta delle 217 marcature
+si chiudono cercando su fonti pubbliche, senza chiedere niente a nessuno.</span></li>
+</ol>
+
+<h2>7 · Quello che invece funziona</h2>
+<p class="sub">Perché un audit che elenca solo i difetti fa prendere le decisioni sbagliate.</p>
+
+<div class="box good">
+<p style="margin:0 0 12px"><b>Le orbite sono azzeccate.</b> Filtrare per Clienti / Aree / Progetti e vedere
+densità e collegamenti di ciascun gruppo è esattamente il modo giusto di guardare un cervello:
+la scheda magra si riconosce prima di aprirla. È la parte del pannello che oggi lavora meglio.</p>
+<p style="margin:0 0 12px"><b>La home col grafo funziona.</b> Cento nodi che pulsano dicono «qui dentro c'è
+qualcosa di vivo» meglio di qualunque riquadro con un numero. Era il rientro che volevi ed è riuscito.</p>
+<p style="margin:0"><b>E sotto, l'impianto è solido.</b> I permessi calcolati dal percorso del file,
+il filtro applicato sul database e non nel prompt, l'approvazione umana su ogni azione esterna,
+le fonti su ogni risposta. Sono scelte difficili da rifare dopo, e sono già giuste.
+<b>Il problema non è ciò che il sistema fa: è quanto poco di tutto questo arriva a chi guarda.</b></p>
+</div>
+
+<div class="foot">
+Audit condotto navigando la console in produzione il 31 luglio 2026, dopo il merge della PR&nbsp;#33.
+Ogni rilievo della sezione 1 è stato osservato direttamente; il guasto del modo vocale che si chiude
+è riportato da Andrea e non riprodotto in assenza di microfono, con l'ipotesi tecnica indicata.
+Le voci di menu e i nomi delle skill sono trascritti dalle schermate.
+</div>
+
+</div>
+</body>
+</html>
