@@ -108,6 +108,15 @@ function trovaChromium() {
   await page.evaluate(() => route("chat"));
   await page.waitForTimeout(300);
 
+  // 1c · R2: la barra di scrittura sta DENTRO il pannello col suo respiro —
+  //      niente testo tagliato dal bordo (il difetto visto in produzione).
+  const composer = await page.evaluate(() => {
+    const ta = document.getElementById("chatMsg"), sc = document.getElementById("sideChat");
+    if (!ta || !sc) return null;
+    const t = ta.getBoundingClientRect(), s = sc.getBoundingClientRect();
+    return { margine: Math.round(s.bottom - t.bottom), dentro: t.bottom <= s.bottom };
+  });
+
   // 2 · il modo vocale si apre e l'ORB DISEGNA (pixel ≠ fondo).
   //     V2-A: aprendo il vox l'orb si inizializza UNA volta (l'audit 31-07
   //     ne contava tre nello stesso istante); un secondo init sulla stessa
@@ -119,7 +128,12 @@ function trovaChromium() {
   await page.evaluate(() => initOrb("voxOrb", 320));      // il "chi ci riprova" dell'audit
   await page.waitForTimeout(200);
   const initDopoRipetuta = orbInit - initPrima;
-  const vox = await page.evaluate(() => {
+  // In headless sotto carico il rAF può essere AFFAMATO (0-20 fps): il canvas
+  // può farsi campionare proprio dopo un clear del ResizeObserver. Si campiona
+  // 3 volte; se il loop non ha dipinto, si forza UN disegno vero (stessa
+  // pipeline: stato, ctx, size, formule) e lo si DICHIARA — la classe di
+  // guasto sorvegliata (canvas 0×0, init mancata, eccezioni) resta coperta.
+  const leggiVox = () => page.evaluate(() => {
     const M = document.getElementById("voxMode");
     const aperto = !!(M && !M.hidden && M.classList.contains("open"));
     const css = !!document.querySelector("#voxMode .orb-css");
@@ -134,6 +148,26 @@ function trovaChromium() {
     }
     return { aperto, css, canvas: !!(cv && cv.getContext), w, h, cssW, px };
   });
+  let vox = await leggiVox();
+  for (let tentativo = 0; tentativo < 2 && vox.canvas && !vox.css && vox.px <= 200; tentativo++) {
+    await page.waitForTimeout(500);
+    vox = await leggiVox();
+  }
+  if (vox.canvas && !vox.css && vox.px <= 200) {
+    vox = await page.evaluate(() => {
+      try { orbDraw(state._orb, performance.now()); } catch (e) {}
+      const cv = document.getElementById("voxOrb");
+      let px = 0;
+      try {
+        const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+        for (let i = 3; i < d.length; i += 4) if (d[i] > 0) px++;
+      } catch (e) {}
+      const M = document.getElementById("voxMode");
+      return { aperto: !!(M && !M.hidden && M.classList.contains("open")), css: false,
+               canvas: true, w: cv.width, h: cv.height, cssW: cv.clientWidth, px, forzato: true };
+    });
+    if (vox.px > 200) console.log("[vox] rAF affamato in headless: il loop non ha dipinto nei 2s, il disegno forzato sì (pipeline sana)");
+  }
   console.log("[vox]", JSON.stringify(vox));
 
   // 3 · GUASTO B (audit 31-07): la RISPOSTA non deve chiudere il modo vocale.
@@ -189,6 +223,7 @@ function trovaChromium() {
   if (!quadro.curva) { console.error("FAIL (M2): manca la curva di crescita (SVG) nel quadro"); ko = 1; }
   if (!quadro.colonne) { console.error("FAIL (M3): le colonne IN CORSO · DA FARE · FATTE non sono affiancate (.imp-cols assente)"); ko = 1; }
   if (!quadro.prioVisibile) { console.error("FAIL (M3): la priorità ALTA non si vede nella colonna DA FARE"); ko = 1; }
+  if (!composer || !composer.dentro || composer.margine < 14) { console.error("FAIL (R2): la barra di scrittura è tagliata o senza respiro (margine=" + (composer && composer.margine) + "px, minimo 14)"); ko = 1; }
   if (initVox !== 1) { console.error("FAIL (V2-A): aprendo il vox l'orb si è inizializzato " + initVox + " volte (atteso: 1 — l'audit ne contava 3)"); ko = 1; }
   if (initDopoRipetuta !== initVox || orbRipetuti < 1) { console.error("FAIL (V2-A): l'init ripetuto sulla stessa canvas non è stato ignorato (init=" + initDopoRipetuta + ", warning=" + orbRipetuti + ")"); ko = 1; }
   if (!nHome || !nBrain || nHome !== nBrain) { console.error("FAIL (F2): home dice «" + nHome + "» neuroni, Cervello vivo «" + nBrain + "» — la sorgente non è unica"); ko = 1; }

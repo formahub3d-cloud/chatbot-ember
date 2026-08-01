@@ -65,6 +65,12 @@
     function rnd() { signalSeed = (signalSeed * 1103515245 + 12345) & 0x7fffffff; return signalSeed / 0x7fffffff; }
 
     var rmQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    // R1 (01-08): labels:'hover' = i nomi SOLO al passaggio/clic (la home);
+    // default 'auto' = anche sui nodi molto connessi (la porta Cervello, dove
+    // si viene per cercare una nota, non per un colpo d'occhio).
+    var labelsAuto = opts.labels !== 'hover';
+    // R4: adattamento fps anche qui — tela più grande = più lavoro per frame.
+    var lowFx = false, slowFrom = 0, lastT = 0;
     var reduceMotion = (typeof opts.reducedMotion === 'boolean') ? opts.reducedMotion
                        : !!(rmQuery && rmQuery.matches);
     function onRM(e) { if (typeof opts.reducedMotion !== 'boolean') reduceMotion = e.matches; }
@@ -408,10 +414,16 @@
         ctx.globalCompositeOperation = 'lighter';
         var halo = r * (hover && n === hover ? 5 : (3.2 + thinkF * 1.4)) * pulse;
         var haloA = (dim ? 0.06 : ((0.5 * pulse + 0.18 * freshGlow + 0.5 * flash + 0.25 * thinkF) * depth)) * actK;
-        var gh = ctx.createRadialGradient(sx, sy2, 0, sx, sy2, halo);
-        gh.addColorStop(0, 'rgba(' + rgb + ',' + haloA + ')');
-        gh.addColorStop(1, 'rgba(' + rgb + ',0)');
-        ctx.fillStyle = gh; ctx.beginPath(); ctx.arc(sx, sy2, halo * (1 + flash), 0, 7); ctx.fill();
+        if (lowFx) {
+          // modalità leggera: niente gradiente radiale per nodo (il costo n.1)
+          ctx.fillStyle = 'rgba(' + rgb + ',' + (haloA * 0.5) + ')';
+          ctx.beginPath(); ctx.arc(sx, sy2, halo * 0.65 * (1 + flash), 0, 7); ctx.fill();
+        } else {
+          var gh = ctx.createRadialGradient(sx, sy2, 0, sx, sy2, halo);
+          gh.addColorStop(0, 'rgba(' + rgb + ',' + haloA + ')');
+          gh.addColorStop(1, 'rgba(' + rgb + ',0)');
+          ctx.fillStyle = gh; ctx.beginPath(); ctx.arc(sx, sy2, halo * (1 + flash), 0, 7); ctx.fill();
+        }
         if (flash > 0) {
           ctx.strokeStyle = 'rgba(255,255,255,' + (flash * 0.8) + ')'; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.arc(sx, sy2, r + (1 - flash) * 46, 0, 7); ctx.stroke();
@@ -420,7 +432,7 @@
         ctx.fillStyle = 'rgba(' + rgb + ',' + (dim ? 0.28 : Math.min(1, depth) * (heat ? actK : 1)) + ')';
         ctx.beginPath(); ctx.arc(sx, sy2, r * (0.9 + 0.1 * pulse), 0, 7); ctx.fill();
         if (!dim) { ctx.fillStyle = 'rgba(255,255,255,' + (0.85 * depth) + ')'; ctx.beginPath(); ctx.arc(sx, sy2, Math.max(0.8, r * 0.34), 0, 7); ctx.fill(); }
-        if ((n === hover) || (hoverSet && hoverSet.has(n.id)) || (!hover && n.deg >= 12)) {
+        if ((n === hover) || (hoverSet && hoverSet.has(n.id)) || (labelsAuto && !hover && n.deg >= 12)) {
           ctx.font = '600 11px Montserrat, sans-serif';
           ctx.fillStyle = (n === hover) ? '#fff' : 'rgba(236,239,244,.7)';
           ctx.textAlign = 'center';
@@ -476,6 +488,13 @@
     function tick(t) {
       if (destroyed) return;
       if (t0 < 0) t0 = t;
+      // R4 · sotto ~30 fps CONTINUATIVI per >2s: alone semplificato, per sempre
+      if (lastT && !lowFx && !reduceMotion) {
+        var dtf = t - lastT;
+        if (dtf > 33.4) { if (!slowFrom) slowFrom = t; else if (t - slowFrom > 2000) { lowFx = true; try { console.info('[brain3d] fps bassi per >2s: aloni semplificati'); } catch (e) {} } }
+        else slowFrom = 0;
+      }
+      lastT = t;
       thinkF += ((thinking ? 1 : 0) - thinkF) * THINK_EASE;
       physT = t;
       if (!reduceMotion) drift(t);
