@@ -177,8 +177,13 @@ def vault_info(vault_path: str | None = None) -> dict:
 # `contratti/` (dati personali — esclusione NON negoziabile). La stessa lista
 # vive nei generatori del vault (build*.py di ovy-cervello): se diverge, i due
 # grafi non combaceranno mai.
+# `human` (01-08): i dati di «Human · evoluzione» — salute, obiettivi, persona.
+# Categoria SPECIALE nel GDPR: NON entrano mai in Qdrant (il motore gira in US
+# West e la region Qdrant non è verificata). Il pannello li legge dal disco
+# via /admin/human; Divina non ci risponde sopra finché Andrea non decide
+# esplicitamente, e comunque DOPO la migrazione in Europa — non prima.
 SKIP_DIRS = {".git", ".obsidian", "_showcase", "_templates", "_bozze",
-             "contratti", "chatbot-jarvis", "chatbot-ember"}
+             "contratti", "human", "chatbot-jarvis", "chatbot-ember"}
 
 
 def is_note_included(rel: Path) -> bool:
