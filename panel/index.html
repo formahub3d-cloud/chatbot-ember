@@ -320,6 +320,12 @@ body.chat-aperta{--chatw:380px}
 .ct-resizer{position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:5}
 .trace-line{font-size:11.5px;color:var(--text-3);line-height:1.5}
 .perm-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 0;border-bottom:1px dashed var(--border)}
+/* M3 · tre colonne affiancate; su schermi stretti tornano in colonna */
+.imp-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+@media(max-width:980px){.imp-cols{grid-template-columns:1fr}}
+.imp-riga{padding:8px 0;border-bottom:1px dashed var(--border)}
+.imp-riga:last-of-type{border-bottom:none}
+.prio-chip{font-size:10px;font-weight:800;letter-spacing:.05em;border:1px solid;border-radius:99px;padding:1px 8px}
 #subnav{margin:10px 22px 0;display:none;gap:6px;flex-wrap:wrap}
 #subnav.on{display:flex}
 /* ── Task 18 · L'allarme del cervello fermo: visibile ovunque, non a piè di pagina ── */
@@ -423,7 +429,7 @@ body.chat-aperta{--chatw:380px}
       <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="15"></span> Stato &amp; audit</button>
     </div>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07l · la V2</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 31-07m · leggibile in dieci secondi</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -603,9 +609,9 @@ function demoData(service, path, opts){
     }
     if(path.startsWith('/admin/tasks/close')||path.startsWith('/admin/tasks/transition')) return Promise.resolve({ok:true});
     if(path.startsWith('/admin/tasks?')&&path.includes('status=fatta')) return Promise.resolve({persist:true,tasks:[
-      {id:'tf1',kind:'audit',scope:'',title:'La console appare prima di essere cliccabile e non lo dice',note:'FATTA · Numero vero in produzione: 1265 ms (in sandbox erano 78 — la misura in laboratorio mentiva).',status:'fatta',created_at:nowIso(10*3600e3),closed_at:nowIso(3600e3),closed_by:'andrea'},
-      {id:'tf2',kind:'audit',scope:'',title:"Aggiusta l'orb invisibile e il modo vocale che si chiude",note:'FATTA · La voce funziona: provata in produzione, prima sillaba dopo 55 ms.',status:'fatta',created_at:nowIso(12*3600e3),closed_at:nowIso(2*3600e3),closed_by:'andrea'}]});
-    if(path.startsWith('/document')) return Promise.resolve({slug:'workspace-potenziamento-divina',title:'(DEMO) Schema di potenziamento — dove sta Divina e cosa manca',path:'forma/workspace/workspace-potenziamento-divina.md',tenant:'forma-core',text:'(DEMO — in produzione qui c\'è la nota vera, letta dal cervello)\n\n# Schema di potenziamento\n\n| Area | Punteggio |\n|---|---|\n| **Affidabilità e controlli** | **9 / 10** |\n| **Voce** | **8 / 10** |\n| **Struttura dell\'interfaccia** | **5 / 10** |\n| **Contenuto del cervello** | **5 / 10** |\n| **Conversazione** | **4 / 10** |\n| **Vendibilità** | **3 / 10** |\n\n**Media: 5,7 / 10** (era 3,8 stamattina).'});
+      {id:'tf1',kind:'audit',scope:'',title:'La console appare prima di essere cliccabile e non lo dice',note:'FATTA · Numero vero in produzione: 1265 ms (in sandbox erano 78 — la misura in laboratorio mentiva).',status:'fatta',created_at:nowIso(10*3600e3),closed_at:nowIso(3600e3),closed_by:'andrea',priorita:'alta'},
+      {id:'tf2',kind:'audit',scope:'',title:"Aggiusta l'orb invisibile e il modo vocale che si chiude",note:'FATTA · La voce funziona: provata in produzione, prima sillaba dopo 55 ms.',status:'fatta',created_at:nowIso(12*3600e3),closed_at:nowIso(2*3600e3),closed_by:'andrea',priorita:'alta'}]});
+    if(path.startsWith('/document')) return Promise.resolve({slug:'workspace-potenziamento-divina',title:'(DEMO) Schema di potenziamento — dove sta Divina e cosa manca',path:'forma/workspace/workspace-potenziamento-divina.md',tenant:'forma-core',text:'(DEMO — in produzione qui c\'è la nota vera, letta dal cervello)\n\n# Schema di potenziamento\n\n| Area | Punteggio |\n|---|---|\n| **Affidabilità e controlli** | **9 / 10** | 6 |\n| **Voce** | **8 / 10** | 3 |\n| **Struttura dell\'interfaccia** | **5 / 10** | 4 |\n| **Contenuto del cervello** | **5 / 10** | 4 |\n| **Conversazione** | **4 / 10** | 3 |\n| **Vendibilità** | **3 / 10** | 3 |\n\n**Media: 5,7 / 10** (era 3,8 stamattina).'});
     if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:100},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));/* M5: stesso numero di stats.notes (100), un dato solo */gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
     if(path.startsWith('/admin/proposals/approve')) return Promise.resolve({ok:true,task:{id:'t-demo',kind:'gap',status:'aperta'}});
@@ -620,7 +626,7 @@ function demoData(service, path, opts){
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.'}]},
       '/admin/proposals':{proposals:[{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
       '/admin/brain':{persist:true,stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)}]},
-      '/admin/tasks':{persist:true,tasks:[{id:'t0',kind:'azione',scope:'ats',title:'Invia 3 solleciti email ai clienti ATS in ritardo',note:'Preparati da Dante · invoice-chase — testi pronti, NESSUN invio senza il tuo ok',status:'in-approvazione',created_at:nowIso(600e3)},{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta negativa ricorrente',status:'aperta',created_at:nowIso(50*3600e3)}]},
+      '/admin/tasks':{persist:true,tasks:[{id:'t0',kind:'azione',scope:'ats',title:'Invia 3 solleciti email ai clienti ATS in ritardo',note:'Preparati da Dante · invoice-chase — testi pronti, NESSUN invio senza il tuo ok',status:'in-approvazione',priorita:'alta',created_at:nowIso(600e3)},{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',priorita:'alta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',priorita:'media',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta negativa ricorrente',status:'aperta',priorita:'bassa',created_at:nowIso(50*3600e3)}]},
       '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
       '/admin/usage':{'ats':{count:412,cost_eur:2.06,alert:false},'forma-core':{count:198,cost_eur:0.99,alert:false},'andrea':{count:640,cost_eur:3.20,alert:true},'ovyon':{count:54,cost_eur:0.27,alert:false}},
       '/admin/events':{persist:true,events:[{at:nowIso(30000),kind:'chat',scope:'ats',question:'orari apertura sede Benevento'},{at:nowIso(120000),kind:'feedback_up',scope:'forma-core',question:'ottima risposta sui materiali'},{at:nowIso(260000),kind:'gap',scope:'ats',question:'spedizione internazionale?'}]},
@@ -776,12 +782,13 @@ const VIEWS={
     ((tk&&tk.tasks)||[]).forEach(t=>{
       if(t.status==='archiviata')return;
       items.push({titolo:t.title,nota:t.note||'',
-        origine:origineDi(t),
+        origine:origineDi(t),prio:t.priorita||'media',
         peso:'',stato:t.status==='fatta'?'fatte':(['in-approvazione','approvata','in-esecuzione'].includes(t.status)?'incorso':'dafare'),
         quando:t.updated_at||t.created_at||'',k:'tk-'+(t.idempotency_key||t.id)});
     });
     ((ft&&ft.tasks)||[]).filter(t=>t.status==='fatta').forEach(t=>{
       items.push({titolo:t.title,nota:t.note||'',origine:origineDi(t),peso:'',
+        prio:t.priorita||'media',
         stato:'fatte',quando:t.closed_at||t.created_at||'',chiusaDa:t.closed_by||'',
         k:'tk-'+(t.idempotency_key||t.id)});
     });
@@ -2028,32 +2035,49 @@ function renderImprove(){
   const gruppi=[['incorso','IN CORSO','var(--cyan)'],['dafare','DA FARE','var(--orange)'],['fatte','FATTE','var(--green)']];
   const chipO=['tutte',...Object.keys(IMP_ORIGINI)].map(o=>`<button class="orbit-tab ${f.origine===o?'active':''}" data-io="${o}">${o==='tutte'?'Tutte le origini':IMP_ORIGINI[o][0]}</button>`).join('');
   const chipS=gruppi.map(([id,l])=>{const n=vis.filter(x=>x.stato===id).length;return `<button class="orbit-tab" data-is="${id}">${l} <b>${n}</b></button>`;}).join('');
+  /* M3 (31-07 sera) · La priorità si VEDE, le colonne sono affiancate, e chi
+     apre la sezione trova in cima la cosa che conta di più — non la più
+     recente. Tetto 9 per colonna: 52 righe insieme non sono una lista, sono
+     un muro. */
+  const PRIO_ORD={alta:0,media:1,bassa:2};
+  const PRIO_STILE={alta:['ALTA','#ff5470'],media:['MEDIA','var(--orange)'],bassa:['BASSA','var(--text-3)']};
   const riga=x=>{
     const [ol,oc]=IMP_ORIGINI[x.origine]||[x.origine,'var(--text-3)'];
-    return `<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)">
-      <div style="min-width:0"><div style="font-size:13px;font-weight:600">${esc(x.titolo)}</div>${x.nota?`<div class="small muted" style="margin-top:2px">${esc(x.nota.slice(0,180))}</div>`:''}</div>
-      <div class="row" style="gap:7px;flex-shrink:0;align-items:center">
+    const [pl,pc]=PRIO_STILE[x.prio]||PRIO_STILE.media;
+    const stato=x.stato==='fatte'
+      ?`<span class="small muted">✓ chiusa${x.quando?' il '+new Date(x.quando).toLocaleDateString('it-IT',{day:'numeric',month:'short'}):''}${x.chiusaDa?' da '+esc(x.chiusaDa):''}</span>`
+      :`<span class="prio-chip" style="color:${pc};border-color:${pc}66">${pl}</span>`;
+    return `<div class="imp-riga">
+      <div style="font-size:12.5px;font-weight:600;line-height:1.45">${esc(x.titolo)}</div>
+      <div class="row" style="gap:6px;margin-top:3px;align-items:center;flex-wrap:wrap">${stato}
+        <span class="scope-chip" style="background:color-mix(in srgb,${oc} 14%,transparent);color:${oc};border-color:${oc}55">${ol}</span>
         ${x.iniziata?`<span class="tag warn" title="lavoro iniziato in passato, non attivo adesso">iniziata</span>`:''}
         ${x.peso?`<span class="pill" title="peso">${esc(x.peso)}</span>`:''}
-        <span class="scope-chip" style="background:color-mix(in srgb,${oc} 14%,transparent);color:${oc};border-color:${oc}55">${ol}</span>
-        ${x.stato==='fatte'&&(x.quando||x.chiusaDa)?`<span class="small muted" title="quando e chi ha chiuso">${x.chiusaDa?esc(x.chiusaDa)+' · ':''}${x.quando?timeAgoIso(x.quando):''}</span>`:''}
-        ${x.pid?`<button class="btn sm" data-papp="${esc(x.pid)}">Approva → task</button>`:''}
+        ${x.pid?`<button class="btn sm" data-papp="${esc(x.pid)}" style="min-height:24px;padding:1px 8px">Approva</button>`:''}
       </div></div>`;
   };
+  const CAP=9;
   const blocco=([id,label,col])=>{
     let g=vis.filter(x=>x.stato===id);
-    // FATTE: la più recente in cima (le voci senza data — roadmap statica — in fondo)
     if(id==='fatte')g=g.slice().sort((a2,b2)=>String(b2.quando||'').localeCompare(String(a2.quando||'')));
-    return `<div class="card" id="imp-${id}" style="margin-bottom:14px"><div class="card-head"><div><h3 style="color:${col}">${label}</h3><p>${id==='incorso'?'qualcuno ci sta lavorando ADESSO (solo la coda viva può dirlo)':id==='dafare'?'in coda — «iniziata» = toccata in passato, non attiva ora':'chiuse — con quando'}</p></div><span class="pill">${g.length}</span></div>
-      ${g.length?g.map(riga).join(''):`<div class="small muted">niente qui${id==='incorso'?' — scegli dalla coda DA FARE':''}</div>`}</div>`;
+    if(id==='dafare')g=g.slice().sort((a2,b2)=>((PRIO_ORD[a2.prio]??1)-(PRIO_ORD[b2.prio]??1))||String(b2.quando||'').localeCompare(String(a2.quando||'')));
+    const tutte=(state._impTutte||{})[id];
+    const mostra=tutte?g:g.slice(0,CAP);
+    const resto=g.length-mostra.length;
+    return `<div class="card imp-col" id="imp-${id}" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div><h3 style="color:${col};font-size:14px">${label}</h3></div><span class="pill">${g.length}</span></div>
+      ${mostra.length?mostra.map(riga).join(''):`<div class="small muted">niente adesso${id==='incorso'?' — scegli dalla coda DA FARE':''}</div>`}
+      ${resto>0?`<button class="btn sm ghost" data-tutte="${id}" style="margin-top:8px">…e altre ${resto}</button>`:''}
+      ${tutte&&g.length>CAP?`<button class="btn sm ghost" data-tutte="${id}" style="margin-top:8px">comprimi</button>`:''}
+    </div>`;
   };
   C.innerHTML=`
     ${state._impPersist?'':`<div class="card" style="margin-bottom:14px;border-color:var(--orange)55"><div class="small" style="color:var(--orange)">${icon('alert',12)} Coda NON persistente (Supabase spento): le task del cervello vivono in memoria e si azzerano al redeploy. Roadmap e proposte restano comunque visibili.</div></div>`}
     <div class="orbit-tabs" style="margin-bottom:12px;flex-wrap:wrap">${chipO}<span style="flex:1"></span>${chipS}</div>
     <div id="quadroBox"></div>
     <div id="auditShelf"></div>
-    ${gruppi.map(blocco).join('')}`;
+    <div class="imp-cols">${gruppi.map(blocco).join('')}</div>`;
   $$('[data-io]').forEach(b=>b.onclick=()=>{state._impF.origine=b.dataset.io;renderImprove();});
+  $$('[data-tutte]').forEach(b=>b.onclick=()=>{state._impTutte=state._impTutte||{};state._impTutte[b.dataset.tutte]=!state._impTutte[b.dataset.tutte];renderImprove();});
   $$('[data-is]').forEach(b=>b.onclick=()=>{const el=document.getElementById('imp-'+b.dataset.is);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});
   $$('[data-papp]').forEach(b=>b.onclick=async()=>{try{await api('engine','/admin/proposals/approve',{method:'POST',body:{id:b.dataset.papp}});toast('Approvata: ora è una task del cervello','info');route('improve');}catch(e){toast('✕ '+e.message,'bad');}});
   renderAuditShelf();
@@ -2066,36 +2090,91 @@ function renderImprove(){
    duplicata nei due repo. Se la tabella cambia forma, si degrada con onestà:
    la nota intera resta apribile. */
 const QUADRO_SLUG='workspace-potenziamento-divina';
+/* M1+M2 (31-07 sera) · I numeri si vedono SENZA aprire niente: barra colorata
+   per area col voto a destra e, SOTTO, la barra grigia di dov'era prima — il
+   progresso a colpo d'occhio. La media grande con la variazione. La CURVA è
+   una polilinea SVG: i punti vengono dalla tabella «Storico» della nota se
+   c'è; finché non c'è, dai due valori che la nota stessa dichiara (adesso +
+   «era X stamattina») — stessa fonte, zero numeri duplicati nel pannello.
+   Se la nota non risponde: l'ULTIMA LETTURA RIUSCITA con la data, mai un
+   errore nudo («punteggi del 31/07, la nota non risponde adesso» > «404»). */
+function _quadroParse(text){
+  const punte=[];let media=0,mediaPrima=0;const punti=[];
+  let inStorico=false;
+  for(const riga of String(text).split('\n')){
+    if(/^#{2,3}\s*Storico/i.test(riga)){inStorico=true;continue;}
+    if(inStorico){
+      const s=riga.match(/^\|\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^|]*?)\s*\|\s*([\d.,]+)\s*\|/);
+      if(s)punti.push({q:s[1].trim(),v:parseFloat(s[2].replace(',','.'))});
+      else if(/^#/.test(riga))inStorico=false;
+      continue;
+    }
+    const m=riga.match(/^\|\s*\*\*(.+?)\*\*\s*\|\s*\*\*(\d+(?:[.,]\d+)?)\s*\/\s*10\*\*\s*(?:\|\s*([\d.,]+))?/);
+    if(m)punte.push({area:m[1],voto:parseFloat(m[2].replace(',','.')),prima:m[3]?parseFloat(m[3].replace(',','.')):null});
+    const mm=riga.match(/\*\*Media:\s*([\d.,]+)\s*\/\s*10\*\*(?:\s*\(era\s*([\d.,]+))?/);
+    if(mm){media=parseFloat(mm[1].replace(',','.'));if(mm[2])mediaPrima=parseFloat(mm[2].replace(',','.'));}
+  }
+  return {punte,media,mediaPrima,punti};
+}
+function _quadroCurva(punti){
+  if(!punti||punti.length<2)return '';
+  const W=560,H=64,PAD=6;
+  const vs=punti.map(p=>p.v);
+  const mn=Math.max(0,Math.min(...vs)-0.5),mx=Math.min(10,Math.max(...vs)+0.5);
+  const X=i=>PAD+i*(W-2*PAD)/(punti.length-1);
+  const Y=v=>H-PAD-(v-mn)*(H-2*PAD)/Math.max(0.1,mx-mn);
+  const pts=punti.map((p,i)=>`${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ');
+  return `<div style="margin-top:12px"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;display:block" role="img" aria-label="la media nel tempo">
+    <polyline points="${pts}" fill="none" stroke="var(--cyan)" stroke-width="2"/>
+    ${punti.map((p,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="3" fill="var(--cyan)"/>`).join('')}
+  </svg><div class="row small muted" style="justify-content:space-between"><span>${esc(punti[0].q)} · ${punti[0].v}</span><span>${esc(punti[punti.length-1].q)} · ${punti[punti.length-1].v}</span></div></div>`;
+}
+function _quadroRender(el,q,fonte){
+  const {punte,media,mediaPrima}=q;
+  let punti=q.punti&&q.punti.length>=2?q.punti:null;
+  if(!punti&&media&&mediaPrima)punti=[{q:'31/07 mattina',v:mediaPrima},{q:'adesso',v:media}];
+  const barra=p=>{const col=p.voto>=7?'var(--cyan)':p.voto>=5?'var(--orange)':'var(--magenta)';
+    return `<div class="qbar" style="flex:1;min-width:190px"><div class="row" style="justify-content:space-between;margin-bottom:3px"><span class="small">${esc(p.area)}</span><b class="small">${p.voto}</b></div>
+      <div style="height:5px;border-radius:99px;background:var(--surface-2);overflow:hidden"><div style="width:${Math.max(4,Math.min(100,p.voto*10))}%;height:100%;background:${col}"></div></div>
+      ${p.prima!=null?`<div style="height:3px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:2px" title="dov'era prima: ${p.prima}"><div style="width:${Math.max(2,Math.min(100,p.prima*10))}%;height:100%;background:var(--text-3);opacity:.5"></div></div>`:''}
+    </div>`;};
+  const delta=media&&mediaPrima?(media>mediaPrima?`▲ da ${String(mediaPrima).replace('.',',')}`:media<mediaPrima?`▼ da ${String(mediaPrima).replace('.',',')}`:'='):'';
+  el.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Schema di potenziamento</h3><p>${fonte}</p></div>
+    <div style="text-align:right">${media?`<div style="font-size:26px;font-weight:900;line-height:1">${String(media).replace('.',',')}</div>${delta?`<div class="small" style="color:${media>=mediaPrima?'var(--cyan)':'var(--orange)'}">${delta}</div>`:''}`:''}
+      <button class="btn sm ghost" id="quadroApri" style="margin-top:4px">Apri la nota</button></div></div>
+    ${punte.length?`<div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-end">${punte.map(barra).join('')}</div>`:`<div class="small muted">La tabella dei punteggi non si riconosce più: apri la nota per intero.</div>`}
+    ${_quadroCurva(punti)}</div>`;
+}
 async function renderQuadro(){
   const el=document.getElementById('quadroBox');if(!el)return;
-  let doc=null,errore='';
+  let doc=null;
   try{doc=await api('engine','/document?slug='+QUADRO_SLUG,{auth:false,tenantKey:true});}
-  catch(e){errore=e.message||'non raggiungibile';}
+  catch(_){}
   if(!document.getElementById('quadroBox'))return;          // vista cambiata nel frattempo
-  if(!doc||!doc.text){
-    el.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Schema di potenziamento</h3><p>La nota vive nel cervello (<span class="mono">${esc(QUADRO_SLUG)}</span>) e qui si legge, non si copia</p></div></div><div class="small muted">${errore?esc('Nota non raggiungibile — '+errore):'Nota non nello scope della chiave, o ingest non ancora girata su forma/workspace/.'}</div></div>`;
+  if(doc&&doc.text){
+    const q=_quadroParse(doc.text);
+    try{localStorage.setItem('dv_quadro',JSON.stringify({q,quando:new Date().toISOString().slice(0,10)}));}catch(_){}
+    _quadroRender(el,q,'Vive nel cervello e si aggiorna lì — letta adesso, mai copiata');
+    const b=document.getElementById('quadroApri');
+    if(b)b.onclick=()=>{
+      const back=document.createElement('div');back.className='modal-back open';
+      back.innerHTML=`<div class="modal" style="max-width:760px"><div class="card-head"><div><h3>${esc(doc.title||'Schema di potenziamento')}</h3><p class="mono small">${esc(doc.path||QUADRO_SLUG)} · dal cervello, adesso</p></div><button class="btn sm ghost" id="quadroChiudi">Chiudi</button></div><pre class="mono small" style="white-space:pre-wrap;color:var(--text);margin-top:10px">${esc(doc.text)}</pre></div>`;
+      document.body.appendChild(back);
+      const via=()=>back.remove();
+      back.onclick=e=>{if(e.target===back)via();};
+      back.querySelector('#quadroChiudi').onclick=via;
+    };
     return;
   }
-  // punteggi letti VIVI dalla tabella della nota: | **Area** | **N / 10** | …
-  const punte=[];let media='';
-  for(const riga of String(doc.text).split('\n')){
-    const m=riga.match(/^\|\s*\*\*(.+?)\*\*\s*\|\s*\*\*(\d+(?:[.,]\d+)?)\s*\/\s*10\*\*/);
-    if(m)punte.push({area:m[1],voto:parseFloat(m[2].replace(',','.'))});
-    const mm=riga.match(/\*\*Media:\s*([\d.,]+)\s*\/\s*10\*\*/);
-    if(mm)media=mm[1];
+  // la nota non risponde: ultima lettura riuscita, con la data — mai un 404 nudo
+  let cache=null;try{cache=JSON.parse(localStorage.getItem('dv_quadro')||'null');}catch(_){}
+  if(cache&&cache.q){
+    _quadroRender(el,cache.q,`Punteggi del ${cache.quando} — la nota non risponde adesso`);
+    const b=document.getElementById('quadroApri');
+    if(b){b.disabled=true;b.title='La nota non è raggiungibile in questo momento';}
+    return;
   }
-  const barra=p=>{const col=p.voto>=7?'var(--cyan)':p.voto>=5?'var(--orange)':'var(--magenta)';
-    return `<div style="flex:1;min-width:170px"><div class="row" style="justify-content:space-between;margin-bottom:3px"><span class="small">${esc(p.area)}</span><b class="small">${p.voto}</b></div><div style="height:5px;border-radius:99px;background:var(--surface-2);overflow:hidden"><div style="width:${Math.max(4,Math.min(100,p.voto*10))}%;height:100%;background:${col}"></div></div></div>`;};
-  el.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Schema di potenziamento ${media?`<span class="pill">media ${esc(media)} / 10</span>`:''}</h3><p>Vive nel cervello e si aggiorna lì — qui si legge la nota vera, adesso</p></div><button class="btn sm" id="quadroApri">Apri la nota</button></div>${punte.length?`<div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-end">${punte.map(barra).join('')}</div>`:`<div class="small muted">La nota c'è ma la tabella dei punteggi non si riconosce più: aprila per intero.</div>`}</div>`;
-  const b=document.getElementById('quadroApri');
-  if(b)b.onclick=()=>{
-    const back=document.createElement('div');back.className='modal-back open';
-    back.innerHTML=`<div class="modal" style="max-width:760px"><div class="card-head"><div><h3>${esc(doc.title||'Schema di potenziamento')}</h3><p class="mono small">${esc(doc.path||QUADRO_SLUG)} · letta dal cervello adesso</p></div><button class="btn sm ghost" id="quadroChiudi">Chiudi</button></div><pre class="mono small" style="white-space:pre-wrap;color:var(--text);margin-top:10px">${esc(doc.text)}</pre></div>`;
-    document.body.appendChild(back);
-    const via=()=>back.remove();
-    back.onclick=e=>{if(e.target===back)via();};
-    back.querySelector('#quadroChiudi').onclick=via;
-  };
+  el.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Schema di potenziamento</h3><p>La nota vive nel cervello (<span class="mono">${esc(QUADRO_SLUG)}</span>) e qui si legge, non si copia</p></div></div><div class="small muted">Nota non raggiungibile e nessuna lettura precedente: serve la chiave FORMA e una ingest che includa forma/workspace/.</div></div>`;
 }
 /* ── M3 · Gli audit DENTRO il pannello: non sono task, sono i documenti da cui
    le task nascono. Registro pensato per PIÙ audit nel tempo (data+titolo, il

@@ -98,6 +98,12 @@ function trovaChromium() {
     apri: !!document.getElementById("quadroApri"),
     // le CHIUSE si vedono: nel gruppo FATTE c'è chi ha chiuso e la nota di chiusura
     fatteFirmate: /andrea/.test((document.getElementById("imp-fatte") || { textContent: "" }).textContent),
+    // M1+M2: barre coi punteggi e curva SVG, senza aprire niente
+    barre: document.querySelectorAll("#quadroBox .qbar").length,
+    curva: !!document.querySelector("#quadroBox svg"),
+    // M3: colonne affiancate e la priorità che si vede in DA FARE
+    colonne: !!document.querySelector(".imp-cols"),
+    prioVisibile: /ALTA/.test((document.getElementById("imp-dafare") || { textContent: "" }).textContent),
   }));
   await page.evaluate(() => route("chat"));
   await page.waitForTimeout(300);
@@ -179,6 +185,10 @@ function trovaChromium() {
   else console.log("[boot misurato] " + bootRiga);
   if (!quadro.box || !quadro.apri) { console.error("FAIL (X3): il quadro di potenziamento non si disegna in Miglioramenti (box=" + quadro.box + ", apri=" + quadro.apri + ")"); ko = 1; }
   if (!quadro.fatteFirmate) { console.error("FAIL: il gruppo FATTE non mostra le task chiuse con la firma di chi ha chiuso"); ko = 1; }
+  if (quadro.barre < 4) { console.error("FAIL (M1): il quadro non disegna le barre dei punteggi (trovate " + quadro.barre + ")"); ko = 1; }
+  if (!quadro.curva) { console.error("FAIL (M2): manca la curva di crescita (SVG) nel quadro"); ko = 1; }
+  if (!quadro.colonne) { console.error("FAIL (M3): le colonne IN CORSO · DA FARE · FATTE non sono affiancate (.imp-cols assente)"); ko = 1; }
+  if (!quadro.prioVisibile) { console.error("FAIL (M3): la priorità ALTA non si vede nella colonna DA FARE"); ko = 1; }
   if (initVox !== 1) { console.error("FAIL (V2-A): aprendo il vox l'orb si è inizializzato " + initVox + " volte (atteso: 1 — l'audit ne contava 3)"); ko = 1; }
   if (initDopoRipetuta !== initVox || orbRipetuti < 1) { console.error("FAIL (V2-A): l'init ripetuto sulla stessa canvas non è stato ignorato (init=" + initDopoRipetuta + ", warning=" + orbRipetuti + ")"); ko = 1; }
   if (!nHome || !nBrain || nHome !== nBrain) { console.error("FAIL (F2): home dice «" + nHome + "» neuroni, Cervello vivo «" + nBrain + "» — la sorgente non è unica"); ko = 1; }
