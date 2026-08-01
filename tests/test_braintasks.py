@@ -108,8 +108,11 @@ def test_endpoints(monkeypatch):
     assert client.post("/admin/tasks/close", headers=_h(),
                        json={"id": tid, "by": "Andrea"}).status_code == 404
     # macchina a stati via API: crea azione, filtra per stato, approva, esegue
+    # (V5: il livello 3 del tenant va acceso, sennò l'azione non si accoda — testato in test_liv3)
+    from app import flags
+    flags.reset(); flags.set_liv3("ats", True, "test")
     r2 = client.post("/admin/tasks", headers=_h(),
-                     json={"title": "Crea evento Calendar", "kind": "azione",
+                     json={"title": "Crea evento Calendar", "kind": "azione", "scope": "ats",
                            "status": "in-approvazione"})
     aid = r2.json()["task"]["id"]
     wait = client.get("/admin/tasks?status=in-approvazione", headers=_h()).json()["tasks"]

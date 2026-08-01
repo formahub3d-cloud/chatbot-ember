@@ -80,13 +80,27 @@ def revoke(name) -> int:
 
 
 def list_keys() -> list[dict]:
+    """V5 (01-08): con l'ULTIMO UTILIZZO per chiave (da key_usage) — senza,
+    la rotazione delle chiavi si fa a occhi chiusi: è il pezzo che permette
+    di verificare che le vecchie non ricevano più traffico PRIMA di revocarle.
+    In più i grant completi (subs/origins/branding): servono a clonare una
+    chiave quando se ne emette la sostituta."""
     with T._conn() as c:
         with c.cursor() as cur:
-            cur.execute("SELECT name, active, allowed_orgs, allowed_tenants, quota_day, "
-                        "(branding IS NOT NULL) FROM api_keys ORDER BY name")
+            cur.execute(
+                "SELECT k.name, k.active, k.allowed_orgs, k.allowed_tenants, k.quota_day, "
+                "(k.branding IS NOT NULL), k.allowed_sub_tenants, k.allowed_origins, "
+                "k.branding, MAX(u.period) AS ultimo_uso, COALESCE(SUM(u.count),0) AS usi "
+                "FROM api_keys k LEFT JOIN key_usage u ON u.key_hash = k.key_hash "
+                "GROUP BY k.key_hash, k.name, k.active, k.allowed_orgs, k.allowed_tenants, "
+                "k.quota_day, k.branding, k.allowed_sub_tenants, k.allowed_origins "
+                "ORDER BY k.name")
             rows = cur.fetchall()
     return [{"name": r[0], "active": r[1], "orgs": r[2], "tenants": r[3],
-             "quota_day": r[4], "branding": r[5]} for r in rows]
+             "quota_day": r[4], "branding": r[5],
+             "subs": _arr(r[6]) if r[6] else [], "origins": _arr(r[7]) if r[7] else [],
+             "branding_full": r[8] or {},
+             "ultimo_uso": str(r[9]) if r[9] else "", "usi": int(r[10] or 0)} for r in rows]
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
