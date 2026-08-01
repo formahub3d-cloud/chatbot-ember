@@ -141,6 +141,36 @@ def list_open(limit: int = 100, status: str = "") -> list[dict]:
         return [dict(t) for t in reversed(_mem) if t["status"] in wanted][:limit]
 
 
+def get(task_id: str) -> dict | None:
+    """Una task per id — il minimo che serve ai GUARDRAIL (kind, scope,
+    status). None = assente. Su errore di lettura ALZA RuntimeError invece di
+    tacere: chi fa da freno deve distinguere «non c'è» da «non so» — in
+    dubbio, freno (V5c, revisione 1/08 notte)."""
+    task_id = (task_id or "").strip()
+    if not task_id:
+        return None
+    if enabled():
+        try:
+            with tenants._conn() as c:
+                with c.cursor() as cur:
+                    # confronto su ::text (non cast del parametro a uuid): un id
+                    # malformato deve dare «assente», non un errore di cast
+                    cur.execute("SELECT task_id::text, kind, scope, status "
+                                "FROM brain_tasks WHERE task_id::text = %s", (task_id,))
+                    row = cur.fetchone()
+        except Exception as e:
+            raise RuntimeError("brain_tasks: lettura task fallita") from e
+        if not row:
+            return None
+        return {"id": row[0], "kind": row[1], "scope": row[2], "status": row[3]}
+    with _lock:
+        for t in _mem:
+            if t["id"] == task_id:
+                return {"id": t["id"], "kind": t.get("kind"),
+                        "scope": t.get("scope"), "status": t.get("status")}
+    return None
+
+
 def set_priorita(task_id: str, priorita: str) -> bool:
     """Assegna la priorità a una task esistente, SENZA muoverla di stato:
     la priorità è un giudizio, non una transizione. False se valore o task

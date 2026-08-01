@@ -76,3 +76,39 @@ def test_le_task_normali_non_sono_toccate(cl):
         "idempotency_key": "k-app"})
     assert r.status_code == 200
 
+
+# ── V5c (revisione 1/08 notte) · La porta di servizio è chiusa ────────────────
+def test_la_porta_di_servizio_e_chiusa(cl):
+    """La sequenza della revisione: nascere 'aperta' (nessun gate) e poi
+    transitare a 'in-approvazione' NON aggira più il freno — la promessa del
+    pannello («da spento non si accodano nemmeno») ora è mantenuta ovunque."""
+    r = cl.post("/admin/tasks", headers=_h(), json={
+        "title": "Invia 3 solleciti", "kind": "azione", "scope": "ats",
+        "status": "aperta", "idempotency_key": "act-porta"})
+    assert r.status_code == 200                      # nascere 'aperta' è lecito
+    tid = r.json()["task"]["id"]
+    r2 = cl.post("/admin/tasks/transition", headers=_h(),
+                 json={"id": tid, "to": "in-approvazione"})
+    assert r2.status_code == 403
+    assert "Livello 3 spento" in r2.json()["detail"]
+    assert braintasks._mem[0]["status"] == "aperta"  # ferma dov'era, mai in coda
+    # col livello 3 acceso la STESSA transizione passa
+    cl.post("/admin/liv3", headers=_h(), json={"tenant": "ats", "on": True, "by": "andrea"})
+    r3 = cl.post("/admin/tasks/transition", headers=_h(),
+                 json={"id": tid, "to": "in-approvazione"})
+    assert r3.status_code == 200
+    assert braintasks._mem[0]["status"] == "in-approvazione"
+
+
+def test_le_audit_transitano_anche_a_freno_tirato(cl):
+    """Il percorso di close_audit_2026_08_01 (task 11 e 16, kind='audit' →
+    in-approvazione) NON deve incocciare nel guardrail: il freno è per le
+    azioni esterne, non per il registro dei lavori."""
+    r = cl.post("/admin/tasks", headers=_h(), json={
+        "title": "Le schede clienti hanno due note a testa", "kind": "audit",
+        "scope": "", "status": "aperta", "idempotency_key": "audit-2026-07-31-11"})
+    tid = r.json()["task"]["id"]
+    r2 = cl.post("/admin/tasks/transition", headers=_h(),
+                 json={"id": tid, "to": "in-approvazione", "note": "IN CORSO"})
+    assert r2.status_code == 200                     # liv3 spento, ma passa: è audit
+
