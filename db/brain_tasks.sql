@@ -17,11 +17,13 @@ create table if not exists brain_tasks (
     title        text not null,
     note         text,
     status       text not null default 'aperta',    -- aperta | fatta | archiviata
+    priorita     text default 'media',              -- alta | media | bassa ('media' = non ancora giudicata)
     created_at   timestamptz not null default now(),
     closed_at    timestamptz,
     closed_by    text,                              -- umano che chiude (obbligatorio lato API)
     constraint brain_tasks_status_chk check (status in ('aperta','fatta','archiviata')),
-    constraint brain_tasks_kind_chk   check (kind in ('manuale','gap','feedback','agente','azione','audit'))
+    constraint brain_tasks_kind_chk   check (kind in ('manuale','gap','feedback','agente','azione','audit')),
+    constraint brain_tasks_priorita_chk check (priorita in ('alta','media','bassa'))
 );
 
 create index if not exists brain_tasks_status_idx  on brain_tasks (status, created_at desc);

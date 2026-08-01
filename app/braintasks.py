@@ -25,6 +25,10 @@ log = logging.getLogger("ember.braintasks")
 
 KINDS = {"manuale", "gap", "feedback", "agente", "azione", "audit"}   # audit: M2, le task nate dagli audit del pannello
 CLOSE_STATUSES = {"fatta", "archiviata"}
+# La PRIORITÀ (31-07 sera): 'media' è il default e significa «non ancora
+# giudicata», non «bassa». Si dichiara alla nascita o si assegna dopo
+# (set_priorita / transition) — mai inferita in automatico.
+PRIORITA = ("alta", "media", "bassa")
 
 # ── Macchina a stati (Z2, brief 2026-07-17) ──────────────────────────────────
 # aperta(pending) → in-approvazione(awaiting_approval) → approvata(approved) →
@@ -55,7 +59,8 @@ def _clean(s: str, n: int) -> str:
 
 
 def add(title: str, scope: str = "", note: str = "", kind: str = "manuale",
-        status: str = "aperta", idempotency_key: str = "") -> dict | None:
+        status: str = "aperta", idempotency_key: str = "",
+        priorita: str = "media") -> dict | None:
     """Crea una task. `status` ammesso alla nascita: 'aperta' (backlog) o
     'in-approvazione' (azione che aspetta l'ok dell'owner). `idempotency_key`:
     la stessa azione non si accoda due volte (ritorna quella esistente).
@@ -64,6 +69,7 @@ def add(title: str, scope: str = "", note: str = "", kind: str = "manuale",
     if not title or status not in ("aperta", "in-approvazione"):
         return None
     kind = kind if kind in KINDS else "manuale"
+    priorita = priorita if priorita in PRIORITA else "media"
     scope, note = _clean(scope, 60), _clean(note, 400)
     ikey = _clean(idempotency_key, 120) or None
     if enabled():
@@ -79,13 +85,13 @@ def add(title: str, scope: str = "", note: str = "", kind: str = "manuale",
                                     "kind": kind, "scope": scope, "note": note,
                                     "duplicate": True}
                     cur.execute(
-                        "INSERT INTO brain_tasks (kind, scope, title, note, status, idempotency_key) "
-                        "VALUES (%s,%s,%s,%s,%s,%s) RETURNING task_id, created_at",
-                        (kind, scope or None, title, note or None, status, ikey))
+                        "INSERT INTO brain_tasks (kind, scope, title, note, status, idempotency_key, priorita) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING task_id, created_at",
+                        (kind, scope or None, title, note or None, status, ikey, priorita))
                     row = cur.fetchone()
                 c.commit()
             return {"id": str(row[0]), "kind": kind, "scope": scope, "title": title,
-                    "note": note, "status": status,
+                    "note": note, "status": status, "priorita": priorita,
                     "created_at": row[1].isoformat() if hasattr(row[1], "isoformat") else str(row[1])}
         except Exception:  # pragma: no cover - best-effort, mai bloccante
             log.warning("brain_tasks: insert fallito (ignorato)", exc_info=True)
@@ -97,6 +103,7 @@ def add(title: str, scope: str = "", note: str = "", kind: str = "manuale",
                     return {**t, "duplicate": True}
         t = {"id": uuid.uuid4().hex, "kind": kind, "scope": scope, "title": title,
              "note": note, "status": status, "idempotency_key": ikey,
+             "priorita": priorita,
              "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
         _mem.append(t)
     return dict(t)
@@ -113,18 +120,19 @@ def list_open(limit: int = 100, status: str = "") -> list[dict]:
                 with c.cursor() as cur:
                     cur.execute(
                         "SELECT task_id, kind, scope, title, note, status, created_at, "
-                        "approved_by, error, closed_at, closed_by FROM brain_tasks "
-                        "WHERE status = ANY(%s) "
+                        "approved_by, error, closed_at, closed_by, priorita, idempotency_key "
+                        "FROM brain_tasks WHERE status = ANY(%s) "
                         "ORDER BY created_at DESC LIMIT %s", (list(wanted), limit))
                     rows = cur.fetchall()
-            # closed_at/closed_by: senza, le task chiuse spariscono dal racconto
-            # (il pannello deve poter dire QUANDO e CHI ha chiuso — 31-07 sera).
+            # closed_at/closed_by: senza, le task chiuse spariscono dal racconto.
+            # idempotency_key: gli script per-chiave risolvono l'id SENZA creare.
             return [{"id": str(r[0]), "kind": r[1], "scope": r[2] or "",
                      "title": r[3], "note": r[4] or "", "status": r[5],
                      "created_at": r[6].isoformat() if hasattr(r[6], "isoformat") else str(r[6]),
                      "approved_by": r[7] or "", "error": r[8] or "",
                      "closed_at": (r[9].isoformat() if hasattr(r[9], "isoformat") else str(r[9])) if r[9] else "",
-                     "closed_by": r[10] or ""}
+                     "closed_by": r[10] or "", "priorita": r[11] or "media",
+                     "idempotency_key": r[12] or ""}
                     for r in rows]
         except Exception:  # pragma: no cover
             log.warning("brain_tasks: lettura fallita (ignorata)", exc_info=True)
@@ -133,8 +141,34 @@ def list_open(limit: int = 100, status: str = "") -> list[dict]:
         return [dict(t) for t in reversed(_mem) if t["status"] in wanted][:limit]
 
 
+def set_priorita(task_id: str, priorita: str) -> bool:
+    """Assegna la priorità a una task esistente, SENZA muoverla di stato:
+    la priorità è un giudizio, non una transizione. False se valore o task
+    non validi."""
+    if priorita not in PRIORITA or not (task_id or "").strip():
+        return False
+    if enabled():
+        try:
+            with tenants._conn() as c:
+                with c.cursor() as cur:
+                    cur.execute("UPDATE brain_tasks SET priorita=%s WHERE task_id=%s::uuid",
+                                (priorita, task_id))
+                    n = cur.rowcount
+                c.commit()
+            return bool(n and n > 0)
+        except Exception:  # pragma: no cover
+            log.warning("brain_tasks: set_priorita fallito (ignorato)", exc_info=True)
+            return False
+    with _lock:
+        for t in _mem:
+            if t["id"] == task_id:
+                t["priorita"] = priorita
+                return True
+    return False
+
+
 def transition(task_id: str, to: str, by: str = "", error: str = "",
-               note: str = "") -> bool:
+               note: str = "", priorita: str = "") -> bool:
     """Muove una task lungo la macchina a stati (TRANSITIONS). Le decisioni umane
     ('approvata', 'fatta', 'archiviata') richiedono `by` (chi decide); 'fallita'
     registra `error`. `note` (opzionale) si AGGIUNGE in coda alla nota esistente:
@@ -143,6 +177,7 @@ def transition(task_id: str, to: str, by: str = "", error: str = "",
     non valida o task assente."""
     to = (to or "").strip()
     by, error, note = _clean(by, 80), _clean(error, 400), _clean(note, 400)
+    priorita = priorita if priorita in PRIORITA else ""
     if not (task_id or "").strip() or to in _NEEDS_BY and not by:
         return False
     valid_from = [f for f, tos in TRANSITIONS.items() if to in tos]
@@ -164,6 +199,8 @@ def transition(task_id: str, to: str, by: str = "", error: str = "",
                 sets += ["note = left(coalesce(note,'') || CASE WHEN "
                          "coalesce(note,'')='' THEN '' ELSE E'\n' END || %s, 800)"]
                 params += [note]
+            if priorita:
+                sets += ["priorita=%s"]; params += [priorita]
             params += [task_id, valid_from]
             with tenants._conn() as c:
                 with c.cursor() as cur:
@@ -189,6 +226,8 @@ def transition(task_id: str, to: str, by: str = "", error: str = "",
                     t["error"] = error
                 if note:
                     t["note"] = ((t.get("note") or "") + ("\n" if t.get("note") else "") + note)[:800]
+                if priorita:
+                    t["priorita"] = priorita
                 return True
     return False
 

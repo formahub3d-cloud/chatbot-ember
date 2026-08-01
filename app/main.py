@@ -644,6 +644,7 @@ class TaskIn(BaseModel):
     kind: str = "manuale"        # manuale | gap | feedback | agente | azione
     status: str = "aperta"       # aperta | in-approvazione (azioni da approvare)
     idempotency_key: str = ""    # anti-duplicazione per le azioni (Z3)
+    priorita: str = "media"      # alta | media | bassa — 'media' = non ancora giudicata
 
 
 class TaskCloseIn(BaseModel):
@@ -658,6 +659,7 @@ class TaskTransitionIn(BaseModel):
     by: str = ""               # obbligatorio per approvata/fatta/archiviata (decide un umano)
     error: str = ""            # per 'fallita'
     note: str = ""             # opzionale: si AGGIUNGE alla nota (perché/misura della decisione)
+    priorita: str = ""         # opzionale: il giudizio viaggia con la decisione
 
 
 @app.get("/admin/tasks")
@@ -677,7 +679,8 @@ def admin_tasks_create(body: TaskIn, authorization: str = Header(default="")):
     redatto (niente PII). Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
     t = braintasks.add(body.title, scope=body.scope, note=body.note, kind=body.kind,
-                       status=body.status, idempotency_key=body.idempotency_key)
+                       status=body.status, idempotency_key=body.idempotency_key,
+                       priorita=body.priorita)
     if t is None:
         raise HTTPException(422, "Titolo obbligatorio e status iniziale valido "
                                  "(aperta | in-approvazione).")
@@ -707,10 +710,26 @@ def admin_tasks_transition(body: TaskTransitionIn, authorization: str = Header(d
     l'errore. Transizioni fuori catalogo → 422. Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
     ok = braintasks.transition(body.id, body.to, by=body.by, error=body.error,
-                               note=body.note)
+                               note=body.note, priorita=body.priorita)
     if not ok:
         raise HTTPException(422, "Transizione non valida (stato di partenza, "
                                  "nome mancante o task inesistente).")
+    return {"ok": True}
+
+
+class TaskPrioritaIn(BaseModel):
+    id: str
+    priorita: str              # alta | media | bassa
+
+
+@app.post("/admin/tasks/priorita")
+def admin_tasks_priorita(body: TaskPrioritaIn, authorization: str = Header(default="")):
+    """Assegna la priorità a una task esistente SENZA muoverla di stato: la
+    priorità è un giudizio, non una transizione. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    ok = braintasks.set_priorita(body.id, body.priorita)
+    if not ok:
+        raise HTTPException(422, "Priorità non valida (alta|media|bassa) o task inesistente.")
     return {"ok": True}
 
 
