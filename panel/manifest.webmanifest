@@ -1,0 +1,15 @@
+{
+  "name": "Divina — Il tuo mondo. La tua AI.",
+  "short_name": "Divina",
+  "description": "La console di Divina: il cervello, la voce, la squadra.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "lang": "it",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

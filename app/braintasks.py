@@ -113,13 +113,18 @@ def list_open(limit: int = 100, status: str = "") -> list[dict]:
                 with c.cursor() as cur:
                     cur.execute(
                         "SELECT task_id, kind, scope, title, note, status, created_at, "
-                        "approved_by, error FROM brain_tasks WHERE status = ANY(%s) "
+                        "approved_by, error, closed_at, closed_by FROM brain_tasks "
+                        "WHERE status = ANY(%s) "
                         "ORDER BY created_at DESC LIMIT %s", (list(wanted), limit))
                     rows = cur.fetchall()
+            # closed_at/closed_by: senza, le task chiuse spariscono dal racconto
+            # (il pannello deve poter dire QUANDO e CHI ha chiuso — 31-07 sera).
             return [{"id": str(r[0]), "kind": r[1], "scope": r[2] or "",
                      "title": r[3], "note": r[4] or "", "status": r[5],
                      "created_at": r[6].isoformat() if hasattr(r[6], "isoformat") else str(r[6]),
-                     "approved_by": r[7] or "", "error": r[8] or ""}
+                     "approved_by": r[7] or "", "error": r[8] or "",
+                     "closed_at": (r[9].isoformat() if hasattr(r[9], "isoformat") else str(r[9])) if r[9] else "",
+                     "closed_by": r[10] or ""}
                     for r in rows]
         except Exception:  # pragma: no cover
             log.warning("brain_tasks: lettura fallita (ignorata)", exc_info=True)

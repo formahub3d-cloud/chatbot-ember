@@ -160,7 +160,7 @@ def test_endpoint_login_me_chat(monkeypatch):
     assert r2.json()["account"]["email"] == "anna@ats.it"
     assert r2.json()["kind"] == "client"
     # chat SENZA X-Tenant-Key: la chiave la mette il server
-    r3 = client.post("/client/chat", json={"message": "ciao"})
+    r3 = client.post("/client/chat", json={"message": "quanto costa la stampa?"})
     assert r3.status_code == 200
     assert r3.json()["answer"] == "risposta-cervello"
     assert visto["grants"]["allowed_scopes"] == ["ats"]            # scope del tenant
@@ -178,7 +178,7 @@ def test_endpoint_login_sbagliato_401_uniforme(monkeypatch):
 
 def test_endpoint_chat_senza_sessione_401():
     client.cookies.clear()
-    assert client.post("/client/chat", json={"message": "ciao"}).status_code == 401
+    assert client.post("/client/chat", json={"message": "quanto costa la stampa?"}).status_code == 401
     assert client.get("/client/me").status_code == 401
 
 

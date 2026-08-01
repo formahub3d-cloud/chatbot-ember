@@ -333,6 +333,15 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     ADDITIVA: non cambia il filtro Qdrant (scope) e il contenuto web è dato non fidato.
     """
     lang = _resolve_lang(lang, question)
+    # Fase 6 + task 16 · saluti e domande SUL sistema: percorso diverso, non
+    # recupero migliore. Fallback esplicito: None → retrieval normale.
+    from . import systemq
+    sq = systemq.intercetta(question, grants)
+    if sq is not None:
+        scopes = scopes_of(grants)
+        metrics.bump_chat(scopes)
+        events.record("chat", scopes)
+        return {"answer": sq, "sources": [], "scopes": scopes, "system": True}
     hits = _retrieve(question, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
     scopes = scopes_of(grants)
     web_results = _maybe_web(question, hits, web, web_enabled)
@@ -444,6 +453,16 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
 
     lang = _resolve_lang(lang, question)
     scopes = scopes_of(grants)
+    # Fase 6 + task 16 · stesso intercettore del percorso non-stream
+    from . import systemq
+    sq = systemq.intercetta(question, grants)
+    if sq is not None:
+        metrics.bump_chat(scopes)
+        events.record("chat", scopes)
+        yield sse("sources", {"sources": [], "scopes": scopes, "system": True})
+        yield sse(None, {"delta": sq})
+        yield sse("done", {})
+        return
     hits = _retrieve(question, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
     web_results = _maybe_web(question, hits, web, web_enabled)
     if not hits and not web_results:

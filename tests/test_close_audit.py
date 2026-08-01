@@ -99,6 +99,25 @@ def test_ambiente_vergine_crea_e_chiude(post):
     assert all(t["status"] == "fatta" for t in braintasks._mem)
 
 
+def test_le_fatte_si_leggono_con_data_e_firma(post):
+    """Le chiuse devono VEDERSI (31-07 sera): GET /admin/tasks?status=fatta
+    espone closed_at e closed_by — senza, chiudere una task la fa sparire dal
+    racconto e l'unica traccia resta in una chat."""
+    _carica("close_audit", "close_audit_2026_07_31.py").chiudi(post)
+    client = TestClient(main.app)
+    r = client.get("/admin/tasks?status=fatta&limit=30",
+                   headers={"Authorization": "Bearer tok-di-test-lungo-abbastanza-123456"})
+    assert r.status_code == 200
+    ts = r.json()["tasks"]
+    assert len(ts) == 5
+    assert all(t["status"] == "fatta" for t in ts)
+    assert all(t["closed_by"] == "andrea" and t["closed_at"] for t in ts)
+    # e il default resta SOLO attive: le fatte non inquinano il badge
+    r2 = client.get("/admin/tasks",
+                    headers={"Authorization": "Bearer tok-di-test-lungo-abbastanza-123456"})
+    assert all(t["status"] != "fatta" for t in r2.json()["tasks"])
+
+
 def test_transition_con_nota_appende(post):
     """La capacità nuova dell'API: /admin/tasks/transition accetta `note` e la
     AGGIUNGE alla nota esistente (mai sostituire — la storia resta)."""
