@@ -82,10 +82,21 @@ function trovaChromium() {
   }));
 
   // 1 · route() deve sopravvivere su tutte le viste principali
-  for (const v of ["chat", "dashboard", "brain", "improve", "home", "chat"]) {
+  for (const v of ["chat", "dashboard", "brain", "improve", "human", "home", "chat"]) {
     await page.evaluate(v2 => route(v2), v);
     await page.waitForTimeout(350);
   }
+
+  // 1a-bis · Human: la figura disegna (SVG a strati) e la scheda ha le sezioni
+  await page.evaluate(() => route("human"));
+  await page.waitForTimeout(600);
+  const human = await page.evaluate(() => ({
+    svg: !!document.querySelector("#humanFig svg .hstrato"),
+    scheda: /Salute/.test((document.getElementById("humanScheda") || { textContent: "" }).textContent),
+    riservata: /fuori dall'indice/.test(document.getElementById("content").textContent),
+  }));
+  await page.evaluate(() => route("home"));
+  await page.waitForTimeout(300);
 
   // 1b · X3: nella vista Miglioramenti il quadro di potenziamento si legge
   //      e disegna (collegamento vivo alla nota del cervello; in demo, la
@@ -236,6 +247,7 @@ function trovaChromium() {
   if (!quadro.colonne) { console.error("FAIL (M3): le colonne IN CORSO · DA FARE · FATTE non sono affiancate (.imp-cols assente)"); ko = 1; }
   if (!quadro.prioVisibile) { console.error("FAIL (M3): la priorità ALTA non si vede nella colonna DA FARE"); ko = 1; }
   if (!composer || !composer.dentro || composer.margine < 14) { console.error("FAIL (R2): la barra di scrittura è tagliata o senza respiro (margine=" + (composer && composer.margine) + "px, minimo 14)"); ko = 1; }
+  if (!human.svg || !human.scheda || !human.riservata) { console.error("FAIL (Human): figura/scheda/avviso-riservatezza mancanti " + JSON.stringify(human)); ko = 1; }
   if (initVox !== 1) { console.error("FAIL (V2-A): aprendo il vox l'orb si è inizializzato " + initVox + " volte (atteso: 1 — l'audit ne contava 3)"); ko = 1; }
   if (initDopoRipetuta !== initVox || orbRipetuti < 1) { console.error("FAIL (V2-A): l'init ripetuto sulla stessa canvas non è stato ignorato (init=" + initDopoRipetuta + ", warning=" + orbRipetuti + ")"); ko = 1; }
   if (!nHome || !nBrain || nHome !== nBrain) { console.error("FAIL (F2): home dice «" + nHome + "» neuroni, Cervello vivo «" + nBrain + "» — la sorgente non è unica"); ko = 1; }

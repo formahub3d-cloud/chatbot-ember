@@ -342,6 +342,11 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
 .orb-pick.lavora::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-left:6px;vertical-align:middle;animation:lampeggia 1s infinite}
 @keyframes lampeggia{50%{opacity:.2}}
 .chipx{background:none;border:none;color:inherit;cursor:pointer;font-size:13px;margin-left:6px;padding:0 2px}
+/* Human · la figura a strati: prospettiva leggera, strati che scivolano */
+.hfig{perspective:700px;display:flex;justify-content:center;padding:8px 0}
+.hfig svg{width:min(100%,300px);height:auto;transform:rotateX(var(--hrx,0deg)) rotateY(var(--hry,0deg));transition:transform .25s ease}
+.hstrato{transition:transform .25s ease}
+@media(max-width:980px){#humanGrid{grid-template-columns:1fr!important}}
 #subnav{margin:10px 22px 0;display:none;gap:6px;flex-wrap:wrap}
 #subnav.on{display:flex}
 /* ── Task 18 · L'allarme del cervello fermo: visibile ovunque, non a piè di pagina ── */
@@ -430,6 +435,7 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
     <button class="nav-item" data-view="agents"><span class="ic" data-ic="sparks" data-ics="17"></span> Squadra <span class="badge" id="b-agents">3</span></button>
     <button class="nav-item" data-view="integrazioni"><span class="ic" data-ic="plug" data-ics="17"></span> Integrazioni</button>
     <button class="nav-item" data-view="impostazioni"><span class="ic" data-ic="gear" data-ics="17"></span> Impostazioni</button>
+    <button class="nav-item" data-view="human"><span class="ic" data-ic="spark" data-ics="17"></span> Human · evoluzione</button>
 
     <button class="nav-item diag-toggle" id="diagToggle" style="margin-top:14px"><span class="ic" data-ic="gear" data-ics="15"></span> ⚙ Diagnostica <span class="badge" id="b-improve">0</span></button>
     <div id="diagGroup" class="diag-group" hidden>
@@ -445,7 +451,7 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
       <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="15"></span> Stato &amp; audit</button>
     </div>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 01-08b · la V3</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 01-08c · human</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -627,6 +633,7 @@ function demoData(service, path, opts){
     if(path.startsWith('/admin/tasks?')&&path.includes('status=fatta')) return Promise.resolve({persist:true,tasks:[
       {id:'tf1',kind:'audit',scope:'',title:'La console appare prima di essere cliccabile e non lo dice',note:'FATTA · Numero vero in produzione: 1265 ms (in sandbox erano 78 — la misura in laboratorio mentiva).',status:'fatta',created_at:nowIso(10*3600e3),closed_at:nowIso(3600e3),closed_by:'andrea',priorita:'alta'},
       {id:'tf2',kind:'audit',scope:'',title:"Aggiusta l'orb invisibile e il modo vocale che si chiude",note:'FATTA · La voce funziona: provata in produzione, prima sillaba dopo 55 ms.',status:'fatta',created_at:nowIso(12*3600e3),closed_at:nowIso(2*3600e3),closed_by:'andrea',priorita:'alta'}]});
+    if(path.startsWith('/admin/human')) return Promise.resolve({exists:true,path:'andrea-aloia/human/human-evoluzione.md',updated:'2026-08-01 09:30',text:'# Human (DEMO)\n\n## Salute\n- peso: 78 kg (2026-08-01)\n- attività fisica: corsa 2 volte a settimana (2026-07-28)\n- sonno: ~6h30, da portare a 7h (2026-07-30)\n\n## Punti di forza\n- visione di prodotto: vede il sistema intero prima dei dettagli\n- costanza: un\'ora al giorno sul cervello, ogni giorno\n\n## Da migliorare\n- delega: tende a fare invece che affidare (2026-07-25)\n\n## Hobby\n- stampa 3D sperimentale\n- cucina del sud\n\n## Interessi\n- agenti AI e orchestrazione\n- GDPR e sovranità del dato\n\n## Obiettivi\n- portare Divina al primo cliente esterno (2026-08-01)\n- dormire 7 ore per un mese intero (2026-08-01)'});
     if(path.startsWith('/document')) return Promise.resolve({slug:'workspace-potenziamento-divina',title:'(DEMO) Schema di potenziamento — dove sta Divina e cosa manca',path:'forma/workspace/workspace-potenziamento-divina.md',tenant:'forma-core',text:'(DEMO — in produzione qui c\'è la nota vera, letta dal cervello)\n\n# Schema di potenziamento\n\n| Area | Punteggio |\n|---|---|\n| **Affidabilità e controlli** | **9 / 10** | 6 |\n| **Voce** | **8 / 10** | 3 |\n| **Struttura dell\'interfaccia** | **5 / 10** | 4 |\n| **Contenuto del cervello** | **5 / 10** | 4 |\n| **Conversazione** | **4 / 10** | 3 |\n| **Vendibilità** | **3 / 10** | 3 |\n\n**Media: 5,7 / 10** (era 3,8 stamattina).'});
     if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:100},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));/* M5: stesso numero di stats.notes (100), un dato solo */gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'cliente-hrh',title:'Cliente — Home Restaurant Hotel',path:'forma/clienti/hrh/cliente-hrh.md',tenant:'hrh',updated_at:nowIso(9800e3)},{slug:'cliente-centioni',title:'Cliente — Centioni',path:'forma/clienti/centioni/cliente-centioni.md',tenant:'centioni',updated_at:nowIso(5*3600e3)},{slug:'cliente-parbonetti',title:'Cliente — Parbonetti',path:'forma/clienti/parbonetti/cliente-parbonetti.md',tenant:'parbonetti',updated_at:nowIso(30*3600e3)},{slug:'cliente-libero-pensiero',title:'Cliente — Libero Pensiero',path:'forma/clienti/libero-pensiero/cliente-libero-pensiero.md',tenant:'libero-pensiero',updated_at:nowIso(46*3600e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
@@ -917,6 +924,34 @@ const VIEWS={
     const b=$('#liv3Btn');
     b.onclick=()=>{const on=localStorage.getItem('dv_liv3')==='1';localStorage.setItem('dv_liv3',on?'0':'1');toast(on?'Livello 3 spento: le azioni esterne non si accodano più':'Livello 3 acceso: le azioni esterne si POSSONO accodare — ma nessuna parte senza la tua approvazione','info');route('impostazioni');};
     pwaBottone();
+  },
+
+  /* ---------- HUMAN · EVOLUZIONE (01-08) ----------
+     Un'altra materia, non il cervello di lavoro. I dati vivono FUORI
+     dall'indice (andrea-aloia/human/ è in SKIP_DIRS): il pannello li legge
+     dal disco via /admin/human (solo owner), nessun retrieval può pescarli
+     e Divina non ci risponde sopra — per costruzione, non per prompt.
+     Qui NIENTE collegamenti a dispositivi o app di salute, NIENTE consigli,
+     NIENTE «valori normali» o punteggi: è uno specchio, non un medico. */
+  async human(){
+    C.innerHTML=skeleton(4);
+    let d=null;try{d=await api('engine','/admin/human');}catch(_){}
+    const fig=localStorage.getItem('dv_human_fig')||'uomo';
+    const scheda=(d&&d.exists)?humanScheda(d.text,d.updated)
+      :`<div class="card" style="margin:0"><div class="card-head"><div><h3>La scheda</h3><p>ancora vuota — e lo dice</p></div></div>
+        <div class="small" style="line-height:1.8">La scheda si crea nel vault, in <span class="mono">andrea-aloia/human/human-evoluzione.md</span> — un percorso <b>escluso dall'indice per scelta</b>: i dati sulla salute sono una categoria speciale nel GDPR e non entrano in Qdrant finché il calcolo non è in Europa. Struttura proposta: <b>Salute</b> (peso · attività · sonno · note, con la data) · <b>Punti di forza</b> · <b>Da migliorare</b> · <b>Hobby</b> · <b>Interessi</b> · <b>Obiettivi</b> (con la data in cui li scrivi: senza date questa schermata diventa un poster).</div></div>`;
+    C.innerHTML=`
+    <div class="grid" style="grid-template-columns:minmax(260px,2fr) 3fr;gap:14px;align-items:start" id="humanGrid">
+      <div class="card" style="margin:0">
+        <div class="card-head" style="margin-bottom:4px"><div><h3>La figura</h3><p>trasparente per scelta: si guarda, non si giudica</p></div>
+          <div class="row" style="gap:4px"><button class="orbit-tab ${fig==='uomo'?'active':''}" data-hfig="uomo">Uomo</button><button class="orbit-tab ${fig==='donna'?'active':''}" data-hfig="donna">Donna</button></div></div>
+        <div id="humanFig">${humanFigura(fig)}</div>
+      </div>
+      <div id="humanScheda">${scheda}</div>
+    </div>
+    <div class="small muted" style="margin-top:12px">${icon('lock',12)} Divina non legge e non commenta questa sezione: i dati vivono fuori dall'indice del cervello e nessuna chiave tenant li raggiunge. Niente dispositivi collegati, niente confronti con «valori normali»: non è un ambito da assistente.</div>`;
+    $$('[data-hfig]').forEach(b=>b.onclick=()=>{localStorage.setItem('dv_human_fig',b.dataset.hfig);route('human');});
+    humanParallasse();
   },
 
   /* ---------- CHAT ---------- */
@@ -2063,6 +2098,83 @@ async function chatApprove(tid,to){
    in testa (origine + salto di stato), righe con titolo · origine · peso ·
    data di chiusura. Nessuna sotto-scheda da scegliere prima di capire. ── */
 const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)']};
+/* ── H2 · La figura umana: SVG A STRATI (scelta a, motivata) — silhouette
+   vettoriale con tre livelli semitrasparenti (corpo · asse interno · punti
+   vivi) e una leggera parallasse al mouse. La sensazione di volume viene da
+   opacità e sfumature, non dalla geometria: pesa quasi nulla, funziona
+   ovunque, si stampa. three.js + GLTF (strada b) resta aggiungibile dopo —
+   il contrario sarebbe più difficile. reduced-motion: figura ferma. ── */
+function humanFigura(sesso){
+  const donna=sesso==='donna';
+  // proporzioni: spalle/fianchi diversi fra le due figure; stesso linguaggio
+  const corpo=donna
+    ?'M100,38 c-11,0 -18,8 -18,19 c0,7 3,13 7,16 c-12,4 -22,10 -24,22 l-8,52 c-1,8 9,10 11,2 l9,-42 c2,20 -2,32 -6,50 c-6,26 -4,54 2,80 l4,68 c1,9 13,9 14,0 l3,-62 l12,0 l3,62 c1,9 13,9 14,0 l4,-68 c6,-26 8,-54 2,-80 c-4,-18 -8,-30 -6,-50 l9,42 c2,8 12,6 11,-2 l-8,-52 c-2,-12 -12,-18 -24,-22 c4,-3 7,-9 7,-16 c0,-11 -7,-19 -18,-19 z'
+    :'M100,36 c-12,0 -19,8 -19,20 c0,7 3,13 7,16 c-14,4 -26,10 -28,24 l-7,50 c-1,8 9,10 11,2 l9,-42 c1,18 0,30 -3,46 c-5,24 -4,56 3,84 l4,66 c1,9 14,9 15,0 l2,-60 l12,0 l2,60 c1,9 14,9 15,0 l4,-66 c7,-28 8,-60 3,-84 c-3,-16 -4,-28 -3,-46 l9,42 c2,8 12,6 11,-2 l-7,-50 c-2,-14 -14,-20 -28,-24 c4,-3 7,-9 7,-16 c0,-12 -7,-20 -19,-20 z';
+  return `<div class="hfig" id="hfigWrap" aria-label="figura umana stilizzata, ${donna?'donna':'uomo'}">
+  <svg viewBox="0 0 200 440" role="img">
+    <defs>
+      <linearGradient id="hgrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="var(--cyan)" stop-opacity=".55"/>
+        <stop offset=".55" stop-color="var(--magenta)" stop-opacity=".30"/>
+        <stop offset="1" stop-color="var(--cyan)" stop-opacity=".15"/>
+      </linearGradient>
+      <radialGradient id="hcore"><stop offset="0" stop-color="var(--cyan)" stop-opacity=".9"/><stop offset="1" stop-color="var(--cyan)" stop-opacity="0"/></radialGradient>
+    </defs>
+    <g class="hstrato" data-prof="1">
+      <path d="${corpo}" fill="url(#hgrad)" fill-opacity=".14" stroke="var(--cyan)" stroke-opacity=".55" stroke-width="1.2"/>
+    </g>
+    <g class="hstrato" data-prof="2" opacity=".5">
+      <path d="M100,74 l0,210" stroke="var(--text-2)" stroke-width="1" stroke-dasharray="2 5"/>
+      <path d="M70,116 q30,${donna?16:12} 60,0 M74,140 q26,${donna?14:10} 52,0 M78,164 q22,10 44,0" fill="none" stroke="var(--text-2)" stroke-width=".8" stroke-opacity=".6"/>
+    </g>
+    <g class="hstrato" data-prof="3">
+      <circle cx="100" cy="55" r="7" fill="url(#hcore)"/>
+      <circle cx="92" cy="128" r="6" fill="url(#hcore)"/>
+      <circle cx="100" cy="196" r="6" fill="url(#hcore)"/>
+    </g>
+  </svg></div>`;
+}
+function humanParallasse(){
+  const w=document.getElementById('hfigWrap');if(!w)return;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;   // figura ferma
+  w.onmousemove=e=>{
+    const r=w.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width-0.5,y=(e.clientY-r.top)/r.height-0.5;
+    w.style.setProperty('--hrx',(y*-6)+'deg');w.style.setProperty('--hry',(x*10)+'deg');
+    w.querySelectorAll('.hstrato').forEach(g=>{const p=+g.dataset.prof;g.style.transform=`translate(${x*p*4}px,${y*p*3}px)`;});
+  };
+  w.onmouseleave=()=>{w.style.setProperty('--hrx','0deg');w.style.setProperty('--hry','0deg');
+    w.querySelectorAll('.hstrato').forEach(g=>g.style.transform='');};
+}
+/* ── H3 · La scheda: si LEGGE, non si compila. Sezioni dalla nota (## Titolo),
+   voci dalle righe `- voce: valore`; le date (YYYY-MM-DD) diventano etichette
+   — un obiettivo con la data si può rileggere fra tre mesi; senza date è un
+   poster. Le sezioni attese che mancano si dicono «da definire». ── */
+function humanScheda(testo,aggiornata){
+  const ATTESE=['Salute','Punti di forza','Da migliorare','Hobby','Interessi','Obiettivi'];
+  const sez={};let cur=null;
+  String(testo).split('\n').forEach(r=>{
+    const h=r.match(/^##\s+(.+?)\s*$/);
+    if(h){cur=h[1];sez[cur]=sez[cur]||[];return;}
+    const v=r.match(/^\s*[-*]\s+(.+)$/);
+    if(v&&cur)sez[cur].push(v[1]);
+  });
+  const voce=t=>{
+    const data=t.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/);
+    const corpo=data?t.slice(0,data.index).trim():t;
+    const kv=corpo.match(/^(.{2,40}?):\s+(.+)$/);
+    return `<div class="imp-riga"><div class="row" style="justify-content:space-between;gap:10px;align-items:baseline">
+      <div style="min-width:0">${kv?`<b style="font-size:12.5px">${esc(kv[1])}</b> <span class="small">${esc(kv[2])}</span>`:`<span class="small">${esc(corpo)}</span>`}</div>
+      ${data?`<span class="pill" title="ultimo aggiornamento">${esc(data[1])}</span>`:''}</div></div>`;
+  };
+  const blocchi=[...new Set([...ATTESE,...Object.keys(sez)])].map(nome=>{
+    const righe=sez[nome];
+    if(nome==='Human'||/^#/.test(nome))return '';
+    return `<div class="card" style="margin:0 0 10px"><div class="card-head" style="margin-bottom:2px"><div><h3 style="font-size:14px">${esc(nome)}</h3></div></div>
+      ${righe&&righe.length?righe.map(voce).join(''):`<div class="small" style="color:var(--orange)">⚠️ da definire — meglio vuoto dichiarato che un valore plausibile</div>`}</div>`;
+  }).join('');
+  return `<div><div class="row small muted" style="justify-content:flex-end;margin-bottom:6px">nota aggiornata: ${esc(aggiornata||'—')}</div>${blocchi}</div>`;
+}
 /* ── Fase 10 · I widget di casa: i VUOTI parlano — dicono cosa ci finirà
    dentro e come farcelo arrivare, mai uno zero muto. ── */
 async function caricaHomeWidgets(){
@@ -2456,7 +2568,7 @@ function newClientForm(){
 }
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],improve:['Miglioramenti','Da fare · in corso · fatte — audit, roadmap, proposte e gap in un posto solo'],proposals:['Miglioramenti','Da fare · in corso · fatte'],roadmap:['Miglioramenti','Da fare · in corso · fatte'],tasks:['Miglioramenti','Da fare · in corso · fatte'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Chiavi tenant','Onboarding & accessi'],agents:['Squadra','Divina e i tre companion — le capacità, la regia, il router'],clienti:['Clienti','Le schede, le note e gli accessi di ogni cliente'],integrazioni:['Integrazioni','Gli strumenti collegati al tuo mondo'],impostazioni:['Impostazioni','Permessi, connessione, tema, installazione'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],improve:['Miglioramenti','Da fare · in corso · fatte — audit, roadmap, proposte e gap in un posto solo'],proposals:['Miglioramenti','Da fare · in corso · fatte'],roadmap:['Miglioramenti','Da fare · in corso · fatte'],tasks:['Miglioramenti','Da fare · in corso · fatte'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Chiavi tenant','Onboarding & accessi'],agents:['Squadra','Divina e i tre companion — le capacità, la regia, il router'],clienti:['Clienti','Le schede, le note e gli accessi di ogni cliente'],human:['Human · evoluzione','La persona, non il lavoro — dati fuori dall\'indice, letti solo qui'],integrazioni:['Integrazioni','Gli strumenti collegati al tuo mondo'],impostazioni:['Impostazioni','Permessi, connessione, tema, installazione'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
 VIEWS.roadmap=VIEWS.tasks=VIEWS.proposals=VIEWS.improve;   // M1: tre nomi, una vista
 /* Le viste che non stanno più nel menu si evidenziano sulla loro PORTA. */
 const VIEW_PORTA={nodes:'brain',docs:'brain',contradictions:'brain',live:'agents',router:'agents',
