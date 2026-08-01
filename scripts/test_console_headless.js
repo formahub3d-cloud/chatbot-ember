@@ -153,6 +153,18 @@ function trovaChromium() {
     await page.waitForTimeout(500);
     vox = await leggiVox();
   }
+  // 2b · G (01-08): le due domande sono SEPARATE e contano entrambe.
+  //     «la pipeline disegna?» → campione (ed eventuale disegno forzato, sotto)
+  //     «il ciclo è vivo?»     → contatore di frame, due letture a ~1,5s:
+  //     anche a 5 fps cresce — il guasto del 31/07 (orbDraw sana, ciclo morto)
+  //     qui diventa rosso. Tre finestre per assorbire il rAF affamato.
+  let cicloVivo = false, fA = 0, fB = 0;
+  for (let w = 0; w < 3 && !cicloVivo; w++) {
+    fA = await page.evaluate(() => (state._orb && state._orb.frames) || 0);
+    await page.waitForTimeout(1500);
+    fB = await page.evaluate(() => (state._orb && state._orb.frames) || 0);
+    cicloVivo = fB > fA;
+  }
   if (vox.canvas && !vox.css && vox.px <= 200) {
     vox = await page.evaluate(() => {
       try { orbDraw(state._orb, performance.now()); } catch (e) {}
@@ -232,6 +244,8 @@ function trovaChromium() {
   else if (vox.canvas && vox.px <= 200 && !vox.css) {
     console.error(`FAIL: l'orb NON disegna (canvas ${vox.w}x${vox.h}, cssW=${vox.cssW}, px=${vox.px})`); ko = 1;
   }
+  if (!cicloVivo) { console.error("FAIL (G): il ciclo di disegno non gira — frame fermi (" + fA + " → " + fB + " in 3 finestre da 1,5s)"); ko = 1; }
+  else console.log("[ciclo] vivo: " + fA + " → " + fB + " frame");
   if (!dopoRisposta.aperto) { console.error("FAIL (guasto B): il modo vocale si è CHIUSO durante la risposta"); ko = 1; }
   if (dopoRisposta.righe < 2) { console.error("FAIL: il trascritto non mostra domanda+risposta (righe=" + dopoRisposta.righe + ")"); ko = 1; }
   if (!chiuso) { console.error("FAIL: Escape non chiude il modo vocale"); ko = 1; }
