@@ -18,7 +18,13 @@
    ══════════════════════════════════════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=Montserrat:wght@400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--divina:#7f8aa0;--dante:#F8693C;--virgilio:#0ED4E4;--beatrice:#DD24F2;
+/* V6/A1 · Il colore lo decide chi sta lavorando. Divina era viola e ora è
+   GIALLA; Dante era #F8693C (arancio di servizio) e va spinto sul ROSSO,
+   così non si confonde più con l'arancio degli avvisi; Virgilio e Beatrice
+   restano. --riposo = grigio: lo stato normale, e deve essere bello anche
+   così. Queste variabili prima erano dichiarate e mai usate: adesso sono
+   l'UNICA fonte del colore agente (ORB_COLS e AG_COLORS leggono di qui). */
+:root{--divina:#EAB308;--dante:#E4342B;--virgilio:#0ED4E4;--beatrice:#DD24F2;--riposo:#7f8aa0;
   /* Palette FORMA (design system 22-07, estratto dal codice del sito):
      6 colori servizio + regola «dark mai #000, sempre #050505». */
   --cyan:#0ED4E4; --magenta:#DD24F2; --green:#89D41D; --orange:#F8693C;
@@ -39,6 +45,9 @@
      chiaro → shade scuri in light, colori pieni solo in dark. */
   --green:#4D7610; --cyan:#0E7490; --magenta:#A11CB3; --orange:#B84F2D;
   --yellow:#946300; --red:#B91C1C;
+  /* su chiaro il giallo pieno e il rosso pieno non passano il contrasto AA:
+     stessi agenti, shade scuri — il colore identifica, il testo deve leggersi */
+  --divina:#946300; --dante:#B3261E; --virgilio:#0E7490; --beatrice:#A11CB3; --riposo:#5c5568;
   --pos:#4D7610; --warn:#B84F2D; --neg:#B91C1C; --info:#0E7490; --accent:#A11CB3;
   --bg:#f5f4f9; --bg-grad-1:rgba(221,36,242,.10); --bg-grad-2:rgba(14,212,228,.07);
   --surface:#ffffff; --surface-2:#f3f3f8; --surface-3:#e9e9f2;
@@ -269,22 +278,40 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 /* ── O4 · provenienza a colpo d'occhio: dentro/fuori dal cervello ── */
 .bubble .fuori{display:block;border-left:3px solid var(--orange);background:color-mix(in srgb,var(--orange) 8%,transparent);padding:6px 10px;margin:6px 0;border-radius:6px}
 .bubble .fuori-tag{display:block;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);margin-bottom:3px;font-weight:700}
+/* ── V6/B1 · l'offerta di colmare il buco, attaccata alla risposta ── */
+.gap-offerta{margin-top:8px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--cyan) 42%,var(--border));background:color-mix(in srgb,var(--cyan) 8%,transparent);border-radius:11px}
+/* ── V6/B3 · le «cose imparate» proposte a fine conversazione ── */
+.imparato-box{margin:10px 0;padding:12px 14px;border:1px solid color-mix(in srgb,var(--magenta) 38%,var(--border));background:color-mix(in srgb,var(--magenta) 7%,transparent);border-radius:12px}
+.imparato-voce{padding:9px 0;border-top:1px solid var(--border)}
+.imparato-voce:first-of-type{border-top:0}
+.imparato-cita{border-left:3px solid var(--text-3);padding:2px 0 2px 9px;margin-top:5px;color:var(--text-2);font-size:12px;font-style:italic}
 /* ── O1 · il rientro: la home È il cervello ── */
-/* V5 · home: titolo FUORI dal grafo (in testa), il cervello prende tutta la
-   scena, a destra la colonnina degli stati veri del motore. */
+/* V5 · home: titolo FUORI dal grafo (in testa), il cervello prende tutta la scena.
+   V6/A1 · L'ORBITA È LA HOME. Grande, centrale, con aria intorno: chi entra non
+   sta cercando una nota, sta guardando se il cervello è vivo. Via la colonnina
+   laterale delle tre spie (bordo a destra = scena decentrata, e tre etichette per
+   dire una cosa sola): al suo posto UNA riga sotto l'orbita, che dice sempre
+   quello che dice il colore — perché il colore da solo non può portare
+   l'informazione (chi non distingue rosso e azzurro deve capire lo stesso).
+   Squadra, Fatte di recente e Contraddizioni restano: scendono sotto. */
 .home-testa{text-align:center;padding:4px 10px 14px}
 .home-testa h1{font-size:clamp(22px,3.4vw,34px)}
 .home-testa .sub{margin-left:auto;margin-right:auto}
 .home-testa .cta{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
-.home-scena{padding:0;overflow:hidden;display:flex;align-items:stretch}
-.home-scena canvas{flex:1;min-width:0;height:clamp(320px,calc(100vh - 460px),900px);display:block}
-.home-stati{display:flex;flex-direction:column;gap:10px;justify-content:center;padding:14px 12px;border-left:1px solid var(--border);min-width:96px;flex-shrink:0}
-.stato{background:none;border:1px solid var(--border);border-radius:12px;padding:9px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text);font:inherit}
-.stato b{font-size:12px}
-.stato-dot{width:10px;height:10px;border-radius:50%;background:currentColor;opacity:.22;transition:opacity .3s}
-.stato.on .stato-dot{opacity:1;box-shadow:0 0 9px currentColor;animation:stato-pulse 1.6s ease-in-out infinite}
+.home-scena{padding:18px 12px 12px;overflow:hidden;display:flex;flex-direction:column;align-items:center}
+.home-scena canvas{width:100%;max-width:900px;height:clamp(340px,calc(100vh - 430px),760px);display:block}
+/* La riga unica. Il pallino porta il colore dello stato, il testo lo dice a
+   parole: le due cose insieme, mai una sola. `aria-live` perché a chi usa uno
+   screen reader il cambio di stato va annunciato, non lasciato sullo schermo. */
+.orb-frase{margin-top:14px;text-align:center;display:flex;align-items:center;justify-content:center;gap:9px;
+  font-size:14px;color:var(--text-2);min-height:22px;flex-wrap:wrap;padding:0 12px;background:none;border:0;font-family:inherit;cursor:pointer}
+.orb-frase b{color:var(--text);font-weight:700}
+.orb-frase .stato-dot{width:9px;height:9px;flex-shrink:0}
+.orb-frase:hover b{text-decoration:underline}
+.stato-dot{width:10px;height:10px;border-radius:50%;background:currentColor;opacity:.28;transition:opacity .3s,background .6s}
+.orb-frase.on .stato-dot{opacity:1;box-shadow:0 0 9px currentColor;animation:stato-pulse 1.6s ease-in-out infinite}
 @keyframes stato-pulse{50%{transform:scale(1.25)}}
-@media (max-width:700px){.home-scena{flex-direction:column}.home-stati{flex-direction:row;border-left:none;border-top:1px solid var(--border);justify-content:center}}
+@media (max-width:700px){.home-scena{padding:10px 6px}.home-scena canvas{height:clamp(260px,52vh,460px)}}
 #focusBar{padding:0 22px}
 #focusBar:not(:empty){display:flex;gap:10px;align-items:center;padding:7px 22px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--cyan) 7%,transparent)}
 .focus-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)}
@@ -546,6 +573,10 @@ const state={
   tenant:(t=>t==='forma'?'forma-core':t)(localStorage.getItem(LS.tenant)||'forma-core'),
   demo:localStorage.getItem(LS.demo)==='1', view:'home', engOk:false, orchOk:false, chat:[],
   tts:localStorage.getItem(LS.tts)==='1', _liveTimer:null, _brainOn:false,
+  /* V6/A · gli ingressi dell'orbita: dispatch recenti, neuroni, ultima ingest.
+     Dichiarati qui e non creati al volo: se un dato non c'è deve valere null,
+     e null è ciò che fa dire «—» invece di accendere una luce per finta. */
+  _dispatch:[], _neuroni:null, _lastIngest:null, _ingestFresca:false,
   /* B3: slug delle note usate nelle risposte (memoria di sessione) — quando
      apri Cervello vivo, quei neuroni PULSANO e alimentano la heatmap reale. */
   _recentFires:[], _pendingFire:null,
@@ -624,7 +655,10 @@ async function api(service, path, opts={}){
 /* ══════════ DEMO ══════════ */
 const SCOPE_COLORS={'ats':'var(--cyan)','forma-core':'var(--green)','andrea':'var(--magenta)','ovyon':'var(--orange)','forma':'var(--green)'};
 const scopeColor=s=>SCOPE_COLORS[s]||'var(--text-2)';
-const AG_COLORS={dante:'var(--orange)',virgilio:'var(--cyan)',beatrice:'var(--magenta)'};
+/* V6/A1 · una sola fonte per il colore di un agente (le variabili CSS sopra):
+   prima Dante era «var(--orange)», cioè lo stesso token degli avvisi — cambiare
+   il colore dell'agente avrebbe cambiato anche i warning. */
+const AG_COLORS={dante:'var(--dante)',virgilio:'var(--virgilio)',beatrice:'var(--beatrice)',divina:'var(--divina)'};
 const AG_INIT={dante:'DA',virgilio:'VI',beatrice:'BE'};
 function demoData(service, path, opts){
   const now=Math.floor(Date.now()/1000), nowIso=n=>new Date(Date.now()-n).toISOString();
@@ -646,13 +680,25 @@ function demoData(service, path, opts){
       {id:'tf1',kind:'audit',scope:'',title:'La console appare prima di essere cliccabile e non lo dice',note:'FATTA · Numero vero in produzione: 1265 ms (in sandbox erano 78 — la misura in laboratorio mentiva).',status:'fatta',created_at:nowIso(10*3600e3),closed_at:nowIso(3600e3),closed_by:'andrea',priorita:'alta'},
       {id:'tf2',kind:'audit',scope:'',title:"Aggiusta l'orb invisibile e il modo vocale che si chiude",note:'FATTA · La voce funziona: provata in produzione, prima sillaba dopo 55 ms.',status:'fatta',created_at:nowIso(12*3600e3),closed_at:nowIso(2*3600e3),closed_by:'andrea',priorita:'alta'}]});
     if(path.startsWith('/admin/human')) return Promise.resolve({exists:true,path:'andrea-aloia/human/human-evoluzione.md',updated:'2026-08-01 09:30',text:'# Human (DEMO)\n\n## Salute\n- peso: 78 kg (2026-08-01)\n- attività fisica: corsa 2 volte a settimana (2026-07-28)\n- sonno: ~6h30, da portare a 7h (2026-07-30)\n\n## Punti di forza\n- visione di prodotto: vede il sistema intero prima dei dettagli\n- costanza: un\'ora al giorno sul cervello, ogni giorno\n\n## Da migliorare\n- delega: tende a fare invece che affidare (2026-07-25)\n\n## Hobby\n- stampa 3D sperimentale\n- cucina del sud\n\n## Interessi\n- agenti AI e orchestrazione\n- GDPR e sovranità del dato\n\n## Obiettivi\n- portare Divina al primo cliente esterno (2026-08-01)\n- dormire 7 ore per un mese intero (2026-08-01)'});
-    if(path.startsWith('/document')) return Promise.resolve({slug:'workspace-potenziamento-divina',title:'(DEMO) Schema di potenziamento — dove sta Divina e cosa manca',path:'forma/workspace/workspace-potenziamento-divina.md',tenant:'forma-core',text:'(DEMO — in produzione qui c\'è la nota vera, letta dal cervello)\n\n# Schema di potenziamento\n\n| Area | Punteggio |\n|---|---|\n| **Affidabilità e controlli** | **9 / 10** | 6 |\n| **Voce** | **8 / 10** | 3 |\n| **Struttura dell\'interfaccia** | **5 / 10** | 4 |\n| **Contenuto del cervello** | **5 / 10** | 4 |\n| **Conversazione** | **4 / 10** | 3 |\n| **Vendibilità** | **3 / 10** | 3 |\n\n**Media: 5,7 / 10** (era 3,8 stamattina).'});
+    if(path.startsWith('/document')) return Promise.resolve({slug:'workspace-potenziamento-divina',title:'(DEMO) Schema di potenziamento — dove sta Divina e cosa manca',path:'forma/workspace/workspace-potenziamento-divina.md',tenant:'forma-core',text:'(DEMO — in produzione qui c\'è la nota vera, letta dal cervello)\n\n# Schema di potenziamento\n\n| Area | Punteggio |\n|---|---|\n| **Affidabilità e controlli** | **9 / 10** | 9 |\n| **Voce** | **8 / 10** | 8 |\n| **Struttura dell\'interfaccia** | **7 / 10** | 5 |\n| **Contenuto del cervello** | **6 / 10** | 5 |\n| **Estetica e resa visiva** | **5 / 10** | area nuova |\n| **Conversazione** | **4 / 10** | 4 |\n| **Vendibilità** | **3 / 10** | 3 |\n\n**Media: 6,0 / 10** (era 6,2 con sei aree).'});
     if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:100},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));/* M5: stesso numero di stats.notes (100), un dato solo */gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'cliente-hrh',title:'Cliente — Home Restaurant Hotel',path:'forma/clienti/hrh/cliente-hrh.md',tenant:'hrh',updated_at:nowIso(9800e3),tags:['tema/business']},{slug:'cliente-centioni',title:'Cliente — Centioni',path:'forma/clienti/centioni/cliente-centioni.md',tenant:'centioni',updated_at:nowIso(5*3600e3),tags:['tema/business','tema/marketing']},{slug:'cliente-parbonetti',title:'Cliente — Parbonetti',path:'forma/clienti/parbonetti/cliente-parbonetti.md',tenant:'parbonetti',updated_at:nowIso(30*3600e3)},{slug:'cliente-libero-pensiero',title:'Cliente — Libero Pensiero',path:'forma/clienti/libero-pensiero/cliente-libero-pensiero.md',tenant:'libero-pensiero',updated_at:nowIso(46*3600e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3),tags:['tema/crescita-personale']},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3),tags:['tema/tecnico']}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
     if(path.startsWith('/admin/proposals/approve')) return Promise.resolve({ok:true,task:{id:'t-demo',kind:'gap',status:'aperta'}});
     if(path.startsWith('/admin/proposals/dismiss')) return Promise.resolve({ok:true});
     if(path==='/admin/tasks'&&(opts.method||'GET')==='POST') return Promise.resolve({ok:true,task:{id:'t-demo',kind:(opts.body&&opts.body.kind)||'manuale',scope:(opts.body&&opts.body.scope)||'',title:(opts.body&&opts.body.title)||'Task',note:(opts.body&&opts.body.note)||'',status:'aperta',created_at:new Date().toISOString()}});
     /* V5 · liv3 anche in demo rispecchia il vero: stato per sessione, default spento */
+    if(path.startsWith('/admin/libera')){
+      if((opts.method||'GET')==='POST'){state._demoLibera=!!(opts.body&&opts.body.on);return Promise.resolve({ok:true,tenant:(opts.body&&opts.body.tenant)||'',libera:state._demoLibera,persist:false});}
+      return Promise.resolve({tenant:new URLSearchParams(path.split('?')[1]||'').get('tenant')||'',libera:!!state._demoLibera,persist:false});
+    }
+    /* B3 · in demo «Cosa abbiamo imparato» mostra come SI PRESENTA la proposta
+       — con la citazione — senza inventarsi che sia stata salvata: la nota
+       nasce solo dall'approvazione, anche qui. */
+    if(path.startsWith('/admin/conversazione/imparato')) return Promise.resolve({proposte:1,imparato:[
+      {id:'imp-demo',source:'conversazione',scope:'ats',title:'Impara dalla conversazione: «Il ritiro a domicilio copre solo il centro»',
+       nota_titolo:'Il ritiro a domicilio copre solo il centro',detail:'(DEMO) Il servizio di ritiro a domicilio è limitato al centro città; fuori si passa dal punto di raccolta.',
+       citazione:'no, fuori dal centro il ritiro non lo facciamo, si passa dal punto di raccolta',conversazione:'chat console'}],
+      nota:'Sono proposte, non note: diventano cervello solo se le approvi in Miglioramenti.'});
     if(path.startsWith('/admin/liv3')){
       if((opts.method||'GET')==='POST'){state._demoLiv3=!!(opts.body&&opts.body.on);return Promise.resolve({ok:true,tenant:(opts.body&&opts.body.tenant)||'',liv3:state._demoLiv3,by:(opts.body&&opts.body.by)||'',persist:false});}
       return Promise.resolve({tenant:new URLSearchParams(path.split('?')[1]||'').get('tenant')||'',liv3:!!state._demoLiv3,persist:false});
@@ -664,7 +710,7 @@ function demoData(service, path, opts){
       '/admin/analytics':{uptime_s:186420,totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.'}]},
-      '/admin/proposals':{proposals:[{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
+      '/admin/proposals':{proposals:[{id:'p0',source:'conversazione',scope:'ats',title:'Impara dalla conversazione: «Il ritiro a domicilio copre solo il centro»',detail:'(DEMO) Il servizio di ritiro a domicilio è limitato al centro città; fuori si passa dal punto di raccolta.',citazione:'no, fuori dal centro il ritiro non lo facciamo, si passa dal punto di raccolta',conversazione:'chat console · 2026-08-01 23:40',count:1,last_at:now-300},{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
       '/admin/brain':{persist:true,vault:{vault_commit:'1f73289abc12',vault_commit_date:nowIso(840e3)},ingest_commit:{vault_commit:'1f73289abc12',at:nowIso(3600e3)},stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']}]},
       '/admin/tasks':{persist:true,tasks:[{id:'t0',kind:'azione',scope:'ats',title:'Invia 3 solleciti email ai clienti ATS in ritardo',note:'Preparati da Dante · invoice-chase — testi pronti, NESSUN invio senza il tuo ok',status:'in-approvazione',priorita:'alta',created_at:nowIso(600e3)},{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',priorita:'alta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',priorita:'media',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta negativa ricorrente',status:'aperta',priorita:'bassa',created_at:nowIso(50*3600e3)}]},
       '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
@@ -769,7 +815,12 @@ const VIEWS={
                     fonte della Regia live e del widget «La squadra»);
          aggiorna = last_ingest da /admin/brain (quando ha letto il vault).
        Sono stati reali e possono dirlo: niente etichetta «dimostrazione».
-       R1 · sul grafo NIENTE nomi stampati: il nome appare al passaggio. */
+       V6/A · L'orbita è il protagonista, e gli stessi tre stati non sono più
+       tre spie in colonna: sono il COLORE e la FORMA dell'orbita, più UNA riga
+       sotto. Sul grafo NIENTE nomi, nemmeno al passaggio (labels:'none'): chi
+       guarda la home non sta cercando una nota. Regola che non cambia: senza
+       dato la riga dice «—» e l'orbita resta grigia — un'orbita che finge di
+       lavorare è peggio di una ferma. */
     const connected=state.engOk||state.orchOk;
     C.innerHTML=`
     <div class="home-testa">
@@ -783,11 +834,7 @@ const VIEWS={
     </div>
     <div class="card home-scena">
       <canvas id="homeBrain"></canvas>
-      <div class="home-stati">
-        <button class="stato" id="stPensa" onclick="apriChat(true)" title="Si accende mentre Divina risponde a un turno di chat vero"><span class="stato-dot" style="color:var(--magenta)"></span><b>pensa</b><span class="small muted" id="stPensaV">in ascolto</span></button>
-        <button class="stato" id="stLavora" onclick="route('live')" title="I dispatch della regia — la stessa fonte della Regia live"><span class="stato-dot" style="color:var(--cyan)"></span><b>lavora</b><span class="small muted" id="stLavoraV">—</span></button>
-        <button class="stato" id="stAggiorna" onclick="route('brain')" title="Quando il cervello ha letto il vault l'ultima volta"><span class="stato-dot" style="color:var(--green)"></span><b>aggiorna</b><span class="small muted" id="stAggiornaV">—</span></button>
-      </div>
+      <button class="orb-frase" id="orbFrase" aria-live="polite" title="Lo stato dell'orbita, a parole"><span class="stato-dot"></span><span id="orbFraseT">il cervello si sta accendendo…</span></button>
     </div>
     <div class="grid g-2" id="homeWidgets" style="margin-top:14px"></div>`;
     caricaHomeWidgets();
@@ -799,22 +846,30 @@ const VIEWS={
        con l'età, non con un numero diverso. */
     let g=null,stats=null;
     try{const d=await api('engine','/admin/brain');stats=(d&&d.stats)||null;}catch(_){}
-    statoAggiorna(stats&&stats.last_ingest);       // V5 · la spia «aggiorna» = dato vero
+    /* V6/A · I NEURONI si contano in un posto solo, e da oggi quel posto è la
+       riga sotto l'orbita (dove sta lo stato): il sottotitolo racconta invece
+       la FORMA del cervello — quante sinapsi e quanto è fresca la fotografia.
+       Due righe che dicono lo stesso numero sono il difetto che M5 aveva già
+       chiuso una volta: non lo si riapre spostando l'orbita al centro. */
+    state._neuroni=(stats&&stats.notes)!=null?stats.notes:null;
+    statoAggiorna(stats&&stats.last_ingest);       // V5 · «aggiorna» = dato vero
     try{g=await api('engine','/admin/brain/graph');}catch(_){}
     if(g&&(g.nodes||[]).length){
+      if(state._neuroni==null)state._neuroni=g.nodes.length;
       startBrainCanvas(g.nodes,g.links,'homeBrain');
-      const n=(stats&&stats.notes)!=null?stats.notes:g.nodes.length;
-      if(sub)sub.innerHTML=`${fmtN(n)} neuroni · ${fmtN((g.links||[]).length)} sinapsi reali — connessi, vivi, tuoi · ${etaDato(g.generated_at)||''}`;
+      if(sub)sub.innerHTML=`${fmtN((g.links||[]).length)} sinapsi reali — connessi, vivi, tuoi · ${etaDato(g.generated_at)||''}`;
     }else{
       try{
         const r=await api('engine','/admin/brain/notes?'+q({limit:220}));
+        if(state._neuroni==null)state._neuroni=(r.notes||[]).length;
         startBrainCanvas(r.notes||[],null,'homeBrain');
-        if(sub)sub.textContent=`${fmtN((r.notes||[]).length)} neuroni — le sinapsi arrivano con la prossima ingest`;
+        if(sub)sub.textContent='le sinapsi arrivano con la prossima ingest';
       }catch(_){
         startBrainCanvas([],null,'homeBrain');
         if(sub)sub.textContent=connected?'nessun dato dal cervello: lancia una ingest':'connetti il motore per accendere il cervello';
       }
     }
+    aggiornaOrbita();                              // il conteggio appena letto entra nella riga
   },
 
   /* ---------- MIGLIORAMENTI (M1) — la coda UNICA: audit · roadmap · proposte · gap.
@@ -859,8 +914,13 @@ const VIEWS={
       stato:t.status==='fatto'?'fatte':'dafare',
       iniziata:['in-corso','parziale'].includes(t.status),
       quando:'',k:'rm-'+t.id}));
-    ((pp&&pp.proposals)||[]).forEach(t=>items.push({titolo:t.title,nota:t.detail||'',
-      origine:'proposta',peso:t.count?t.count+'×':'',stato:'dafare',quando:'',k:'pr-'+t.id,pid:t.id}));
+    /* V6/B3 · Una proposta nata da conversazione porta la sua CITAZIONE fin
+       qui: è la schermata in cui si decide, ed è lì che la provenienza serve.
+       Senza, sarebbe una nota senza fonte — cioè una voce di corridoio. */
+    ((pp&&pp.proposals)||[]).forEach(t=>items.push({
+      titolo:t.title,nota:(t.detail||'')+(t.citazione?`\n« ${t.citazione} »`:''),
+      origine:t.source==='conversazione'?'conversazione':'proposta',
+      peso:t.count?t.count+'×':'',stato:'dafare',quando:'',k:'pr-'+t.id,pid:t.id}));
     state._impItems=items;
     state._impPersist=!!(tk&&tk.persist);
     renderImprove();
@@ -949,6 +1009,14 @@ const VIEWS={
     try{const r=await api('engine','/admin/liv3?tenant='+encodeURIComponent(state.tenant));lv=!!r.liv3;}
     catch(e){lvErr=e.message||'motore non raggiungibile';}
     const liv3=lv===true;
+    /* V6/B2 · La conoscenza generale fuori dal vault: stessa famiglia di owner
+       e liv3 — stato sul SERVER, spunta qui che è la sua VISTA. Non è un
+       permesso sulle azioni ma sulla PROMESSA: da spento, ciò che il bot dice
+       viene solo dal materiale del cliente. */
+    let lb=null,lbErr='';
+    try{const r=await api('engine','/admin/libera?tenant='+encodeURIComponent(state.tenant));lb=!!r.libera;}
+    catch(e){lbErr=e.message||'motore non raggiungibile';}
+    const libera=lb===true;
     C.innerHTML=`
     <div class="card" style="margin-bottom:14px;border-color:color-mix(in srgb,var(--cyan) 40%,var(--border))"><div style="font-size:16px;font-weight:800;line-height:1.6">${icon('lock',16)} Ogni azione con effetto esterno passa dalla <span style="color:var(--cyan)">tua approvazione</span>.<br>${icon('brain',16)} Ogni risposta <span style="color:var(--magenta)">cita le fonti</span> da cui viene.</div><div class="small muted" style="margin-top:6px">Sono i due motivi per cui Divina si può usare per lavoro vero. Quello che ci distingue va mostrato, non confessato.</div></div>
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Cosa può fare Divina</h3><p>Tre livelli, in ordine di rischio. Non serve sapere cosa sia uno «scope»: leggere · costruire · toccare il mondo fuori.</p></div></div>
@@ -957,6 +1025,11 @@ const VIEWS={
       <div class="perm-row"><div><b>3 · Cancellare e agire fuori</b><div class="small muted">inviare email, pubblicare, scrivere su strumenti esterni — <b>anche da acceso, ogni azione resta ferma finché non la approvi tu</b> (la coda di approvazione non si può scavalcare)</div></div>${lv===null?`<span class="tag warn" title="${esc(lvErr)}">stato non leggibile</span>`:`<button class="btn sm ${liv3?'':'primary'}" id="liv3Btn">${liv3?'Acceso — spegni':'Spento (consigliato) — accendi'}</button>`}</div>
       <div id="liv3Conferma" hidden class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap;align-items:center"><span class="small">Il permesso più delicato si firma — chi decide?</span><input id="liv3Chi" placeholder="nome e cognome" style="max-width:200px"><button class="btn sm primary" id="liv3Vai">${liv3?'Confermo: spegni':'Confermo: accendi'}</button></div>
       <div class="small muted" style="margin-top:8px">Lo stato vive <b>sul server</b>, per tenant (adesso: <b>${esc(state.tenant)}</b>) — come il flag owner, non nel browser. Spento è il default per ogni tenant: da spento, le azioni esterne non si accodano nemmeno.${lv===null?' <span style="color:var(--orange)">Il motore non risponde: da qui non si cambia niente — il freno resta quello vero, sul server.</span>':''}</div></div>
+    <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Come parla Divina</h3><p>Il modo di parlare vale per tutti. Quello che può dire, no.</p></div></div>
+      <div class="perm-row"><div><b>Conversazione naturale</b><div class="small muted">saluti, chiacchiera, cambio argomento, tornare indietro — e quando una cosa nel cervello non c'è, lo dice da persona e offre di aggiungerla</div></div><span class="tag pos">sempre attiva, per ogni tenant</span></div>
+      <div class="perm-row"><div><b>Conoscenza generale fuori dal cervello</b><div class="small muted">rispondere anche con quello che il modello sa in generale, <b>sempre marcato</b> «fuori dal cervello · non verificato». Da spento il tenant resta vincolato al suo materiale: è la promessa che si vende a un cliente — il bot sul suo sito non inventa sul suo conto</div></div>${lb===null?`<span class="tag warn" title="${esc(lbErr)}">stato non leggibile</span>`:`<button class="btn sm ${libera?'':'primary'}" id="libBtn">${libera?'Accesa — spegni':'Spenta (consigliato) — accendi'}</button>`}</div>
+      <div id="libConferma" hidden class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap;align-items:center"><span class="small">Anche questa si firma — chi decide?</span><input id="libChi" placeholder="nome e cognome" style="max-width:200px"><button class="btn sm primary" id="libVai">${libera?'Confermo: spegni':'Confermo: accendi'}</button></div>
+      <div class="small muted" style="margin-top:8px">L'owner FORMA ce l'ha sempre, per costruzione (flag <span class="mono">owner</span> sul record). Per gli altri tenant è questa spunta, sul server: mai una scelta dentro la richiesta.</div></div>
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Connessione e aspetto</h3><p>URL, token e chiave tenant restano nel tuo browser</p></div></div>
       <div class="row" style="flex-wrap:wrap"><button class="btn sm" onclick="openConn()">${icon('plug',14)} Connessione…</button><button class="btn sm" onclick="setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark')">Tema chiaro/scuro</button><button class="btn sm" onclick="route('usage')">Uso &amp; costi →</button><button class="btn sm" onclick="route('system')">Stato &amp; audit →</button></div></div>
     <div class="card"><div class="card-head"><div><h3>Divina sul telefono</h3><p>La console si installa come app: niente store, niente attese</p></div></div>
@@ -964,6 +1037,18 @@ const VIEWS={
       <div class="small muted">Su <b>iPhone/iPad</b>: Condividi → «Aggiungi alla schermata Home». Le notifiche push su iOS arrivano <b>solo</b> se l'app è installata in Home (iOS 16.4+) — meglio saperlo prima che scoprirlo.</div></div>`;
     const b=$('#liv3Btn');
     if(b)b.onclick=()=>{const box=$('#liv3Conferma');box.hidden=!box.hidden;if(!box.hidden)$('#liv3Chi').focus();};
+    const lbb=$('#libBtn');
+    if(lbb)lbb.onclick=()=>{const box=$('#libConferma');box.hidden=!box.hidden;if(!box.hidden)$('#libChi').focus();};
+    const libVai=$('#libVai');
+    if(libVai)libVai.onclick=async()=>{
+      const by=($('#libChi').value||'').trim();
+      if(!by){toast('Serve il nome di chi decide: cambia cosa il bot può dire a un cliente','bad');return;}
+      try{
+        await api('engine','/admin/libera',{method:'POST',body:{tenant:state.tenant,on:!libera,by}});
+        toast(!libera?`Conoscenza generale accesa per ${state.tenant} (firmato ${by}): resta sempre marcata «fuori dal cervello»`:`Conoscenza generale spenta per ${state.tenant}: risponde solo dal suo materiale`,'info');
+        route('impostazioni');
+      }catch(e){toast('✕ '+e.message,'bad');}
+    };
     const vai=$('#liv3Vai');
     if(vai)vai.onclick=async()=>{
       const by=($('#liv3Chi').value||'').trim();
@@ -1147,10 +1232,10 @@ const VIEWS={
       const tk=await api('engine','/admin/tasks?status=in-approvazione').catch(()=>({tasks:[]}));
       const acts=(tk.tasks||[]).filter(t=>t.status==='in-approvazione');
       $('#b-props').textContent=ps.length+acts.length;
-      const SRC={gap:'warn',feedback:'neg',sistema:'info'};
+      const SRC={gap:'warn',feedback:'neg',sistema:'info',conversazione:'acc'};
       C.innerHTML=`<div class="card" style="margin-bottom:14px;border-color:rgba(221,36,242,.35)"><div class="row" style="gap:12px;align-items:flex-start"><span style="color:var(--magenta)">${icon('lock',22)}</span><div class="small" style="line-height:1.7"><b>Sezione riservata all'owner</b> (Bearer ADMIN_TOKEN — mai chiave tenant): i tenant non vedono queste proposte. L'audit del cervello propone → <b>tu approvi o ignori</b> → le approvate diventano task nella coda <b>Task del cervello</b> (brain_tasks). Niente è automatico.</div></div></div>
       ${acts.length?`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Azioni in attesa di approvazione</h3><p>Effetti esterni: non partono MAI senza il tuo ok — approvi tu, esegue il companion</p></div><span class="pill">${acts.length}</span></div><div style="display:flex;flex-direction:column;gap:12px">${acts.map(t=>`<div style="padding:15px;background:var(--surface-2);border:1px solid rgba(248,105,60,.35);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px"><span class="tag warn">azione</span>${t.scope?`<span class="scope-chip" style="background:${scopeColor(t.scope)}22;color:${scopeColor(t.scope)};border-color:${scopeColor(t.scope)}44">${esc(t.scope)}</span>`:''}</div><span class="small muted">${timeAgoIso(t.created_at)}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(t.title)}</div>${t.note?`<div class="small muted" style="margin-bottom:10px">${esc(t.note)}</div>`:''}<div class="row"><input placeholder="Chi approva (nome)" id="ab-${esc(t.id)}" style="max-width:200px"><button class="btn sm primary" data-tapp="${esc(t.id)}">✓ Approva</button><button class="btn sm danger" data-trej="${esc(t.id)}">✕ Rifiuta</button></div></div>`).join('')}</div></div>`:''}
-      <div class="card"><div class="card-head"><div><h3>Proposte di auto-miglioramento</h3><p>Da gap, feedback negativi e audit di sistema — decide sempre l'owner</p></div><span class="pill">${ps.length} da valutare</span></div>${ps.length?`<div style="display:flex;flex-direction:column;gap:12px">${ps.map(p=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px"><span class="tag ${SRC[p.source]||'mut'}">${esc(p.source)}</span>${p.scope?`<span class="scope-chip" style="background:${scopeColor(p.scope)}22;color:${scopeColor(p.scope)};border-color:${scopeColor(p.scope)}44">${esc(p.scope)}</span>`:''}</div><span class="pill">×${p.count||1}${p.last_at?` · ${timeAgoTs(p.last_at)}`:''}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(p.title)}</div><div class="small muted" style="line-height:1.6;margin-bottom:10px">→ ${esc(p.detail||'')}</div><div class="row"><button class="btn sm primary" data-papp="${esc(p.id)}">✓ Approva → coda task</button><button class="btn sm" data-pdis="${esc(p.id)}">Ignora</button></div></div>`).join('')}</div>`:emptyBox(icon('spark',36),'Nessuna proposta','L\'audit del cervello non ha nulla da segnalare')}</div>`;
+      <div class="card"><div class="card-head"><div><h3>Proposte di auto-miglioramento</h3><p>Da gap, feedback negativi e audit di sistema — decide sempre l'owner</p></div><span class="pill">${ps.length} da valutare</span></div>${ps.length?`<div style="display:flex;flex-direction:column;gap:12px">${ps.map(p=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px"><span class="tag ${SRC[p.source]||'mut'}">${esc(p.source)}</span>${p.scope?`<span class="scope-chip" style="background:${scopeColor(p.scope)}22;color:${scopeColor(p.scope)};border-color:${scopeColor(p.scope)}44">${esc(p.scope)}</span>`:''}</div><span class="pill">×${p.count||1}${p.last_at?` · ${timeAgoTs(p.last_at)}`:''}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(p.title)}</div><div class="small muted" style="line-height:1.6;margin-bottom:10px">→ ${esc(p.detail||'')}</div>${p.citazione?`<div class="imparato-cita" style="margin-bottom:10px">«${esc(p.citazione)}»${p.conversazione?` <span class="muted" style="font-style:normal">· ${esc(p.conversazione)}</span>`:''}</div>`:''}<div class="row"><button class="btn sm primary" data-papp="${esc(p.id)}">✓ Approva → ${p.source==='conversazione'?'nota nel cervello':'coda task'}</button><button class="btn sm" data-pdis="${esc(p.id)}">Ignora</button></div></div>`).join('')}</div>`:emptyBox(icon('spark',36),'Nessuna proposta','L\'audit del cervello non ha nulla da segnalare')}</div>`;
       $$('[data-papp]').forEach(b=>b.onclick=async()=>{try{await api('engine','/admin/proposals/approve',{method:'POST',body:{id:b.dataset.papp}});toast('Approvata: è nella coda Task del cervello','ok');route('proposals');}catch(e){toast(e.message,'bad');}});
       $$('[data-pdis]').forEach(b=>b.onclick=async()=>{try{await api('engine','/admin/proposals/dismiss',{method:'POST',body:{id:b.dataset.pdis}});toast('Proposta ignorata','info');route('proposals');}catch(e){toast(e.message,'bad');}});
       const actBy=id=>(document.getElementById('ab-'+id)||{value:''}).value.trim();
@@ -1392,6 +1477,80 @@ async function salvaScrivi(){
     state._salva=null;renderChat();
   }catch(e){toast('✕ '+e.message,'bad');}
 }
+/* ── V6/B3 · «Cosa abbiamo imparato»: le conversazioni PROPONGONO note, non le
+   scrivono. Da zero a tre, ciascuna con la citazione del punto da cui viene;
+   finiscono nella coda Proposte che esiste già. Approvate → nota nel vault,
+   marcata come nata da conversazione. Rifiutate → spariscono.
+   Il bottone compare solo quando c'è una conversazione da cui imparare (due
+   turni): prima non avrebbe niente da leggere. ── */
+function imparatoVisibile(){
+  const b=document.getElementById('chatImparato');if(!b)return;
+  const turni=state.chat.filter(m=>m.role==='user'||m.role==='bot').length;
+  b.hidden=state.clientMode||turni<4;    // due scambi: sotto, non c'è un filo
+}
+async function chiediImparato(){
+  const b=document.getElementById('chatImparato');
+  const history=state.chat.filter(m=>m.role==='user'||m.role==='bot')
+    .map(m=>({role:m.role==='bot'?'assistant':'user',content:m.text}));
+  if(history.length<4){toast('Serve una conversazione un po\' più lunga','info');return;}
+  if(b){b.disabled=true;b.textContent='Sto rileggendo…';}
+  try{
+    const r=await api('engine','/admin/conversazione/imparato',{method:'POST',
+      body:{history,scope:(state.focus&&state.focus.scope)||state.tenant||'forma-core',
+            conversazione:'chat console · '+new Date().toISOString().slice(0,16).replace('T',' ')}});
+    state.chat.push({role:'imparato',voci:r.imparato||[]});
+    renderChat();
+    if((r.imparato||[]).length)toast(`${r.imparato.length} in coda in Miglioramenti — decidi tu`,'ok');
+  }catch(e){toast('✕ '+e.message,'bad');}
+  if(b){b.disabled=false;b.innerHTML=`${icon('brain',15)} Cosa abbiamo imparato`;}
+}
+
+/* ── V6/B1 · Colmare il buco, subito. Il titolo è già la domanda che il
+   cervello non sapeva; il CORPO invece resta vuoto e lo scrive una persona —
+   una risposta «non lo so» salvata come nota sarebbe un buco archiviato, non
+   colmato. Da lì in poi è il write-back di sempre: anteprima, poi conferma
+   umana, e il server marca «Origine: conversazione · NON verificato». ── */
+function colmaGap(i){
+  const m=state.chat[i];if(!m||!m.gap)return;
+  const dest=(state.focus&&state.focus.scope)||'forma-core';
+  const box=document.querySelectorAll('.gap-offerta')[0];
+  const cont=document.createElement('div');
+  cont.className='card';cont.style.cssText='margin-top:8px;padding:12px';cont.id='gapc-'+i;
+  cont.innerHTML=`<div class="small" style="margin-bottom:8px"><b>Aggiungi al cervello</b> — entrerà MARCATA «NON verificato» finché qualcuno non la conferma con una fonte vera.</div>
+    <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <input id="gapt-${i}" value="${esc(m.gap.question||'')}" placeholder="Titolo della nota" style="flex:1;min-width:200px">
+      <input id="gaps-${i}" value="${esc(dest)}" title="Scope di destinazione" style="max-width:150px">
+    </div>
+    <textarea id="gapb-${i}" rows="4" placeholder="Quello che il cervello dovrebbe sapere. Scrivilo tu: una risposta «non lo so» salvata come nota è un buco archiviato, non colmato." style="width:100%"></textarea>
+    <div class="row" style="margin-top:8px"><button class="btn sm primary" onclick="gapAnteprima(${i})">Anteprima</button><button class="btn sm ghost" onclick="renderChat()">Annulla</button></div>`;
+  if(box&&box.parentElement)box.parentElement.replaceChild(cont,box);
+  const t=document.getElementById('gapb-'+i);if(t)t.focus();
+}
+async function gapAnteprima(i){
+  const val=id=>((document.getElementById(id)||{}).value||'').trim();
+  const title=val('gapt-'+i),scope=val('gaps-'+i)||'forma-core',body=val('gapb-'+i);
+  if(!title){toast('Serve un titolo per la nota','bad');return;}
+  if(!body){toast('Serve il contenuto: la nota la scrivi tu, non la risposta mancata','bad');return;}
+  try{
+    const prev=await api('engine','/writeback',{method:'POST',auth:false,tenantKey:true,
+      body:{scope,title,body,origin:'conversazione',confirm:false}});
+    state._gap={scope,title,body};
+    const box=document.getElementById('gapc-'+i);
+    if(box)box.innerHTML=`<div class="small" style="margin-bottom:6px"><b>Anteprima</b> — ancora NESSUNA scrittura:</div>
+      <pre style="white-space:pre-wrap;font-size:11px;max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin:0">${esc(String(prev.preview||'').slice(0,1800))}</pre>
+      <div class="row" style="margin-top:8px"><button class="btn sm primary" onclick="gapScrivi()">✓ Confermo: scrivi nel cervello</button><button class="btn sm ghost" onclick="state._gap=null;renderChat()">Annulla</button></div>`;
+  }catch(e){toast('✕ '+e.message,'bad');}
+}
+async function gapScrivi(){
+  const g=state._gap;if(!g)return;
+  try{
+    const r=await api('engine','/writeback',{method:'POST',auth:false,tenantKey:true,
+      body:{scope:g.scope,title:g.title,body:g.body,origin:'conversazione',confirm:true}});
+    toast(`Nota scritta (${r.path||g.scope}) · marcata NON verificato — la prossima volta il cervello la trova`,'ok');
+    state._gap=null;renderChat();
+  }catch(e){toast('✕ '+e.message,'bad');}
+}
+
 /* ── V2 · Fase 5: il DOM della chat, costruito UNA volta ────────────────── */
 function chatTemplate(){
   /* V1 (01-08): TUTTO sotto, niente sopra — lo spazio in alto va alla
@@ -1415,6 +1574,7 @@ function chatTemplate(){
       <div class="composer-inner" style="align-items:center">
         <button class="btn" id="voxBtn" title="Modo vocale a tutto schermo — parla con Divina" style="white-space:nowrap">${icon('mic',15)} Parla con Divina</button>
         <button class="btn primary" id="chatSend" style="min-width:52px">${icon('send',18)}</button>
+        <button class="btn" id="chatImparato" hidden title="Da zero a tre cose che varrebbe la pena ricordare — proposte, non salvate" style="white-space:nowrap">${icon('brain',15)} Cosa abbiamo imparato</button>
         <span style="flex:1"></span>
         <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">${icon('mic',18)}</button>
         <button class="icon-btn" id="chatTts" title="Lettura vocale delle risposte">${icon(state.tts?'speakon':'speakoff',18)}</button>
@@ -1430,6 +1590,8 @@ function wireChat(){
   ta.addEventListener('blur',()=>{const h=$('#composerHint');if(h)h.hidden=true;});
   $('#chatSend').onclick=sendChat;initVoice();   // V1: niente orb in chat — lo stato vive sulla pillola
   const vb=$('#voxBtn');if(vb)vb.onclick=voxOpen;
+  const ib=$('#chatImparato');if(ib)ib.onclick=chiediImparato;
+  imparatoVisibile();
   renderFocusBar();
   $$('#orbPicks .orb-pick').forEach(b=>b.onclick=()=>pickComp(b.dataset.oc));
   pickComp(state._compSel||'divina');
@@ -1533,18 +1695,41 @@ function renderChat(){
   inner.innerHTML=state.chat.map((m,i)=>{
     if(m.role==='user') return `<div class="msg user"><div class="av">Tu</div><div class="bubble">${esc(m.text)}</div></div>`;
     if(m.role==='typing') return `<div class="msg bot"><div class="av">DV</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div><div class="small muted" id="typingStatus" style="margin-top:7px">${icon('brain',12)} Divina sta consultando il cervello…</div></div></div>`;
+    /* V6/B3 · Le «cose imparate»: proposte, non note. Ognuna porta la CITAZIONE
+       del punto della conversazione da cui viene — una nota senza provenienza è
+       una voce di corridoio. Da qui non si scrive niente: si va in coda, e la
+       nota nasce solo se l'owner approva in Miglioramenti. */
+    if(m.role==='imparato'){
+      const voci=(m.voci||[]).map(v=>`<div class="imparato-voce"><b class="small">${esc(v.nota_titolo||v.title||'')}</b>
+        <div class="small muted" style="margin-top:3px">${esc(v.detail||'')}</div>
+        ${v.citazione?`<div class="imparato-cita">«${esc(v.citazione)}»</div>`:''}</div>`).join('');
+      return `<div class="msg bot"><div class="av">DV</div><div class="imparato-box">
+        ${voci?`<div class="small" style="margin-bottom:6px"><b>${m.voci.length} cos${m.voci.length===1?'a':'e'} da ricordare</b> — ${icon('lock',11)} in coda, non salvate: diventano cervello solo se le approvi</div>${voci}
+          <div class="row" style="margin-top:10px"><button class="btn sm" onclick="route('improve')">Vai a Miglioramenti</button></div>`
+        :`<div class="small muted">Da questa conversazione non è emerso niente di stabile da ricordare. È l'esito più frequente, e va bene così: si propone solo ciò che è riutilizzabile e dimostrabile.</div>`}
+      </div></div>`;
+    }
     if(m.role==='approval'){const col=AG_COLORS[m.agent]||'var(--magenta)';return `<div class="msg bot"><div class="av" style="background:${col}">${icon('spark',15)}</div><div class="bubble" style="border:1px solid rgba(248,105,60,.45)"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Azione in attesa della TUA approvazione</div><div class="small muted" style="margin-bottom:10px">${esc(m.title||'')} — nessun effetto finché non decidi · ${icon('lock',11)} coerente con Proposte audit</div>${m.done?`<span class="tag ${m.done==='approvata'?'pos':'mut'}">${m.done==='approvata'?'✓ approvata da '+esc(m.by||''):'✕ rifiutata (archiviata, mai cancellata)'}</span>`:`<div class="row" style="flex-wrap:wrap"><input placeholder="Chi decide (nome)" id="ap-${esc(m.tid)}" style="max-width:170px"><button class="btn sm primary" onclick="chatApprove('${esc(m.tid)}','approvata')">✓ Approva</button><button class="btn sm" onclick="chatApprove('${esc(m.tid)}','archiviata')">✕ Rifiuta</button></div>`}</div></div>`;}
     const src=(m.sources||[]).map(s=>{
       if(s.type==='agent'){const col=AG_COLORS[s.agent]||'var(--magenta)';return `<span class="src-pill" style="color:${col};border-color:${col}55">${icon('spark',11)} ${esc(s.agent||'agente')}${s.skill?` · ${esc(s.skill)}`:''}${s.confidence!=null?` · ${Math.round(s.confidence*100)}%`:''}</span>`;}
       return `<span class="src-pill${s.slug?' fire':''}"${s.slug?` data-fire="${esc(s.slug)}" title="Vedi il neurone nel Cervello vivo"`:''}>${icon('brain',11)} ${esc(s.title||s.slug||'nota')}${s.scope?` · ${esc(s.scope)}`:''}</span>`;}).join('');
     const bb=bubbleHtml(m.text);
-    const salva=(!state.clientMode&&!state.demo&&m.text&&!m.text.startsWith('✕'))
+    /* V6/B1 · Il muro diventa una porta. Quando il server dichiara un `gap`,
+       l'offerta di colmarlo sta QUI, sotto la risposta che ha appena ammesso di
+       non sapere: il momento in cui il buco si scopre è quello in cui è più
+       facile riempirlo. Il bottone apre lo stesso flusso a due tempi di sempre
+       (anteprima → conferma umana): il write-back non cambia di una riga. */
+    const offerta=(m.gap&&!state.clientMode&&!state.demo)
+      ?`<div class="gap-offerta"><div class="small">${icon('spark',12)} <b>${esc(m.gap.offer||'Aggiungiamolo al cervello.')}</b></div>
+         <button class="btn sm primary" onclick="colmaGap(${i})" style="margin-top:7px;min-height:28px;padding:2px 12px">${icon('doc',12)} Scrivi la nota adesso</button></div>`:'';
+    const salva=(!state.clientMode&&!state.demo&&!m.gap&&m.text&&!m.text.startsWith('✕'))
       ?`<button class="btn sm ghost" id="sv-${i}" onclick="salvaForm(${i})" style="margin-top:6px;min-height:28px;padding:2px 10px">${icon('doc',12)} Salva nel cervello</button>`:'';
     const traccia=(m.trace||[]).length?`<div style="margin-top:5px">${m.trace.map(t=>`<div class="trace-line">✓ ${esc(t)}</div>`).join('')}</div>`:'';
-    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${bb.h}</div>${bb.fuori?`<div class="small" style="color:var(--orange);margin-top:4px">${icon('alert',11)} le parti evidenziate NON vengono dal cervello: ragionamento, non fonte</div>`:''}${traccia}${src?`<div class="sources">${src}</div>`:''}${salva}</div></div>`;
+    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${bb.h}</div>${bb.fuori?`<div class="small" style="color:var(--orange);margin-top:4px">${icon('alert',11)} le parti evidenziate NON vengono dal cervello: ragionamento, non fonte</div>`:''}${traccia}${src?`<div class="sources">${src}</div>`:''}${offerta}${salva}</div></div>`;
   }).join('');
   const sc=$('#chatScroll');if(sc)sc.scrollTop=sc.scrollHeight;
   $$('#chatInner [data-fire]').forEach(p=>p.onclick=()=>apriNota(p.dataset.fire));
+  imparatoVisibile();          // V6/B3: il bottone compare quando c'è un filo da rileggere
 }
 async function sendChat(){
   const ta=$('#chatMsg');if(!ta)return;const text=ta.value.trim();if(!text)return;
@@ -1575,7 +1760,7 @@ async function sendChat(){
     if(nFonti)trace.push(`ricerca sul cervello — ${nFonti} font${nFonti===1?'e':'i'}`);
     if((r.web_sources||[]).length)trace.push(`ricerca web — ${r.web_sources.length} risultati`);
     if(r.free)trace.push('ragionamento fuori dal cervello, marcato');
-    state.chat.push({role:'bot',text:r.answer,sources:r.sources,trace});
+    state.chat.push({role:'bot',text:r.answer,sources:r.sources,trace,gap:r.gap||null});
     if(ag){
       agFinisce(ag.agent,{output:r.answer,trace,brief:text});
       toast(`${ag.agent.charAt(0).toUpperCase()+ag.agent.slice(1)} ha finito — apri la sua tab per il dettaglio`,'ok');
@@ -1795,7 +1980,11 @@ async function chatTurn(text,history){
     const used=sources.filter(x=>x&&typeof x==='object'&&x.slug&&!x.type).map(x=>x.slug);
     if(used.length){state._recentFires.push(...used);state._recentFires=state._recentFires.slice(-40);}
     const ag=sources.find(s=>s.type==='agent');
-    return {answer,sources,agent:ag?ag.agent:null,comp};
+    /* V6/B1 · `gap` = il cervello non sapeva, e il server lo DICHIARA insieme
+       alla risposta: la console ci attacca l'offerta di scrivere la nota, lì,
+       nella bolla. `free` era già prodotto dal server ma non arrivava fin qui
+       (la traccia «ragionamento fuori dal cervello» non compariva mai). */
+    return {answer,sources,agent:ag?ag.agent:null,comp,gap:r.gap||null,free:!!r.free};
   }finally{
     state._pensa=false;statoPensa();
     if(state._brain3d)state._brain3d.setThink(false);
@@ -1806,8 +1995,12 @@ async function chatTurn(text,history){
    Stati: Inattivo / In ascolto (ampiezza microfono REALE via Web Audio) /
    Sto parlando (TTS) / Sto ragionando (attesa risposta) / In azione (beat
    approvazione). Colori companion: Dante arancio · Virgilio ciano ·
-   Beatrice magenta · Divina viola. */
-const ORB_COLS={dante:'#F8693C',virgilio:'#0ED4E4',beatrice:'#DD24F2',divina:'#a855f7',worker:'#89D41D'};
+   Beatrice magenta · Divina GIALLA (V6/A1: era viola). Valori esadecimali e
+   non var(--…): qui servono a disegnare su canvas, dove le variabili CSS non
+   arrivano — restano allineati a mano ai token :root, e ORB_RIPOSO è il grigio
+   dello stato «nessuno sta lavorando». */
+const ORB_COLS={dante:'#E4342B',virgilio:'#0ED4E4',beatrice:'#DD24F2',divina:'#EAB308',worker:'#89D41D'};
+const ORB_RIPOSO='#7f8aa0';
 function initOrb(cvId='orbCv',maxPx=160){
   /* Orb «a prova di bomba» (fix P1, collaudo Cowork 24-07): un solo motore per
      tutti gli orb (chat, cervello vivo…), MAI un rettangolo vuoto.
@@ -2206,7 +2399,7 @@ async function chatApprove(tid,to){
 /* ── M1 · resa della coda unica: gruppi visibili (IN CORSO in cima), filtri
    in testa (origine + salto di stato), righe con titolo · origine · peso ·
    data di chiusura. Nessuna sotto-scheda da scegliere prima di capire. ── */
-const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)']};
+const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)'],conversazione:['Da conversazione','var(--divina)']};
 /* ── H2 · La figura umana: SVG A STRATI (scelta a, motivata) — silhouette
    vettoriale con tre livelli semitrasparenti (corpo · asse interno · punti
    vivi) e una leggera parallasse al mouse. La sensazione di volume viene da
@@ -2286,42 +2479,108 @@ function humanScheda(testo,aggiornata){
 }
 /* ── Fase 10 · I widget di casa: i VUOTI parlano — dicono cosa ci finirà
    dentro e come farcelo arrivare, mai uno zero muto. ── */
-/* ── V5 · La colonnina di stato della home: tre spie AGGANCIATE a stati veri.
-   pensa = state._pensa, acceso da chatTurn (e brain3d riceve setThink: il
-   grafo «pensa» davvero mentre Divina risponde); lavora = dispatch della
-   regia negli ultimi 10 minuti (stessa fonte della Regia live); aggiorna =
-   last_ingest da /admin/brain. Senza dato la spia resta spenta e dice «—»:
-   mai una luce accesa per finta. */
-function statoPensa(){
-  const el=document.getElementById('stPensa');if(!el)return;
-  el.classList.toggle('on',!!state._pensa);
-  const v=document.getElementById('stPensaV');
-  if(v)v.textContent=state._pensa?'adesso':'in ascolto';
+/* ── V6/A · L'ORBITA CHE SI GUARDA. Erede della colonnina di stato del V5: le
+   tre spie erano tre etichette per dire una cosa sola, e in una home in cui
+   l'orbita è il protagonista rubavano il centro. Adesso lo stato si legge da
+   COLORE e FORMA dell'orbita — e da UNA riga sotto.
+
+   Gli stati e la loro fonte (nessuno è inventato, tutti hanno un dato dietro):
+     lavora  = dispatch della regia negli ultimi minuti (/agents/dispatches,
+               stessa fonte della Regia live) → onda dal punto dell'agente;
+     pensa   = un turno di chat in corso (state._pensa, acceso da chatTurn)
+               → i nodi si contraggono verso il centro e si riaprono;
+     legge   = last_ingest fresco di minuti (/admin/brain) → cascata;
+     riposo  = tutto il resto → respiro lento, grigio. Ed è lo stato normale:
+               deve essere bello anche così.
+
+   Perché la riga di testo esiste, e non è una rifinitura: **il colore da solo
+   non può portare l'informazione**. Chi non distingue il rosso dall'azzurro
+   deve poter capire lo stesso cosa sta succedendo. La riga dice sempre quello
+   che dice il colore — e quando il dato non c'è dice «—», mai una luce accesa
+   per finta.
+
+   L'ordine di precedenza è quello dell'urgenza di chi guarda: se un agente sta
+   lavorando è quella la notizia, anche mentre la chat pensa. */
+const ORB_LAVORA_S=600, ORB_LEGGE_MIN=10;      // finestre: dispatch 10', ingest 10'
+function _agNome(a){const t=String(a||'');return t?t.charAt(0).toUpperCase()+t.slice(1):'Un agente';}
+function _orbColore(agenti){
+  /* Due agenti insieme = GRADIENTE fra i due, non la scelta di uno: mostra la
+     collaborazione invece di nasconderla (e brain3d sa disegnarlo). */
+  const c=agenti.map(a=>ORB_COLS[a]||ORB_COLS.divina);
+  return c.length>1?c.slice(0,2):(c[0]||ORB_RIPOSO);
 }
+function orbitaStato(){
+  const dd=state._dispatch||[];
+  const adesso=Math.floor(Date.now()/1000);
+  const rec=dd.filter(e=>e.at&&(adesso-Number(e.at))<ORB_LAVORA_S&&e.routed!==false);
+  if(rec.length){
+    const agenti=[...new Set(rec.map(e=>e.agent).filter(Boolean))].slice(0,2);
+    const e0=rec[0],ruolo=e0.role||e0.skill||'';
+    const testo=agenti.length>1
+      ?`<b>${esc(_agNome(agenti[0]))}</b> e <b>${esc(_agNome(agenti[1]))}</b> stanno lavorando insieme`
+      :`<b>${esc(_agNome(agenti[0]||e0.agent))}</b> sta lavorando${ruolo?' · '+esc(ruolo):''}`;
+    return {mood:'lavora',da:agenti[0]||'agente',col:_orbColore(agenti),testo,on:true,vai:'live'};
+  }
+  if(state._pensa){
+    const c=state._compSel||'divina';
+    return {mood:'pensa',da:c,col:ORB_COLS[c]||ORB_COLS.divina,
+            testo:`<b>${esc(_agNome(c))}</b> sta pensando`,on:true,vai:'chat'};
+  }
+  if(state._ingestFresca){
+    return {mood:'legge',da:'ingest',col:'#89D41D',
+            testo:'Il cervello sta leggendo il vault',on:true,vai:'brain'};
+  }
+  // riposo: e qui la riga serve DAVVERO, perché il grigio non dice altro
+  const n=state._neuroni;
+  if(n==null&&!state._lastIngest)return {mood:'riposo',da:'',col:ORB_RIPOSO,testo:'—',on:false,vai:'brain'};
+  const eta=state._lastIngest?etaIngest(state._lastIngest):'';
+  return {mood:'riposo',da:'',col:ORB_RIPOSO,on:false,vai:'brain',
+          testo:`A riposo${n!=null?` · <b>${fmtN(n)}</b> neuroni`:''}${eta?' · '+eta:''}`};
+}
+function etaIngest(iso){
+  const h=(Date.now()-new Date(iso).getTime())/36e5;
+  if(isNaN(h))return '';
+  const t=`vault letto ${esc(timeAgoIso(iso))}`;
+  // oltre un giorno non è più un'informazione neutra: è un avviso
+  return h>24?`<span style="color:var(--orange)">${t}</span>`:t;
+}
+function aggiornaOrbita(){
+  const st=orbitaStato();
+  const box=document.getElementById('orbFrase');
+  if(box){
+    box.classList.toggle('on',st.on);
+    const dot=box.querySelector('.stato-dot');
+    if(dot)dot.style.color=Array.isArray(st.col)?st.col[0]:st.col;
+    const t=document.getElementById('orbFraseT');
+    if(t)t.innerHTML=st.testo;
+    box.onclick=()=>route(st.vai);
+  }
+  const b3=state._brain3d;
+  if(b3&&b3.setMood&&state.view==='home'){       // l'orbita colorata è SOLO la home
+    b3.setAccent(st.col);
+    b3.setMood(st.mood,{da:st.da});
+  }
+}
+/* Nomi storici tenuti apposta: chatTurn e la vista home chiamano questi. */
+function statoPensa(){aggiornaOrbita();}
 function statoAggiorna(lastIngest){
-  const el=document.getElementById('stAggiorna');if(!el)return;
-  const v=document.getElementById('stAggiornaV');
-  if(!lastIngest){el.classList.remove('on');if(v)v.textContent='—';return;}
-  const h=(Date.now()-new Date(lastIngest).getTime())/36e5;
-  el.classList.toggle('on',!isNaN(h)&&h<=24);      // fresco = entro un giorno
-  if(v){v.textContent=timeAgoIso(lastIngest);if(!isNaN(h)&&h>24)v.style.color='var(--orange)';}
+  state._lastIngest=lastIngest||null;
+  const m=lastIngest?(Date.now()-new Date(lastIngest).getTime())/6e4:NaN;
+  state._ingestFresca=!isNaN(m)&&m>=0&&m<ORB_LEGGE_MIN;   // «sta leggendo» = minuti, non ore
+  aggiornaOrbita();
 }
 async function statoLavora(){
-  const el=document.getElementById('stLavora');if(!el)return;
+  if(!document.getElementById('orbFrase'))return;
   let dd=[];
   try{const d=await api('orch','/agents/dispatches?limit=5');dd=(d&&d.dispatches)||[];}catch(_){}
-  if(!document.getElementById('stLavora'))return;  // vista cambiata nel frattempo
-  const adesso=Math.floor(Date.now()/1000);
-  const rec=dd.filter(e=>e.at&&(adesso-Number(e.at))<600);
-  el.classList.toggle('on',rec.length>0);
-  const v=document.getElementById('stLavoraV');
-  if(v)v.textContent=rec.length?`${rec[0].agent||'agente'} · ${timeAgoTs(rec[0].at)}`
-                    :dd.length?`ultimo ${timeAgoTs(dd[0].at)}`:'nessuno';
+  if(!document.getElementById('orbFrase'))return;   // vista cambiata nel frattempo
+  state._dispatch=dd;
+  aggiornaOrbita();
 }
 function statiHome(){
-  statoPensa();statoLavora();
+  aggiornaOrbita();statoLavora();
   if(state._homeTimer)clearInterval(state._homeTimer);
-  state._homeTimer=setInterval(()=>{statoPensa();statoLavora();},15000);
+  state._homeTimer=setInterval(()=>{statoLavora();},15000);
 }
 async function caricaHomeWidgets(){
   const box=document.getElementById('homeWidgets');if(!box)return;
@@ -2677,11 +2936,17 @@ function startBrainCanvas(notes,realLinks,cvId='brainCanvas'){
   const idx=new Map(nodes.map((n,i)=>[i,n.id]));
   const links=(realLinks||[]).filter(([a,b])=>idx.has(a)&&idx.has(b)).map(([a,b])=>[a,b]);
   state._brainOn=true;
+  /* V6/A · In home: labels 'none'. Non «i nomi al passaggio» (R1) ma NESSUN
+     nome e nessun tooltip — chi guarda la home non sta cercando una nota, sta
+     guardando se il cervello è vivo. Nella porta Cervello, dove invece si viene
+     per cercare, non cambia niente. */
+  const inHome=cvId==='homeBrain';
   state._brain3d=createBrain(cv,{
-    labels:cvId==='homeBrain'?'hover':'auto',   // R1: in home i nomi SOLO al passaggio
-    onHover:(n)=>{const cap=$('#brainCap');if(cap)cap.textContent=n?`${n.title} · ${n.cat} · ${n.deg} sinapsi`:'';}
+    labels:inHome?'none':'auto',
+    onHover:inHome?null:(n)=>{const cap=$('#brainCap');if(cap)cap.textContent=n?`${n.title} · ${n.cat} · ${n.deg} sinapsi`:'';}
   });
   state._brain3d.setData(nodes,links);
+  if(inHome&&typeof aggiornaOrbita==='function')aggiornaOrbita();   // colore e forma dallo stato vero
   /* B3 — i neuroni che si accendono: le note usate nelle risposte pulsano
      all'apertura, e la heatmap «attività» riflette l'uso REALE di sessione. */
   const cnt={};state._recentFires.forEach(sl=>{cnt[sl]=(cnt[sl]||0)+1;});

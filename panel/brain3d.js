@@ -8,10 +8,13 @@
      api.setThink(attivo)       // stato «sta ragionando» (sostenuto, non one-shot)
      api.setHeat(attivo)        // mappa di calore on/off
      api.setUsage(mappa)        // {slug: 0..1} — RICALCOLA l'attività dei nodi
+     api.setAccent(colore)      // V6/A: tinta unica dell'orbita (vedi sotto)
+     api.setMood(stato, opts)   // V6/A: riposo | pensa | lavora | legge
      api.destroy()              // ferma l'animazione e stacca OGNI listener
 
    opzioni: { palette: {categoria: '#colore'},   // default = palette FORMA
               reducedMotion: bool|undefined,     // override della media query
+              labels: 'auto'|'hover'|'none',     // V6: 'none' = mai testo, mai hover
               onHover(nodo|null, x, y),          // per il tooltip del consumatore
               onStats({nodes, links, cats}) }    // per legenda/contatori esterni
 
@@ -27,18 +30,66 @@
    - la heatmap non è più un calcolo one-shot all'avvio: setUsage() ricalcola
      n.act su TUTTI i nodi (usage reale se presente, altrimenti grado);
    - senza dati: nessun nodo inventato — il modulo non disegna nulla e il
-     consumatore mostra il suo stato vuoto. */
+     consumatore mostra il suo stato vuoto.
+
+   ── V6/A · L'orbita che si guarda ────────────────────────────────────────────
+   In home l'orbita non serve a cercare una nota: serve a vedere se il cervello è
+   vivo. Da qui due aggiunte, entrambe OPT-IN (senza chiamarle il modulo si
+   comporta esattamente come prima — la porta Cervello non cambia di una riga):
+
+     setAccent(x)  x = null      → ogni nodo torna al colore della sua categoria
+                   x = '#rgb'    → tinta UNICA: il colore di chi sta lavorando
+                   x = ['#a','#b'] → GRADIENTE fra i due lungo la sfera: quando
+                                     due agenti lavorano insieme si mostra la
+                                     collaborazione, invece di sceglierne uno.
+                   La transizione è sempre morbida (600 ms), mai uno scatto.
+
+     setMood(m, o) 'riposo' → respiro lento (~4 s, ampiezza minima): un sistema
+                              fermo e uno rotto non si somigliano più;
+                   'pensa'  → i nodi si contraggono verso il centro e si
+                              riaprono, come un'inspirazione;
+                   'lavora' → un'onda attraversa la superficie dal punto
+                              dell'agente (o.da = nome) verso l'esterno;
+                   'legge'  → i nodi si accendono a cascata, come una scansione.
+                   Con prefers-reduced-motion gli stati restano (li dice la riga
+                   di testo del consumatore), il MOVIMENTO no.
+
+   Regola che vale per tutte e due: senza dato non si accende niente. Un'orbita
+   che finge di lavorare è peggio di una ferma. */
 (function () {
   'use strict';
 
   var PALETTE_FORMA = ['#89D41D', '#0ED4E4', '#DD24F2', '#F8693C', '#EAB308', '#F63E3D'];
   var BIRTH_DAYS = 5, FRESH_DAYS = 14, BIRTH_DUR = 1700, BIRTH_STAGGER = 320;
   var THINK_EASE = 0.06, WAVE_DUR = 900, FOCAL = 1250;
+  // V6/A · i tempi degli stati. Il respiro è LENTO e di ampiezza minima: deve
+  // dire «acceso», non chiedere attenzione.
+  var ACCENT_MS = 600, BREATH_MS = 4000, BREATH_AMP = 0.014;
+  var PENSA_MS = 2200, LAVORA_MS = 2600, LEGGE_MS = 2400;
 
   function hexRGB(hex) {
     var h = String(hex || '#888').replace('#', '');
     var n = parseInt(h.length === 3 ? h.split('').map(function (c) { return c + c; }).join('') : h, 16);
     return ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255);
+  }
+  function rgbArr(hex) {
+    var h = String(hex || '#888').replace('#', '');
+    var n = parseInt(h.length === 3 ? h.split('').map(function (c) { return c + c; }).join('') : h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function mixRGB(a, b, k) {                     // k = 0 → a, k = 1 → b
+    k = k < 0 ? 0 : k > 1 ? 1 : k;
+    return [Math.round(a[0] + (b[0] - a[0]) * k),
+            Math.round(a[1] + (b[1] - a[1]) * k),
+            Math.round(a[2] + (b[2] - a[2]) * k)];
+  }
+  function strRGB(v) { return v[0] + ',' + v[1] + ',' + v[2]; }
+  // hash stabile di una stringa → 0..1: serve a dare all'agente un PUNTO fisso
+  // sulla sfera da cui parte la sua onda. Stabile = riconoscibile.
+  function hash01(s) {
+    var h = 2166136261, t = String(s || '');
+    for (var i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = (h * 16777619) >>> 0; }
+    return (h % 10007) / 10007;
   }
   function heatColor(a) {
     var g = Math.round(210 - a * 150), b = Math.round(60 - a * 60);
@@ -49,7 +100,8 @@
     opts = opts || {};
     var ctx = canvas.getContext('2d');
     if (!ctx) return { setData: function(){}, fire: function(){}, setThink: function(){},
-                       setHeat: function(){}, setUsage: function(){}, destroy: function(){} };
+                       setHeat: function(){}, setUsage: function(){}, setAccent: function(){},
+                       setMood: function(){}, destroy: function(){} };
 
     // ── stato dell'ISTANZA (niente di condiviso fra istanze) ──────────────────
     var W = 0, H = 0, DPR = 1, R_SPH = 180;
@@ -57,6 +109,7 @@
     var bows = new Map(), srcPool = [], shell = [], signals = [], waves = [];
     var MAX_SIGNALS = 40, MAX_GEN = 3;
     var rot = 0.2, autoRot = 0.0011, zoom = 1, tilt = 0.42;
+    var bK = 1;                        // V6/A: il respiro, in scala (1 = fermo)
     var dragNode = null, dragging = false, lastX = 0, lastY = 0, moved = false;
     var hover = null, lastFired = null, mouseX = -1, mouseY = -1;
     var thinking = false, thinkF = 0, heat = false;
@@ -64,11 +117,19 @@
     var signalSeed = 1;
     function rnd() { signalSeed = (signalSeed * 1103515245 + 12345) & 0x7fffffff; return signalSeed / 0x7fffffff; }
 
+    // V6/A · stato dell'ORBITA (accento + umore). Tutto opt-in: finché nessuno
+    // chiama setAccent/setMood questi valori restano inerti e il disegno è quello
+    // di prima, riga per riga.
+    var accFrom = null, accTo = null, accT0 = -1;   // null = colori di categoria
+    var mood = 'riposo', moodDa = 0, moodT0 = -1;
+
     var rmQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-    // R1 (01-08): labels:'hover' = i nomi SOLO al passaggio/clic (la home);
-    // default 'auto' = anche sui nodi molto connessi (la porta Cervello, dove
-    // si viene per cercare una nota, non per un colpo d'occhio).
-    var labelsAuto = opts.labels !== 'hover';
+    // R1 (01-08): labels:'hover' = i nomi SOLO al passaggio/clic (la porta
+    // Cervello nella sua variante compatta); default 'auto' = anche sui nodi
+    // molto connessi. V6/A: labels:'none' = MAI testo e MAI hover — è la home,
+    // dove non si cerca una nota: si guarda se il cervello è vivo.
+    var labelsOff = opts.labels === 'none';
+    var labelsAuto = !labelsOff && opts.labels !== 'hover';
     // R4: adattamento fps anche qui — tela più grande = più lavoro per frame.
     var lowFx = false, slowFrom = 0, lastT = 0;
     var reduceMotion = (typeof opts.reducedMotion === 'boolean') ? opts.reducedMotion
@@ -168,6 +229,95 @@
       recomputeAct();
     }
 
+    // ── V6/A · L'ACCENTO: il colore lo decide chi sta lavorando ──────────────
+    // Uno «spec» è una lista di 1..3 colori RGB: uno solo = tinta unica, due =
+    // gradiente lungo la sfera (due agenti insieme si vedono ENTRAMBI, invece di
+    // sceglierne uno). null = ogni nodo torna al colore della sua categoria.
+    function _spec(x) {
+      if (typeof x === 'string' && x) return [rgbArr(x)];
+      if (Object.prototype.toString.call(x) === '[object Array]' && x.length) {
+        return x.slice(0, 3).filter(function (c) { return !!c; }).map(rgbArr);
+      }
+      return null;
+    }
+    function _specAt(spec, n) {
+      if (!spec) return rgbArr(n.color);
+      if (spec.length === 1) return spec[0];
+      var f = (n.hx + 1) / 2;                    // posizione sulla sfera → 0..1
+      var seg = f * (spec.length - 1), i = Math.min(spec.length - 2, Math.floor(seg));
+      return mixRGB(spec[i], spec[i + 1], seg - i);
+    }
+    function _freeze(t) {
+      // cambio d'idea a metà transizione: si riparte dal colore RISOLTO adesso,
+      // non da quello di prima — altrimenti si vede uno scatto all'indietro.
+      if (accT0 < 0 || !accFrom || !accTo || accFrom.length !== accTo.length) return accTo;
+      var k = (t - accT0) / ACCENT_MS;
+      if (k >= 1) return accTo;
+      return accTo.map(function (c, i) { return mixRGB(accFrom[i], c, k); });
+    }
+    function setAccent(x) {
+      var now = (typeof performance !== 'undefined') ? performance.now() : 0;
+      var next = _spec(x);
+      accFrom = _freeze(now);
+      accTo = next;
+      accT0 = now;
+    }
+    function nodeRGB(n, t) {
+      var to = _specAt(accTo, n);
+      if (accT0 < 0) return to;
+      var k = (t - accT0) / ACCENT_MS;
+      if (k >= 1) return to;
+      return mixRGB(_specAt(accFrom, n), to, k);   // 600 ms, mai uno scatto
+    }
+
+    // ── V6/A · L'UMORE: anche la FORMA cambia col lavoro, non solo il colore ──
+    var MOODS = { riposo: 1, pensa: 1, lavora: 1, legge: 1 };
+    function setMood(m, o) {
+      m = MOODS[m] ? m : 'riposo';
+      var da = (o && o.da) ? hash01(o.da) : 0;
+      if (m === mood && da === moodDa) return;     // idempotente: l'onda non riparte
+      mood = m; moodDa = da;
+      moodT0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+      thinking = (m === 'pensa');                  // «pensa» accende anche i segnali
+    }
+    // Il RESPIRO: fermo ≠ rotto. Vale in ogni stato — è il segno che c'è
+    // qualcuno dall'altra parte — e in reduced-motion non c'è affatto.
+    function breathK(t) {
+      if (reduceMotion) return 1;
+      var b = 1 + BREATH_AMP * Math.sin(t * 2 * Math.PI / BREATH_MS);
+      if (mood !== 'pensa' || moodT0 < 0) return b;
+      // «pensa»: i nodi si contraggono verso il centro e si riaprono, come
+      // un'inspirazione. È una deformazione della sfera intera, non un colore.
+      var f = (t - moodT0) * 2 * Math.PI / PENSA_MS;
+      return b * (1 - 0.15 * (0.5 - 0.5 * Math.cos(f)));
+    }
+    // Il fronte d'onda: 'lavora' parte dal punto dell'agente e va verso
+    // l'esterno; 'legge' scorre i nodi in ordine, come una scansione.
+    function moodFront(t) {
+      if (reduceMotion || moodT0 < 0) return -1;
+      if (mood === 'lavora') return ((t - moodT0) % LAVORA_MS) / LAVORA_MS;
+      if (mood === 'legge') return ((t - moodT0) % LEGGE_MS) / LEGGE_MS;
+      return -1;
+    }
+    var _da = null;                               // punto dell'agente sulla sfera
+    function _origine() {
+      if (_da && _da.k === moodDa) return _da;
+      var y = 1 - 2 * moodDa, rr = Math.sqrt(Math.max(0, 1 - y * y)), az = moodDa * 2 * Math.PI * 7;
+      _da = { k: moodDa, x: Math.cos(az) * rr, y: y, z: Math.sin(az) * rr };
+      return _da;
+    }
+    function moodBoost(n, front) {
+      if (front < 0) return 0;
+      var u;
+      if (mood === 'legge') u = NODES.length > 1 ? n.i / (NODES.length - 1) : 0;
+      else {
+        var o = _origine();
+        u = (1 - (n.hx * o.x + n.hy * o.y + n.hz * o.z)) / 2;   // 0 = sull'agente
+      }
+      var d = u - front, w = (mood === 'legge') ? 0.07 : 0.11;
+      return Math.exp(-(d * d) / (2 * w * w));
+    }
+
     // ── guscio di particelle (stessa rotazione/prospettiva dei nodi) ──────────
     (function seedShell() {
       for (var p = 0; p < 320; p++) {
@@ -190,7 +340,8 @@
       var ct = Math.cos(tilt), st = Math.sin(tilt);
       var y2 = n.y * ct - z1 * st, z2 = n.y * st + z1 * ct;
       var persp = FOCAL / (FOCAL + z2);
-      return { sx: W / 2 + x1 * zoom * persp, sy: H / 2 + y2 * zoom * persp, persp: persp, z3: z2 };
+      var zk = zoom * bK;              // V6/A: il respiro scala TUTTA la sfera
+      return { sx: W / 2 + x1 * zk * persp, sy: H / 2 + y2 * zk * persp, persp: persp, z3: z2 };
     }
     function ctrlPoint(pa, pb, bow) {
       var dx = pb.sx - pa.sx, dy = pb.sy - pa.sy;
@@ -384,6 +535,7 @@
         ctx.globalCompositeOperation = 'source-over';
       }
 
+      var front = moodFront(t);        // V6/A: calcolato UNA volta per frame
       var order = NODES.map(function (n) { var p = project(n); n._sx = p.sx; n._sy = p.sy; n._pp = p.persp; n._z3 = p.z3; return n; })
                        .sort(function (a, b) { return b._z3 - a._z3; });
       for (var oi = 0; oi < order.length; oi++) {
@@ -407,13 +559,17 @@
             } else n.born_done = true;
           }
         }
-        var rgb = heat ? heatColor(n.act) : hexRGB(n.color);
+        var rgb = heat ? heatColor(n.act) : strRGB(nodeRGB(n, t));
         var actK = heat ? (0.3 + 0.7 * n.act) : 1;
-        var r = n.rad * zoom * scale * depth * (heat ? (0.7 + 0.6 * n.act) : 1);
+        // V6/A · l'onda («lavora») e la scansione («legge») si vedono come
+        // un nodo che si accende e si ingrossa al passaggio del fronte.
+        var boost = front < 0 ? 0 : moodBoost(n, front);
+        var r = n.rad * zoom * bK * scale * depth * (heat ? (0.7 + 0.6 * n.act) : 1) * (1 + 0.30 * boost);
         var freshGlow = reduceMotion ? 0 : (n.freshK || 0) * (0.5 + 0.5 * Math.sin(t * 0.003 + n.phase));
         ctx.globalCompositeOperation = 'lighter';
         var halo = r * (hover && n === hover ? 5 : (3.2 + thinkF * 1.4)) * pulse;
-        var haloA = (dim ? 0.06 : ((0.5 * pulse + 0.18 * freshGlow + 0.5 * flash + 0.25 * thinkF) * depth)) * actK;
+        var haloA = (dim ? 0.06 : ((0.5 * pulse + 0.18 * freshGlow + 0.5 * flash + 0.25 * thinkF
+                                    + 0.55 * boost) * depth)) * actK;
         if (lowFx) {
           // modalità leggera: niente gradiente radiale per nodo (il costo n.1)
           ctx.fillStyle = 'rgba(' + rgb + ',' + (haloA * 0.5) + ')';
@@ -432,7 +588,8 @@
         ctx.fillStyle = 'rgba(' + rgb + ',' + (dim ? 0.28 : Math.min(1, depth) * (heat ? actK : 1)) + ')';
         ctx.beginPath(); ctx.arc(sx, sy2, r * (0.9 + 0.1 * pulse), 0, 7); ctx.fill();
         if (!dim) { ctx.fillStyle = 'rgba(255,255,255,' + (0.85 * depth) + ')'; ctx.beginPath(); ctx.arc(sx, sy2, Math.max(0.8, r * 0.34), 0, 7); ctx.fill(); }
-        if ((n === hover) || (hoverSet && hoverSet.has(n.id)) || (labelsAuto && !hover && n.deg >= 12)) {
+        // labels:'none' (la home) — nessuna etichetta, in nessuna condizione
+        if (!labelsOff && ((n === hover) || (hoverSet && hoverSet.has(n.id)) || (labelsAuto && !hover && n.deg >= 12))) {
           ctx.font = '600 11px Montserrat, sans-serif';
           ctx.fillStyle = (n === hover) ? '#fff' : 'rgba(236,239,244,.7)';
           ctx.textAlign = 'center';
@@ -495,12 +652,15 @@
         else slowFrom = 0;
       }
       lastT = t;
+      bK = breathK(t);                 // V6/A: il respiro, prima di proiettare
       thinkF += ((thinking ? 1 : 0) - thinkF) * THINK_EASE;
       physT = t;
       if (!reduceMotion) drift(t);
       if (!dragging && !reduceMotion) rot += autoRot * (1 + thinkF * 0.8);
       var prev = hover;
-      hover = (mouseX < 0) ? null : pickNearest(mouseX, mouseY);
+      // labels:'none': niente hover del tutto — niente testo, niente impulsi
+      // al passaggio, niente nodi che si spengono mentre il mouse attraversa.
+      hover = (labelsOff || mouseX < 0) ? null : pickNearest(mouseX, mouseY);
       if (!reduceMotion && hover && hover !== lastFired) { fireNode(hover, 1); lastFired = hover; }
       if (!hover) lastFired = null;
       if (opts.onHover && hover !== prev) opts.onHover(hover || null, mouseX, mouseY);
@@ -520,6 +680,8 @@
       setThink: function (on) { thinking = !!on; },
       setHeat: function (on) { heat = !!on; },
       setUsage: setUsage,
+      setAccent: setAccent,
+      setMood: setMood,
       destroy: function () {
         destroyed = true;
         cancelAnimationFrame(rafId);

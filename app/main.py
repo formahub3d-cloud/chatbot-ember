@@ -51,7 +51,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -302,6 +302,24 @@ def _is_owner(tenant: dict) -> bool:
     return (tenant.get("branding") or {}).get("owner") is True
 
 
+def _puo_uscire_dal_vault(tenant: dict) -> bool:
+    """V6/B2 · Chi può ricevere anche CONOSCENZA GENERALE fuori dal cervello.
+
+    Due strade, entrambe SERVER-SIDE e nessuna raggiungibile dalla richiesta:
+    l'owner FORMA (O4, `_is_owner`) e il tenant con la spunta `libera` accesa
+    sul suo record (tenant_flags). La conversazione naturale — saluti, tono,
+    ammettere il buco e offrire di colmarlo — vale invece per TUTTI, e non
+    passa da qui: è uno strato del system prompt (rag._TONO_IT).
+
+    Il motivo della distinzione: il widget sul sito di un cliente non può
+    inventare sul cliente. Il giorno che ATS installa Divina, quel bot parla a
+    nome di ATS, e la promessa che gli si vende è che ciò che dice viene dal
+    loro materiale."""
+    if _is_owner(tenant):
+        return True
+    return flags.libera(_tenant_code(tenant))
+
+
 def _reject_master_browser(tenant: dict, origin: str) -> None:
     """La chiave master ('*') vede TUTTI gli scope: è ammessa solo per uso admin
     server-side (MCP/CLI/curl, che non inviano Origin). Se arriva da un browser
@@ -456,7 +474,10 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
             return _agent_response(routed, _grants(tenant))
         # Divina inerte/irraggiungibile o non ha instradato → si prosegue col RAG.
     focus_slugs = _focus_slugs(body)
-    free = _is_owner(tenant)   # O4: conversazione libera SOLO owner, deciso QUI, server-side
+    # O4 + V6/B2: conoscenza generale fuori dal vault = owner OPPURE tenant con la
+    # spunta `libera`. Deciso QUI, server-side, mai dalla richiesta. Il TONO della
+    # conversazione (B2) non passa da questo flag: vale già per tutti.
+    free = _puo_uscire_dal_vault(tenant)
     if body.stream:
         try:
             gen = rag.answer_stream(body.message, _grants(tenant), history=body.history,
@@ -805,6 +826,31 @@ def admin_liv3_set(body: Liv3In, authorization: str = Header(default="")):
     return {"ok": True, "tenant": body.tenant.strip(), "liv3": bool(body.on)}
 
 
+@app.get("/admin/libera")
+def admin_libera_get(tenant: str = "", authorization: str = Header(default="")):
+    """V6/B2 · Lo stato di «conoscenza generale fuori dal vault» per un tenant.
+
+    Il TONO della conversazione vale per tutti; il CONTENUTO fuori dal vault no.
+    Il giorno che un cliente installa Divina, quel bot parla a nome suo — e la
+    promessa che si vende è che ciò che dice viene dal suo materiale. Perciò è
+    una spunta sul record, letta dal SERVER. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    t = (tenant or "").strip()
+    if not t:
+        raise HTTPException(422, "Indica il tenant.")
+    return {"tenant": t, "libera": flags.libera(t), "persist": flags.enabled()}
+
+
+@app.post("/admin/libera")
+def admin_libera_set(body: Liv3In, authorization: str = Header(default="")):
+    """Accende/spegne la conoscenza generale per un tenant — decisione umana,
+    col nome di chi la prende. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    if not flags.set_libera(body.tenant, body.on, body.by):
+        raise HTTPException(422, "Servono tenant e il nome di chi decide (by).")
+    return {"ok": True, "tenant": body.tenant.strip(), "libera": bool(body.on)}
+
+
 class TaskPrioritaIn(BaseModel):
     id: str
     priorita: str              # alta | media | bassa
@@ -867,6 +913,36 @@ def admin_proposals_dismiss(body: ProposalIn, authorization: str = Header(defaul
     _require_admin(authorization)
     proposals.dismiss(body.id)
     return {"ok": True}
+
+
+class ImparatoIn(BaseModel):
+    history: list = []           # i turni della conversazione (dal client, come /chat)
+    scope: str = ""              # dove finirebbe la nota, se approvata
+    conversazione: str = ""      # etichetta della conversazione (per ritrovarla)
+
+
+@app.post("/admin/conversazione/imparato")
+def admin_conversazione_imparato(body: ImparatoIn, authorization: str = Header(default="")):
+    """V6/B3 · «Cosa abbiamo imparato»: da ZERO a TRE cose che varrebbe la pena
+    ricordare, ciascuna con la CITAZIONE del punto della conversazione da cui
+    viene. Vanno nella coda Proposte; approvate diventano una nota nel vault
+    marcata come nata da conversazione; rifiutate spariscono.
+
+    Non scrive NIENTE: mettere in coda è chiedere, non salvare (regola 1 di B3).
+    Bearer ADMIN_TOKEN — decide l'owner, come per tutte le proposte."""
+    _require_admin(authorization)
+    scope = (body.scope or "").strip()
+    if not scope:
+        raise HTTPException(422, "Indica lo scope in cui finirebbe la nota.")
+    try:
+        voci = learned.proponi(body.history, scope)
+    except Exception:
+        log.exception("imparato fallito")
+        raise HTTPException(500, "Non sono riuscito a rileggere la conversazione.")
+    accodate = proposals.add_learned(voci, conversazione=body.conversazione)
+    return {"imparato": accodate, "proposte": len(accodate),
+            "nota": ("Sono proposte, non note: diventano cervello solo se le approvi "
+                     "in Miglioramenti.")}
 
 
 @app.get("/admin/events")

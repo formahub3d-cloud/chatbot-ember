@@ -1,12 +1,19 @@
-"""V5 · Il LIVELLO 3 («cancellare e agire fuori») vive sul SERVER, per tenant.
+"""V5 · I permessi per-tenant che vivono sul SERVER, non nel browser.
 
 Il permesso più delicato del sistema stava in localStorage: una riga di
 JavaScript in una console del browser e il guardrail spariva. Ora è come
 `owner`: uno stato che il server conosce e APPLICA — la spunta nel pannello
 è la vista, non lo stato. Default: SPENTO, anche per i pannelli cliente.
 
-Persistenza best-effort su Supabase (db/tenant_flags.sql) con fallback
-in-memory (dev/test), stesso stampo di braintasks.
+Due inquilini, stessa famiglia:
+  - `liv3`   — «cancellare e agire fuori» (azioni con effetto esterno);
+  - `libera` — «conoscenza generale fuori dal vault» (V6/B2). Il TONO della
+    conversazione vale per tutti; il CONTENUTO fuori dal cervello no: il
+    widget sul sito di un cliente non può inventare sul cliente. Perciò è
+    una spunta sul record del tenant, mai una scelta nella richiesta.
+
+Persistenza best-effort su Supabase (db/tenant_flags.sql + tenant_flags_libera.sql)
+con fallback in-memory (dev/test), stesso stampo di braintasks.
 """
 import logging
 from threading import Lock
@@ -25,49 +32,79 @@ def enabled() -> bool:
             and bool(settings.database_url.strip()))
 
 
-def liv3(tenant_code: str) -> bool:
-    """Il livello 3 del tenant. Assente = SPENTO: il default è il freno."""
+_COLS = ("liv3", "libera")      # whitelist: il nome colonna non arriva mai da fuori
+
+
+def _get(tenant_code: str, col: str) -> bool:
+    """Legge un flag. Assente (o lettura fallita) = SPENTO: il default è il freno."""
     tenant_code = (tenant_code or "").strip()
-    if not tenant_code:
+    if not tenant_code or col not in _COLS:
         return False
     if enabled():
         try:
             with tenants._conn() as c:
                 with c.cursor() as cur:
-                    cur.execute("SELECT liv3 FROM tenant_flags WHERE tenant_code=%s",
+                    cur.execute(f"SELECT {col} FROM tenant_flags WHERE tenant_code=%s",
                                 (tenant_code,))
                     row = cur.fetchone()
             return bool(row and row[0])
         except Exception:  # pragma: no cover - best-effort: in dubbio, freno
-            log.warning("tenant_flags: lettura fallita → livello 3 SPENTO", exc_info=True)
+            log.warning("tenant_flags: lettura %s fallita → SPENTO", col, exc_info=True)
             return False
     with _lock:
-        return bool(_mem.get(tenant_code, {}).get("liv3"))
+        return bool(_mem.get(tenant_code, {}).get(col))
 
 
-def set_liv3(tenant_code: str, on: bool, by: str) -> bool:
-    """Accende/spegne il livello 3. `by` obbligatorio: è una decisione umana."""
+def _set(tenant_code: str, col: str, on: bool, by: str) -> bool:
+    """Scrive un flag. `by` obbligatorio: è una decisione umana, e si firma."""
     tenant_code, by = (tenant_code or "").strip(), (by or "").strip()[:80]
-    if not tenant_code or not by:
+    if not tenant_code or not by or col not in _COLS:
         return False
     if enabled():
         try:
             with tenants._conn() as c:
                 with c.cursor() as cur:
                     cur.execute(
-                        "INSERT INTO tenant_flags (tenant_code, liv3, updated_by, updated_at) "
-                        "VALUES (%s,%s,%s,now()) "
-                        "ON CONFLICT (tenant_code) DO UPDATE SET liv3=EXCLUDED.liv3, "
+                        f"INSERT INTO tenant_flags (tenant_code, {col}, updated_by, updated_at) "
+                        f"VALUES (%s,%s,%s,now()) "
+                        f"ON CONFLICT (tenant_code) DO UPDATE SET {col}=EXCLUDED.{col}, "
                         "updated_by=EXCLUDED.updated_by, updated_at=now()",
                         (tenant_code, bool(on), by))
                 c.commit()
             return True
         except Exception:  # pragma: no cover
-            log.warning("tenant_flags: scrittura fallita", exc_info=True)
+            log.warning("tenant_flags: scrittura %s fallita", col, exc_info=True)
             return False
     with _lock:
-        _mem[tenant_code] = {"liv3": bool(on), "by": by}
+        # MERGE, mai sostituzione: due flag sullo stesso tenant convivono
+        # (con l'assegnazione secca, accendere `libera` spegneva `liv3`).
+        row = dict(_mem.get(tenant_code) or {})
+        row[col] = bool(on)
+        row["by"] = by
+        _mem[tenant_code] = row
     return True
+
+
+def liv3(tenant_code: str) -> bool:
+    """Il livello 3 del tenant. Assente = SPENTO: il default è il freno."""
+    return _get(tenant_code, "liv3")
+
+
+def set_liv3(tenant_code: str, on: bool, by: str) -> bool:
+    """Accende/spegne il livello 3. `by` obbligatorio: è una decisione umana."""
+    return _set(tenant_code, "liv3", on, by)
+
+
+def libera(tenant_code: str) -> bool:
+    """B2 · Il tenant può ricevere anche CONOSCENZA GENERALE fuori dal vault
+    (sempre marcata ⟦fuori⟧). Assente = SPENTO: il default è la promessa —
+    ciò che dice il bot di un cliente viene dal materiale di quel cliente."""
+    return _get(tenant_code, "libera")
+
+
+def set_libera(tenant_code: str, on: bool, by: str) -> bool:
+    """Accende/spegne la conoscenza generale per un tenant. `by` obbligatorio."""
+    return _set(tenant_code, "libera", on, by)
 
 
 def reset() -> None:
