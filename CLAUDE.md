@@ -1,7 +1,8 @@
 # CLAUDE.md — Contesto progetto per Claude Code
 
-> Leggi questo file prima di lavorare. Aggiornato all'01-08-2026 (V6: l'orbita
-> della home, la conversazione, le conversazioni che diventano cervello). Prodotto: **Divina** — dominio
+> Leggi questo file prima di lavorare. Aggiornato all'01-08-2026 (V7: il filo
+> della conversazione, il cerchio che si chiude, il motore che dichiara cosa gli
+> manca, il merge che mette «da verificare»). Prodotto: **Divina** — dominio
 > `divina.formahub.it`. Nomi storici («Ember», «Jarvis», «OVY») rimossi da ciò che
 > una persona legge; restano SOLO dove sono contratti (vedi sotto).
 
@@ -64,6 +65,8 @@ attacca l'offerta di scrivere la nota, nella bolla.
 - `app/providers.py` — embeddings + chat (switch Mistral/Claude)
 - `app/ingest.py` — vault→Qdrant: sync git deterministico (fetch+reset, clone-swap che preserva i dati cliente, MAI riuso silenzioso), guard anti-stantio (`INGEST_MAX_VAULT_AGE_H`), guard min-note, perimetro unico `is_note_included`, `vault_info()` (commit+data in /ingest e /admin/brain)
 - `app/rag.py` — retrieval filtrato + risposta vincolata; focus_slugs (O2); free/owner con marcatori (O4); tono per tutti + `gap` nella risposta (V6/B1-B2); tier=solo stile; web additivo; aggancio systemq PRIMA del retrieval
+- `app/filo.py` — V7/A1: il filo della conversazione. Finestra a CARATTERI (non 6 turni: a voce si parla per frasi corte), espansione lessicale della domanda di seguito PRIMA del retrieval (nessuna chiamata LLM: a 55 ms di prima sillaba un round-trip in più si sente), memoria server-side in RAM **opt-in** (solo con `conversazione`, TTL 30', tetto duro, mai su disco). Il filo NON allarga i permessi: c'è un test che lo dimostra
+- `app/dbcheck.py` — V7/B1: le migrazioni ATTESE contro quelle applicate (tabelle, colonne e CHECK), con «cosa smette di funzionare» per ognuna. Riga `[db]` all'avvio + `/admin/status`. Nessuna tabella nuova: legge `information_schema`
 - `app/learned.py` — V6/B3: da 0 a 3 «cose imparate» da una conversazione, ognuna con la CITAZIONE verificata nel testo (una citazione non ritrovata fa cadere la proposta), PII scartate (mai redatte), `andrea-aloia/human/` sempre fuori. Non scrive: propone
 - `app/flags.py` — permessi per-tenant sul server: `liv3` (agire fuori) e `libera` (conoscenza generale). Default SPENTI
 - `app/systemq.py` — saluti e domande SUL sistema («dimmi cosa sai» → metadati dell'indice, coi buchi); riconoscitori prudenti, fallback esplicito al retrieval
@@ -73,10 +76,11 @@ attacca l'offerta di scrivere la nota, nella bolla.
 - `panel/index.html` — console SPA (file unico, no build; versione nel footer). V6: HOME = L'ORBITA (grande, centrale, nessuna etichetta, colore/forma per stato, UNA riga di testo sotto — il colore da solo non basta); offerta di colmare il buco attaccata alla risposta; «Cosa abbiamo imparato»; spunta `libera` in Impostazioni. V2: SEI PORTE (Mondo · Cervello · Clienti · Squadra · Integrazioni · Impostazioni) + Diagnostica richiudibile; CHAT SEMPRE PRESENTE (pannello destro fuori da #content, tab agenti dinamiche, traccia tool, chip→nota); orb sfera unica colore-unico con fps adattivi; orbite+lenti (O2/O3), modo vocale (U2/U3), «Miglioramenti» con FATTE firmate, quadro potenziamento (X3), allarme cervello fermo (task 18), preboot+[boot] (P3), modalità cliente e demo
 - `panel/manifest.webmanifest` `panel/sw.js` `panel/icon-*.png` — PWA (Fase 9): guscio offline prudente, navigazioni sempre prima in rete, API mai in cache
 - `panel/brain3d.js` — renderer 3D del grafo (istanza, riusato da home e Cervello vivo). V6/A: `setAccent` (tinta unica o gradiente fra due agenti, transizione 600 ms) e `setMood` (riposo=respiro · pensa=contrazione · lavora=onda dal punto dell'agente · legge=cascata); `labels:'none'` = mai testo, mai hover
-- `app/main.py` — API: `/health` `/ingest` `/chat` (SSE; `focus`; free per owner) `/upload` `/voice/*`; MCP: `/search` `/document` `/context` `/writeback` (con `origin=conversazione` → marcatura server-side «NON verificato»); admin: `/admin/status` (spie voce), `/admin/brain*`, `/admin/tasks` (brain_tasks, kind incl. `audit`), `/admin/roadmap`, `/admin/proposals` (incl. proposte `conversazione`: approvare = scrivere la nota marcata), `/admin/conversazione/imparato`, `/admin/liv3`, `/admin/libera`, `/admin/clients*`, `/admin/learning`; `/client/*` (accessi cliente via `app/clientauth.py`)
+- `app/main.py` — API: `/health` `/ingest` `/chat` (SSE; `focus`; free per owner) `/upload` `/voice/*`; MCP: `/search` `/document` `/context` `/writeback` (con `origin=conversazione` → marcatura server-side «NON verificato»); admin: `/admin/status` (spie voce), `/admin/brain*`, `/admin/tasks` (brain_tasks, kind incl. `audit`), `/admin/roadmap`, `/admin/proposals` (incl. proposte `conversazione`: approvare = scrivere la nota marcata), `/admin/conversazione/imparato`, `/admin/tasks/da-merge` (V7/C), `/admin/tasks/nota`, `/admin/liv3`, `/admin/libera`, `/admin/clients*`, `/admin/learning`; `/client/*` (accessi cliente via `app/clientauth.py`)
+- `app/braintasks.py` — coda task. V7/C: stato **`da-verificare`** (il merge muove, non chiude), `by_idempotency_key`, `annota()` (nota senza transizione). Senza la migrazione del CHECK degrada dichiarandolo, non fallisce
 - `app/tenants.py` `app/rls.py` `app/docstore.py` `app/brain.py` `app/braintasks.py` `app/proposals.py` — chiavi/RLS/metadati/grafo/coda/proposte
 - `db/` — DDL Supabase: `schema.sql`, `brain_tasks*.sql`, `brain_graph.sql`, `client_access.sql` (i nomi SQL interni, es. schema `ovyon`, sono contratti e restano)
-- `scripts/` — `test_console_headless.js` (**il guardiano**: in CI a ogni push), `test_voce_sentenze.js` (17 casi chunker), `test_voce_vad.js` (7 casi barge-in), `contract_console.py` (console↔API, 0 endpoint fantasma), `count_notes.py` (parità perimetro col vault), `verify_ingest.py`, `seed_audit_2026_07_31*.py` (21 task audit come dati, idempotenti) · `seed_task_v6_2026_08_01.py` (11 task V6, chiavi 22-32, priorità inclusa) · `close_audit_2026_07_31.py`/`close_audit_2026_08_01.py` (chiusure per idempotency_key, con nota) · `reset_chiavi.py` (reset chiavi: FORMA prima, poi revoca con freno) · `seed_task_allarme_commit.py` (punto 9). **Gli script di manutenzione usano `urllib`, MAI httpx**: girano col Python di sistema, senza venv (regola 1/08)
+- `scripts/` — `test_console_headless.js` (**il guardiano**: in CI a ogni push), `test_voce_sentenze.js` (17 casi chunker), `test_voce_vad.js` (7 casi barge-in), `contract_console.py` (console↔API, 0 endpoint fantasma), `count_notes.py` (parità perimetro col vault), `verify_ingest.py`, `seed_audit_2026_07_31*.py` (21 task audit come dati, idempotenti) · `seed_task_v6_2026_08_01.py` (11 task V6, chiavi 22-32, priorità inclusa) · `console_parita.py` (V7/B3: manifesto `panel/CONSOLE.sha256`, in CI di ENTRAMBI i repo) · `audit_da_merge.py` (V7/C: dal merge a «da verificare») · `unifica_voce_telefono.py` (il doppione -31/-20) · `close_audit_2026_07_31.py`/`close_audit_2026_08_01.py` (chiusure per idempotency_key, con nota) · `reset_chiavi.py` (reset chiavi: FORMA prima, poi revoca con freno) · `seed_task_allarme_commit.py` (punto 9). **Gli script di manutenzione usano `urllib`, MAI httpx**: girano col Python di sistema, senza venv (regola 1/08)
 - `mcp-connector/` — server MCP (5 tool `ovy_*`) · `SETUP-PRODUZIONE.md` — runbook produzione
 
 ## Comandi
@@ -84,11 +88,18 @@ attacca l'offerta di scrivere la nota, nella bolla.
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest -q                      # ~485 test offline (DB/LLM/rete mockati)
+python -m pytest -q                      # ~524 test offline (DB/LLM/rete mockati)
 node scripts/test_console_headless.js    # il guardiano: apre DAVVERO la console (serve Playwright)
+python3 scripts/console_parita.py         # V7/B3: i tre file della console combaciano col manifesto
+python3 scripts/console_parita.py --scrivi # dopo averli modificati: rigenera E copia nell'altro repo
 uvicorn app.main:app --reload --port 8000
 curl -X POST localhost:8000/ingest -H "Authorization: Bearer $ADMIN_TOKEN"   # indicizza
 ```
+
+**V7 · Tre regole nate da errori veri (01-08).**
+1. **Nessuna migrazione SQL come prerequisito.** Il codice funziona senza (a freno inserito), la migrazione si scrive, e il pannello DICHIARA cosa manca (`dbcheck`). Il 1/08 quattro migrazioni sono state applicate a mano, ognuna scoperta da un 500 ore dopo il merge.
+2. **Il merge NON chiude le task: le mette «da verificare».** «Fatta» la scrive una persona, col suo nome, dopo aver guardato.
+3. **Senza dato la spia dice «—», e dice QUALE dato manca.** Un ripiego generico («sync metadati note») è peggio di un errore: sembra normale.
 
 ## Regole tassative
 
@@ -105,6 +116,7 @@ curl -X POST localhost:8000/ingest -H "Authorization: Bearer $ADMIN_TOKEN"   # i
 
 - ✅ In produzione: RAG multi-tenant, voce continua (frasi/barge-in a turni/mani libere/modo vocale; prima sillaba 55 ms), orbite+lenti+focus, conversazione libera owner, «Miglioramenti» (task audit 01-03, 09, 10 FATTE via `close_audit_*`; quadro di potenziamento collegato alla nota del vault), console che dichiara quando è pronta (riga `[boot]`; produzione 1265 ms), guardiano in CI, accessi cliente, ingest anti-stantio.
 - ✅ V6 (01-08 notte, in PR): **l'orbita è la home** (grande e centrale, nessuna etichetta sui nodi, colore per agente — Divina gialla, Dante rosso —, respiro a riposo, onda quando un agente lavora, cascata durante l'ingest) con **una riga di testo** che dice sempre quello che dice il colore (accessibilità, non rifinitura); **settima area** del quadro «Estetica e resa visiva» (il radar è un ettagono); **il muro diventa una porta** (`gap` + offerta di scrivere la nota attaccata alla risposta); **tono per tutti / contenuto fuori dal vault solo con `libera`**; **le conversazioni propongono note** con la citazione, in coda Proposte, mai in automatico.
+- ✅ V7 (01-08 notte, in PR): **il filo della conversazione** (`app/filo.py`) con la domanda di seguito espansa prima del retrieval e la memoria server-side opt-in; **le capacità raggiungibili dalla chat** (il catalogo si legge da `/agents`, mai duplicato); **il cerchio provato end-to-end** (gap → nota → ingest → risposta con la fonte nuova); **il motore dichiara le migrazioni** attese e mancanti; **la parità della console è un vincolo di CI**, non una disciplina; **il merge mette «da verificare»**.
 - ⏳ Aperti: task audit 04-08 e 11-21, più le 22-32 del V6 (conversazione normale, sei sezioni, allarme cervello fermo, valore clienti, voce su telefono, case study Centioni, …), lente Temi (aspetta i tag `tema/*` decisi da Andrea — proposta in `docs/lenti-temi-proposta.md`), R2/R3 del piano nomi (migrazioni, non rename).
 
 ## Riferimenti

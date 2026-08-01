@@ -704,15 +704,18 @@ function demoData(service, path, opts){
       return Promise.resolve({tenant:new URLSearchParams(path.split('?')[1]||'').get('tenant')||'',liv3:!!state._demoLiv3,persist:false});
     }
     const D={
-      '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123'},
+      '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123',console_sha:'d3m0c0ns01ed3m0'},
       '/health':{status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
-      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it'},
+      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it',
+      /* B1 · in demo si mostra il caso REALE di stanotte: schema quasi completo
+         con UNA migrazione dimenticata — è così che si presenta il problema. */
+      db_schema:{ok:false,persist:true,attese:14,presenti:13,errore:'',mancanti:[{tabella:'tenant_flags',colonna:'libera',ddl:'db/tenant_flags_libera.sql',rompe:'la conoscenza generale non si può concedere a un tenant (resta spenta, default sicuro)'}]}},
       '/admin/analytics':{uptime_s:186420,totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.'}]},
       '/admin/proposals':{proposals:[{id:'p0',source:'conversazione',scope:'ats',title:'Impara dalla conversazione: «Il ritiro a domicilio copre solo il centro»',detail:'(DEMO) Il servizio di ritiro a domicilio è limitato al centro città; fuori si passa dal punto di raccolta.',citazione:'no, fuori dal centro il ritiro non lo facciamo, si passa dal punto di raccolta',conversazione:'chat console · 2026-08-01 23:40',count:1,last_at:now-300},{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
       '/admin/brain':{persist:true,vault:{vault_commit:'1f73289abc12',vault_commit_date:nowIso(840e3)},ingest_commit:{vault_commit:'1f73289abc12',at:nowIso(3600e3)},stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']}]},
-      '/admin/tasks':{persist:true,tasks:[{id:'t0',kind:'azione',scope:'ats',title:'Invia 3 solleciti email ai clienti ATS in ritardo',note:'Preparati da Dante · invoice-chase — testi pronti, NESSUN invio senza il tuo ok',status:'in-approvazione',priorita:'alta',created_at:nowIso(600e3)},{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',priorita:'alta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',priorita:'media',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta negativa ricorrente',status:'aperta',priorita:'bassa',created_at:nowIso(50*3600e3)}]},
+      '/admin/tasks':{persist:true,tasks:[/* V7/C · una task messa «da verificare» dal merge: il codice c'è, nessuno l'ha ancora guardata — e da lì si esce solo con un nome. */{id:'tv1',kind:'audit',scope:'',title:'Il muro diventa una porta',note:'Merge PR #48 · V6 · L\'orbita che si guarda — DA VERIFICARE: il merge non chiude, guarda e conferma.',status:'da-verificare',priorita:'alta',created_at:nowIso(9*3600e3),idempotency_key:'audit-2026-08-01-22'},{id:'t0',kind:'azione',scope:'ats',title:'Invia 3 solleciti email ai clienti ATS in ritardo',note:'Preparati da Dante · invoice-chase — testi pronti, NESSUN invio senza il tuo ok',status:'in-approvazione',priorita:'alta',created_at:nowIso(600e3)},{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',priorita:'alta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',priorita:'media',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta negativa ricorrente',status:'aperta',priorita:'bassa',created_at:nowIso(50*3600e3)}]},
       '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
       '/admin/usage':{'ats':{count:412,cost_eur:2.06,alert:false},'forma-core':{count:198,cost_eur:0.99,alert:false},'andrea':{count:640,cost_eur:3.20,alert:true},'ovyon':{count:54,cost_eur:0.27,alert:false}},
       '/admin/events':{persist:true,events:[{at:nowIso(30000),kind:'chat',scope:'ats',question:'orari apertura sede Benevento'},{at:nowIso(120000),kind:'feedback_up',scope:'forma-core',question:'ottima risposta sui materiali'},{at:nowIso(260000),kind:'gap',scope:'ats',question:'spedizione internazionale?'}]},
@@ -729,7 +732,7 @@ function demoData(service, path, opts){
   if(path.startsWith('/contradictions/resolve')) return Promise.resolve({resolved:true,status:opts.body?.status||'risolto'});
   if(path.startsWith('/nodes/promote')) return Promise.resolve({ok:false,reason:'token vault non configurato (demo)'});
   const D={
-    '/version':{name:'Divina',version:'0.4.0'},'/health':{status:'ok',service:'divina',version:'0.4.0',composio:true,worker:2},'/ready':{status:'ready',db:true},
+    '/version':{name:'Divina',version:'0.4.0',console_sha:'d3m0c0ns01ed3m0'},'/health':{status:'ok',service:'divina',version:'0.4.0',composio:true,worker:2},'/ready':{status:'ready',db:true},
     '/agents':{agents:[
       {id:'dante',name:'Dante',archetype:"l'operativo (BIZ)",tagline:'Ti tiene in ordine i soldi di ogni giorno: cassa, fatture, buste paga',skills:[
         {id:'cash-flow-snapshot',role:'Fotografa la cassa',desc:'entrate, uscite e saldo, in una pagina',department:'Piccola impresa'},{id:'invoice-chase',role:'Sollecita le fatture in ritardo',desc:'bozze di sollecito pronte, nessun invio senza il tuo ok',department:'Piccola impresa'},{id:'plan-payroll',role:'Pianifica le buste paga',desc:'scadenze e importi del mese, da verificare',department:'Piccola impresa'},{id:'margin-analyzer',role:'Ti dice dove guadagni davvero',desc:'margini per prodotto e per cliente',department:'Piccola impresa'},{id:'tax-prep',role:'Prepara i conti per il commercialista',desc:'documenti e scadenze fiscali in ordine',department:'Piccola impresa'},{id:'run-campaign',role:'Prepara una campagna promozionale',desc:'testi e piano di lancio, da approvare',department:'Piccola impresa'}]},
@@ -895,7 +898,8 @@ const VIEWS={
       if(t.status==='archiviata')return;
       items.push({titolo:t.title,nota:t.note||'',
         origine:origineDi(t),prio:t.priorita||'media',
-        peso:'',stato:t.status==='fatta'?'fatte':(['in-approvazione','approvata','in-esecuzione'].includes(t.status)?'incorso':'dafare'),
+        peso:'',stato:t.status==='fatta'?'fatte':(t.status==='da-verificare'?'daverificare':(['in-approvazione','approvata','in-esecuzione'].includes(t.status)?'incorso':'dafare')),
+        tid:t.status==='da-verificare'?t.id:'',
         quando:t.updated_at||t.created_at||'',k:'tk-'+(t.idempotency_key||t.id)});
     });
     ((ft&&ft.tasks)||[]).filter(t=>t.status==='fatta').forEach(t=>{
@@ -1168,7 +1172,7 @@ const VIEWS={
       const ic=(d.ingest_commit&&d.ingest_commit.vault_commit)||null;
       const disallineato=!!(v.vault_commit&&ic&&v.vault_commit!==ic);
       const cervMeta=ic?`cervello <span class="mono" ${disallineato?'style="color:var(--orange);font-weight:700"':''}>${esc(ic)}</span> · `:'';
-      const vaultMeta=v.vault_commit?`${cervMeta}vault <span class="mono">${esc(v.vault_commit)}</span> · ${disallineato?`<span style="color:var(--orange);font-weight:700">non letto — serve una ingest</span>`:vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`:'sync metadati note';
+      const vaultMeta=v.vault_commit?`${cervMeta}vault <span class="mono">${esc(v.vault_commit)}</span> · ${disallineato?`<span style="color:var(--orange);font-weight:700">non letto — serve una ingest</span>`:vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`:'<span style="color:var(--orange)">manca il commit del vault — l\'allarme «cervello fermo» è cieco (serve <span class="mono">ingest_meta</span> e una ingest col motore aggiornato)</span>';
       const noteRow=n=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div><div class="small muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.path||'')}</div></div><div class="row" style="gap:8px;flex-shrink:0"><span class="scope-chip" style="background:${scopeColor(n.tenant)}22;color:${scopeColor(n.tenant)};border-color:${scopeColor(n.tenant)}44">${esc(n.tenant||'')}</span><span class="small muted" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</span></div></div>`;
       C.innerHTML=`
       <!-- R3 (scelta a): le ORBITE vivono qui, a tutta larghezza — la scelta
@@ -1410,16 +1414,121 @@ const VIEWS={
     const eng=await Promise.all([api('engine','/health').catch(()=>({})),api('engine','/version').catch(()=>({})),api('engine','/admin/status').catch(()=>({}))]).catch(()=>[{},{},{}]);
     const orch=await Promise.all([api('orch','/health').catch(()=>({})),api('orch','/version').catch(()=>({})),api('orch','/ready').catch(()=>({db:false}))]).catch(()=>[{},{},{db:false}]);
     const [eh,ev,est]=eng,[oh,ov,ordy]=orch;
-    C.innerHTML=`<div class="grid g-2">
+    /* V7/B3 · Le due copie della console. Nessuna CI può vedere l'altro repo
+       senza un token nuovo, ma i due SERVIZI parlano entrambi con questa pagina:
+       se dichiarano identità diverse, una delle due copie è vecchia — e lo si
+       legge qui invece di scoprirlo fra tre settimane da un bottone che manca.
+       Se un servizio non è collegato non si dice niente: due console non si
+       confrontano se se ne vede una sola. */
+    C.innerHTML=`${paritaConsole(ev,ov)}<div class="grid g-2">
       <div class="card"><div class="card-head"><div><h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--cyan)">◆</span> Motore (chat + cervello)</h3><p>Il motore Divina</p></div>${state.engOk?'<span class="tag pos">connesso</span>':'<span class="tag mut">n/d</span>'}</div>
-        <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ev.name||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${eh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ev.version||'—')}</td></tr><tr><td class="muted">LLM / embed</td><td class="num"><span class="pill">${esc(eh.llm||'—')}</span> <span class="pill">${esc(eh.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(est.grants_backend||'—')}</span></td></tr></tbody></table>
-        <div class="row" style="margin-top:14px"><a class="btn sm" href="${(state.engBase||'')}/metrics" target="_blank" rel="noopener">Metriche</a><a class="btn sm" href="${(state.engBase||'')}/admin/access-logs.csv" target="_blank" rel="noopener">Audit CSV</a></div></div>
+        <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ev.name||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${eh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ev.version||'—')}</td></tr><tr><td class="muted">LLM / embed</td><td class="num"><span class="pill">${esc(eh.llm||'—')}</span> <span class="pill">${esc(eh.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(est.grants_backend||'—')}</span></td></tr><tr><td class="muted">Console servita</td><td class="num mono">${ev.console_sha?esc(String(ev.console_sha).slice(0,12)):'<span class="muted">—</span>'}</td></tr></tbody></table>
+        <div class="row" style="margin-top:14px"><a class="btn sm" href="${(state.engBase||'')}/metrics" target="_blank" rel="noopener">Metriche</a><a class="btn sm" href="${(state.engBase||'')}/admin/access-logs.csv" target="_blank" rel="noopener">Audit CSV</a></div>
+        ${schemaBox(est.db_schema)}</div>
       <div class="card"><div class="card-head"><div><h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--magenta)">${icon('sparks',16)}</span> Orchestratore (agenti)</h3><p>Servizio Divina</p></div>${state.orchOk?'<span class="tag pos">connesso</span>':'<span class="tag mut">n/d</span>'}</div>
-        <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ov.name||oh.service||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${oh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Database (RLS)</td><td class="num">${state.orchOk?(ordy.db?'<span class="tag pos">ok</span>':'<span class="tag neg">giù</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ov.version||'—')}</td></tr><tr><td class="muted">Worker azioni</td><td class="num">${state.orchOk?(oh.worker?`<span class="tag pos">${oh.worker} thread</span>`:'<span class="tag mut">spento</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Executor Composio</td><td class="num">${state.orchOk?(oh.composio?'<span class="tag pos">attivo</span>':'<span class="tag neg">SPENTO — chiave non vista: redeploy</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Tenant</td><td class="num"><span class="tag acc">${esc(state.tenant)}</span></td></tr></tbody></table>
+        <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ov.name||oh.service||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${oh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Database (RLS)</td><td class="num">${state.orchOk?(ordy.db?'<span class="tag pos">ok</span>':'<span class="tag neg">giù</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ov.version||'—')}</td></tr><tr><td class="muted">Worker azioni</td><td class="num">${state.orchOk?(oh.worker?`<span class="tag pos">${oh.worker} thread</span>`:'<span class="tag mut">spento</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Executor Composio</td><td class="num">${state.orchOk?(oh.composio?'<span class="tag pos">attivo</span>':'<span class="tag neg">SPENTO — chiave non vista: redeploy</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Console servita</td><td class="num mono">${ov.console_sha?esc(String(ov.console_sha).slice(0,12)):'<span class="muted">—</span>'}</td></tr><tr><td class="muted">Tenant</td><td class="num"><span class="tag acc">${esc(state.tenant)}</span></td></tr></tbody></table>
         <div style="margin-top:14px;font-size:12px;color:var(--text-2);line-height:1.9"><div>✓ RLS per tenant · ✓ contraddizioni mai auto-risolte</div><div>✓ nessun DELETE (archivio) · ✓ ogni azione → audit</div></div></div>
     </div>`;
   },
 };
+
+/* ── V7/A2 · Chiedere di FARE, non solo di sapere ──────────────────────────
+   Le 42 capacità esistono, la Squadra le mostra, ma dalla conversazione non ci
+   si arriva: chi scrive «mi prepari i solleciti delle fatture di ATS?» riceve
+   una risposta dal cervello e non sa che esiste un agente che quel lavoro lo fa.
+   È la task audit-2026-07-31-06, e il criterio del V6 vale anche qui: **una
+   capacità esiste quando qualcuno può usarla senza sapere come si chiama.**
+
+   Il catalogo NON si duplica qui: si legge da /agents dell'orchestratore, che è
+   già la fonte da cui la Squadra disegna le sue righe. Una terza copia sarebbe
+   la stessa trappola della console duplicata nei due repo.
+
+   Il collegamento è un SUGGERIMENTO, non un dirottamento: la risposta del
+   cervello resta, e sotto compare «questo lo sa fare Dante». Affidare il lavoro
+   resta un clic dell'utente — e da lì in poi valgono i freni di sempre (una
+   bozza, `in-approvazione`, livello 3 spento = non si accoda nemmeno). */
+const CAP_STOP=new Set(['il','lo','la','i','gli','le','un','una','uno','del','della','dei','delle','degli','di','a','da','in','con','su','per','tra','fra','e','o','che','chi','cosa','come','quando','dove','perche','mi','ti','ci','vi','si','me','te','se','non','piu','molto','tutto','tutti','puoi','potresti','vorrei','volevo','serve','bisogno','fare','fammi','dammi','sono','essere','avere','questo','questa','quello','quella','adesso','subito','favore','cortesia','grazie','ciao']);
+function capParole(t){
+  return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .split(/[^a-z0-9]+/).filter(w=>w.length>3&&!CAP_STOP.has(w));
+}
+async function capCatalogo(){
+  if(state._capacita)return state._capacita;
+  let ag=null;
+  try{ag=await api('orch','/agents');}catch(_){return null;}   // orchestratore giù: nessun suggerimento, mai un errore in chat
+  const out=[];
+  const aggiungi=(agente,nome,skills)=>(skills||[]).forEach(sk=>out.push({
+    agente,nome,id:sk.id,role:sk.role||sk.id,desc:sk.desc||'',dip:sk.department||'',
+    parole:capParole([sk.id,sk.role,sk.desc,sk.department].join(' '))}));
+  (ag.agents||[]).forEach(a=>aggiungi(a.id,a.name||a.id,a.skills));
+  (ag.subagents||[]).forEach(a=>aggiungi(a.sotto||a.id,a.name||a.id,a.skills));
+  state._capacita=out;
+  return out;
+}
+/* Punteggio grezzo per sovrapposizione di parole. Volutamente semplice e
+   volutamente SEVERO nella soglia: un suggerimento sbagliato sotto ogni
+   risposta diventa rumore, e il rumore si impara a ignorare. */
+function capTrova(testo,cat){
+  const p=capParole(testo);
+  if(!p.length||!cat||!cat.length)return null;
+  let best=null;
+  for(const c of cat){
+    let n=0;
+    for(const w of p){if(c.parole.some(x=>x===w||(w.length>5&&x.startsWith(w.slice(0,5)))))n++;}
+    if(n&&(!best||n>best.n))best={c,n};
+  }
+  return best&&best.n>=2?best.c:null;    // due parole in comune: sotto è caso
+}
+async function suggerisciCapacita(i,testo){
+  const m=state.chat[i];if(!m||m.role!=='bot')return;
+  const cat=await capCatalogo();
+  const c=capTrova(testo,cat);
+  if(!c)return;
+  m.cap=c;renderChat();
+}
+function affidaCapacita(i){
+  const m=state.chat[i];if(!m||!m.cap)return;
+  const testo=(state.chat[i-1]&&state.chat[i-1].role==='user')?state.chat[i-1].text:'';
+  pickComp(m.cap.agente);
+  const ta=$('#chatMsg');
+  if(ta){ta.value=testo;ta.focus();}
+  toast(`Passo a ${_agNome(m.cap.agente)} — controlla il testo e invia. Quello che ha effetto fuori resta comunque in attesa della tua approvazione.`,'info');
+}
+
+/* ── V7/B3 · Le due console: identiche o no, detto a voce alta ─────────────
+   La regola «la console è UNA» era una disciplina (cp + commit su entrambi).
+   Qui non si decide QUALE sia quella vera — è una scelta di Andrea, e la task
+   audit-2026-07-31-13 resta aperta — ma la divergenza smette di essere
+   silenziosa: se i due servizi dichiarano identità diverse, questa riga lo dice.
+   Senza uno dei due servizi non si scrive niente: due copie non si confrontano
+   se se ne vede una sola. */
+function paritaConsole(ev,ov){
+  const a=ev&&ev.console_sha,b=ov&&ov.console_sha;
+  if(!a||!b)return '';
+  if(a===b)return `<div class="small muted" style="margin-bottom:12px;padding:9px 12px;border:1px solid color-mix(in srgb,var(--green) 35%,var(--border));border-radius:10px">✓ La console è la stessa nei due servizi (<span class="mono">${esc(String(a).slice(0,12))}</span>) — copie byte-identiche.</div>`;
+  return `<div class="small" style="margin-bottom:12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--orange) 50%,var(--border));border-radius:10px;color:var(--orange)">
+    ${icon('alert',12)} <b>Le due console hanno DIVERSO contenuto.</b>
+    <div class="muted" style="margin-top:3px">Motore <span class="mono">${esc(String(a).slice(0,12))}</span> · orchestratore <span class="mono">${esc(String(b).slice(0,12))}</span>. Una delle due copie è vecchia: si modifica nel motore e si copia (<span class="mono">panel/index.html · brain3d.js · voce.js</span> + <span class="mono">CONSOLE.sha256</span>), poi si rigenera con <span class="mono">scripts/console_parita.py --scrivi</span>.</div></div>`;
+}
+
+/* ── V7/B1 · Le migrazioni: quelle attese e quelle davvero applicate ────────
+   Il 1/08 quattro tabelle mancanti sono state scoperte una per una, ore dopo il
+   merge, ognuna da un 500 o da un degrado silenzioso. Qui si vedono tutte in una
+   riga, e ognuna dice COSA smette di funzionare — «manca ingest_meta» non aiuta
+   nessuno, «manca ingest_meta: l'allarme sui commit è cieco» sì.
+   Tre esiti distinti, mai confusi fra loro: nessun database (configurazione, non
+   guasto) · schema non leggibile (non ho potuto guardare) · elenco dei buchi. */
+function schemaBox(sc){
+  if(!sc)return '';
+  if(!sc.persist)return `<div class="small muted" style="margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">${icon('layers',12)} <b>Nessun database collegato.</b> Coda «Miglioramenti», grafo e permessi per-tenant girano in memoria e si azzerano a ogni redeploy. Non è un guasto: è come è configurato adesso.</div>`;
+  if(sc.errore)return `<div class="small" style="margin-top:12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--orange) 45%,var(--border));border-radius:10px;color:var(--orange)">${icon('alert',12)} <b>Schema non verificato</b> — ${esc(sc.errore)}. Non vuol dire che manchi qualcosa: vuol dire che non si è potuto guardare.</div>`;
+  if(sc.ok)return `<div class="small muted" style="margin-top:12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--green) 35%,var(--border));border-radius:10px">✓ Migrazioni applicate: <b>${sc.presenti}/${sc.attese}</b>. Nessuna in attesa.</div>`;
+  const righe=(sc.mancanti||[]).map(m=>`<div style="padding:6px 0;border-top:1px solid var(--border)"><span class="mono" style="color:var(--orange)">${esc(m.tabella)}${m.colonna?'.'+esc(m.colonna):''}</span> — ${esc(m.rompe)}<div class="small muted mono" style="margin-top:2px">${esc(m.ddl)}</div></div>`).join('');
+  return `<div class="small" style="margin-top:12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--orange) 45%,var(--border));border-radius:10px">
+    <div style="color:var(--orange);font-weight:700">${icon('alert',12)} ${sc.mancanti.length} migrazion${sc.mancanti.length===1?'e':'i'} da applicare su ${sc.attese}</div>
+    <div class="muted" style="margin-top:3px">Il motore gira lo stesso — col freno inserito su queste funzioni. Applicare il DDL su Supabase:</div>
+    ${righe}</div>`;
+}
 
 /* ---- CHAT logic ---- */
 /* ── O4 · La provenienza SI VEDE, riga per riga: ciò che il modello dichiara
@@ -1685,6 +1794,13 @@ async function apriNota(slug){
   back.querySelector('#ntChiudi').onclick=via;
   back.querySelector('#ntCervello').onclick=()=>{via();state._pendingFire=slug;route('brain');};
 }
+function capBox(m,i){
+  if(!m.cap||state.clientMode)return '';
+  const col=AG_COLORS[m.cap.agente]||'var(--divina)';
+  return `<div class="gap-offerta" style="border-color:color-mix(in srgb,${col} 45%,var(--border));background:color-mix(in srgb,${col} 8%,transparent)">
+    <div class="small">${icon('spark',12)} Questo lo sa fare <b style="color:${col}">${esc(_agNome(m.cap.agente))}</b> · ${esc(m.cap.role)}<div class="muted" style="margin-top:2px">${esc(m.cap.desc)}${m.cap.dip?' · '+esc(m.cap.dip):''}</div></div>
+    <button class="btn sm" onclick="affidaCapacita(${i})" style="margin-top:7px;min-height:28px;padding:2px 12px">Affida a ${esc(_agNome(m.cap.agente))}</button></div>`;
+}
 function renderChat(){
   const inner=$('#chatInner');if(!inner)return;
   if(!state.chat.length){
@@ -1725,7 +1841,7 @@ function renderChat(){
     const salva=(!state.clientMode&&!state.demo&&!m.gap&&m.text&&!m.text.startsWith('✕'))
       ?`<button class="btn sm ghost" id="sv-${i}" onclick="salvaForm(${i})" style="margin-top:6px;min-height:28px;padding:2px 10px">${icon('doc',12)} Salva nel cervello</button>`:'';
     const traccia=(m.trace||[]).length?`<div style="margin-top:5px">${m.trace.map(t=>`<div class="trace-line">✓ ${esc(t)}</div>`).join('')}</div>`:'';
-    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${bb.h}</div>${bb.fuori?`<div class="small" style="color:var(--orange);margin-top:4px">${icon('alert',11)} le parti evidenziate NON vengono dal cervello: ragionamento, non fonte</div>`:''}${traccia}${src?`<div class="sources">${src}</div>`:''}${offerta}${salva}</div></div>`;
+    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${bb.h}</div>${bb.fuori?`<div class="small" style="color:var(--orange);margin-top:4px">${icon('alert',11)} le parti evidenziate NON vengono dal cervello: ragionamento, non fonte</div>`:''}${traccia}${src?`<div class="sources">${src}</div>`:''}${offerta}${capBox(m,i)}${salva}</div></div>`;
   }).join('');
   const sc=$('#chatScroll');if(sc)sc.scrollTop=sc.scrollHeight;
   $$('#chatInner [data-fire]').forEach(p=>p.onclick=()=>apriNota(p.dataset.fire));
@@ -1767,6 +1883,9 @@ async function sendChat(){
     }
     setOrb(state.tts?null:'idle',r.agent||comp||'divina');
     speak(r.answer);
+    /* A2 · Se ha risposto il cervello ma esiste un agente che quel lavoro lo FA,
+       lo si dice sotto la risposta. Non si dirotta niente: la risposta resta. */
+    if(!ag&&!state.clientMode)suggerisciCapacita(state.chat.length-1,text);
   }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'✕ '+e.message,sources:[]});setOrb('idle');}
   if(brainTimer)clearInterval(brainTimer);
   renderChat();
@@ -2698,7 +2817,10 @@ function renderImprove(){
   const items=state._impItems||[];
   const f=state._impF||(state._impF={origine:'tutte'});
   const vis=items.filter(x=>f.origine==='tutte'||x.origine===f.origine);
-  const gruppi=[['incorso','IN CORSO','var(--cyan)'],['dafare','DA FARE','var(--orange)'],['fatte','FATTE','var(--green)']];
+  /* V7/C · «DA VERIFICARE» è la colonna del merge: il codice c'è, nessuno l'ha
+     ancora guardato. Sta in CIMA perché è l'unica che aspetta una persona — e
+     non diventa FATTE da sola: ci vuole un nome, come per le contraddizioni. */
+  const gruppi=[['daverificare','DA VERIFICARE','var(--divina)'],['incorso','IN CORSO','var(--cyan)'],['dafare','DA FARE','var(--orange)'],['fatte','FATTE','var(--green)']];
   const chipO=['tutte',...Object.keys(IMP_ORIGINI)].map(o=>`<button class="orbit-tab ${f.origine===o?'active':''}" data-io="${o}">${o==='tutte'?'Tutte le origini':IMP_ORIGINI[o][0]}</button>`).join('');
   const chipS=gruppi.map(([id,l])=>{const n=vis.filter(x=>x.stato===id).length;return `<button class="orbit-tab" data-is="${id}">${l} <b>${n}</b></button>`;}).join('');
   /* M3 (31-07 sera) · La priorità si VEDE, le colonne sono affiancate, e chi
@@ -2720,7 +2842,9 @@ function renderImprove(){
         ${x.iniziata?`<span class="tag warn" title="lavoro iniziato in passato, non attivo adesso">iniziata</span>`:''}
         ${x.peso?`<span class="pill" title="peso">${esc(x.peso)}</span>`:''}
         ${x.pid?`<button class="btn sm" data-papp="${esc(x.pid)}" style="min-height:24px;padding:1px 8px">Approva</button>`:''}
-      </div></div>`;
+      </div>
+      ${x.tid?`<div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center"><span class="small muted">L'hai guardata?</span><input placeholder="chi conferma" id="vf-${esc(x.tid)}" style="max-width:130px;min-height:26px;font-size:11.5px"><button class="btn sm primary" data-vfok="${esc(x.tid)}" style="min-height:24px;padding:1px 8px">✓ Fatta</button><button class="btn sm" data-vfno="${esc(x.tid)}" style="min-height:24px;padding:1px 8px">Non ancora</button></div>`:''}
+      </div>`;
   };
   const CAP=9;
   const blocco=([id,label,col])=>{
@@ -2746,6 +2870,15 @@ function renderImprove(){
   $$('[data-tutte]').forEach(b=>b.onclick=()=>{state._impTutte=state._impTutte||{};state._impTutte[b.dataset.tutte]=!state._impTutte[b.dataset.tutte];renderImprove();});
   $$('[data-is]').forEach(b=>b.onclick=()=>{const el=document.getElementById('imp-'+b.dataset.is);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});
   $$('[data-papp]').forEach(b=>b.onclick=async()=>{try{await api('engine','/admin/proposals/approve',{method:'POST',body:{id:b.dataset.papp}});toast('Approvata: ora è una task del cervello','info');route('improve');}catch(e){toast('✕ '+e.message,'bad');}});
+  /* V7/C · Il merge ha messo la task «da verificare»; qui una PERSONA la chiude,
+     col suo nome. «Non ancora» la rimanda in DA FARE: guardare e non essere
+     convinti è un esito, e va registrato come gli altri. */
+  $$('[data-vfok]').forEach(b=>b.onclick=async()=>{
+    const by=((document.getElementById('vf-'+b.dataset.vfok)||{}).value||'').trim();
+    if(!by){toast('Serve il nome di chi ha guardato: il merge non basta','bad');return;}
+    try{await api('engine','/admin/tasks/transition',{method:'POST',body:{id:b.dataset.vfok,to:'fatta',by,note:'Verificata a mano dopo il merge'}});toast('✓ Fatta, e adesso è vero','ok');route('improve');}catch(e){toast('✕ '+e.message,'bad');}});
+  $$('[data-vfno]').forEach(b=>b.onclick=async()=>{
+    try{await api('engine','/admin/tasks/transition',{method:'POST',body:{id:b.dataset.vfno,to:'aperta',note:'Guardata dopo il merge: non ancora a posto'}});toast('Torna in DA FARE','info');route('improve');}catch(e){toast('✕ '+e.message,'bad');}});
   renderAuditShelf();
   renderQuadro();
 }

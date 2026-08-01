@@ -28,6 +28,12 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      # B3 · La console è UNA: i tre file devono combaciare col manifesto. Un
+      # file toccato senza rigenerarlo (o senza copiarlo nell'altro repo) rende
+      # rossa la CI qui, invece di divergere in silenzio per settimane.
+      - name: Parità della console (manifesto)
+        run: python3 scripts/console_parita.py
+
       # C1 · Il guardiano NON dorme più: «_rec is not defined» è passato per
       # questa CI ed è arrivato in produzione lasciando la console morta.
       # Da qui in poi la console si APRE davvero a ogni push: eccezioni di

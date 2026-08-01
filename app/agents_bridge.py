@@ -20,6 +20,7 @@ Regole (non negoziabili):
 Se un giorno cambia l'orchestratore, cambia SOLO questo file (provider-agnostico).
 """
 import logging
+import re as _re
 
 import httpx
 
@@ -44,16 +45,40 @@ def enabled() -> bool:
                 and settings.divina_admin_token.strip())
 
 
+# V7/A2 · Le persone non parlano all'imperativo. «mi prepari i solleciti?»,
+# «puoi scrivere la mail?», «vorrei un'analisi dei margini» sono compiti quanto
+# «prepara i solleciti», ma la prima versione dell'euristico ne riconosceva uno
+# su quattro: guardava solo la PRIMA parola. Da qui in poi si guardano anche le
+# forme di cortesia — che in italiano sono il modo normale di chiedere una cosa,
+# non un caso limite.
+_CORTESIA = _re.compile(
+    r"(?i)^\s*(?:mi\s+|ci\s+)?(?:puoi|potresti|riesci\s+a|sapresti|riusciresti)\b"
+    r"|^\s*(?:vorrei|volevo|avrei\s+bisogno|mi\s+serve|mi\s+servirebbe|ho\s+bisogno|"
+    r"per\s+favore|per\s+cortesia)\b"
+    r"|^\s*mi\s+[a-zà-ù]+i\b"
+)
+# radici dei verbi-compito: «prepari/preparare/preparami» → prepar…
+_RADICI = tuple(v[:-1] for v in _TASK_VERBS)
+
+
 def is_task_like(message: str) -> bool:
-    """Euristico leggero: True se il messaggio sembra un COMPITO (inizia con un verbo
-    imperativo tipo 'scrivi/analizza/prepara/genera/crea'). È solo un suggerimento per
-    l'auto-instradamento (settings.agents_auto); il flag esplicito `agent:true` resta
-    la via primaria."""
+    """Euristico leggero: il messaggio sembra un COMPITO (non una domanda)?
+
+    Due strade, entrambe prudenti: un verbo imperativo come prima parola, oppure
+    una forma di cortesia seguita — entro poche parole — da un verbo che sappiamo
+    fare. È solo un suggerimento per l'auto-instradamento (settings.agents_auto,
+    spento di default); il flag esplicito `agent:true` resta la via primaria e il
+    fallback al RAG è sempre pulito. Un falso positivo costa una chiamata al
+    ponte, non una risposta sbagliata: per questo si può permettere di allargare."""
     m = (message or "").strip().lower()
     if not m:
         return False
-    first = m.split()[0].strip(".,:;!?\"'")
-    return first in _TASK_VERBS
+    parole = [w.strip('.,:;!?"\'') for w in m.split()]
+    if parole and parole[0] in _TASK_VERBS:
+        return True
+    if _CORTESIA.search(m):
+        return any(w.startswith(_RADICI) for w in parole[:7])
+    return False
 
 
 def route(tenant_code: str, message: str, history=None, timeout: float = 30.0,

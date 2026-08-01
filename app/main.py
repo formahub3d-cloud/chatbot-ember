@@ -51,7 +51,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -143,6 +143,20 @@ def _startup_seed_tenants():
         log.exception("ensure_seeded fallito: si userà il fallback statico")
 
 
+@app.on_event("startup")
+def _startup_dbcheck():
+    """V7/B1 · Una riga nel log d'avvio dice quali migrazioni mancano.
+
+    Il 1/08 quattro tabelle mancanti sono state scoperte una per una, ore dopo il
+    merge, ognuna da un 500 o da un degrado silenzioso. Da qui in poi si vedono
+    all'accensione. Best-effort: se il controllo stesso fallisce, il motore parte
+    lo stesso — un guardrail che impedisce l'avvio sarebbe peggio del guasto."""
+    try:
+        log.info(dbcheck.riga_boot())
+    except Exception:  # pragma: no cover
+        log.warning("dbcheck all'avvio non riuscito (ignorato)", exc_info=True)
+
+
 def tenant_or_401(key: str) -> dict:
     tenant = tenants.get_tenant_by_key(key)
     if not tenant:
@@ -206,6 +220,12 @@ class ChatIn(BaseModel):
     focus: dict | None = None  # O2 «Lavora con Divina»: {"label": str, "slugs": [str]} —
     #                        l'orbita su cui si sta lavorando. SICUREZZA: restringe
     #                        SOLTANTO (AND coi grant in rag.build_filter), mai allarga.
+    conversazione: str = ""    # V7/A1 · id del filo, scelto dal client. OPT-IN: con un id
+    #                        il server tiene gli ultimi turni IN MEMORIA (TTL 30', tetto
+    #                        duro, mai su disco) come rete di sicurezza se la history non
+    #                        arriva. Senza id il server non conserva NIENTE: il widget sul
+    #                        sito di un cliente resta apolide per costruzione. Il filo non
+    #                        allarga mai i permessi — lo scope viene solo dai grant.
 
 
 class SearchIn(BaseModel):
@@ -478,9 +498,14 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     # spunta `libera`. Deciso QUI, server-side, mai dalla richiesta. Il TONO della
     # conversazione (B2) non passa da questo flag: vale già per tutti.
     free = _puo_uscire_dal_vault(tenant)
+    # V7/A1 · Il filo: si preferisce sempre la history del client (è la più
+    # fresca); la memoria server-side è la rete quando non arriva, e vive solo se
+    # il client ha dato un id alla conversazione.
+    conv = security.cap_input(body.conversazione, 80)
+    turni, da_dove = filo.risolvi(body.history, _tenant_code(tenant), conv)
     if body.stream:
         try:
-            gen = rag.answer_stream(body.message, _grants(tenant), history=body.history,
+            gen = rag.answer_stream(body.message, _grants(tenant), history=turni,
                                     lang=lang, tier=tier, web=body.web, web_enabled=web_enabled,
                                     focus_slugs=focus_slugs, free=free)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
@@ -504,14 +529,19 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
     try:
-        return rag.answer(body.message, _grants(tenant), history=body.history, lang=lang,
-                          tier=tier, web=body.web, web_enabled=web_enabled,
-                          focus_slugs=focus_slugs, free=free)
+        out = rag.answer(body.message, _grants(tenant), history=turni, lang=lang,
+                         tier=tier, web=body.web, web_enabled=web_enabled,
+                         focus_slugs=focus_slugs, free=free)
     except HTTPException:
         raise
     except Exception:
         log.exception("chat failed")
         raise HTTPException(500, "Errore interno del chatbot.")
+    # Il turno appena chiuso entra nella rete di sicurezza (solo con un id).
+    filo.aggiungi(_tenant_code(tenant), conv, turni, body.message, out.get("answer", ""))
+    if isinstance(out.get("filo"), dict):
+        out["filo"]["da"] = da_dove      # client | server | nessuno: la console lo dice
+    return out
 
 
 # ── Endpoint per il connettore MCP (ovy_search / get_document / list_context /
@@ -882,6 +912,71 @@ def admin_tasks_close(body: TaskCloseIn, authorization: str = Header(default="")
     return {"ok": True}
 
 
+class NotaIn(BaseModel):
+    id: str
+    note: str
+
+
+@app.post("/admin/tasks/nota")
+def admin_tasks_nota(body: NotaIn, authorization: str = Header(default="")):
+    """Aggiunge una nota a una task senza muoverla di stato. Bearer ADMIN_TOKEN.
+
+    Serve a scrivere sulle task le cose che non sono transizioni: «questa è il
+    doppione di quell'altra», «misurato oggi: 55 ms». Prima l'unico modo era una
+    transizione finta, che sporca la storia della task con un movimento che non
+    è mai avvenuto."""
+    _require_admin(authorization)
+    if not braintasks.annota(body.id, body.note):
+        raise HTTPException(404, "Task non trovata, o nota vuota.")
+    return {"ok": True}
+
+
+class MergeIn(BaseModel):
+    pr: str = ""                 # numero/riferimento della PR (per la nota)
+    titolo: str = ""             # titolo della PR
+    url: str = ""                # link, così dalla task si torna al diff
+    chiavi: list[str] = []       # idempotency_key delle task citate
+
+
+@app.post("/admin/tasks/da-merge")
+def admin_tasks_da_merge(body: MergeIn, authorization: str = Header(default="")):
+    """V7/C · Una PR mergiata mette le task che nomina «da verificare».
+
+    **Il merge NON chiude niente.** Diventano «fatta» solo dopo che una persona
+    le ha guardate, col suo nome — la stessa logica di `CONFERMA_VISTA`. Se il
+    merge chiudesse da solo, il pannello direbbe «fatto» su cose che nessuno ha
+    aperto, ed è esattamente così che sono nate le tre affermazioni sbagliate
+    corrette l'1/08.
+
+    Idempotente: rilanciarlo su una task già «da-verificare» non fa nulla e non
+    è un errore. Le chiavi sconosciute si segnalano, non fanno fallire il resto:
+    una PR può nominare una task di un altro repo. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    rif = (body.pr or "").strip()[:40]
+    nota = (f"Merge PR {rif}" if rif else "Merge") + \
+           (f" · {(body.titolo or '').strip()[:120]}" if body.titolo else "") + \
+           (f" · {(body.url or '').strip()[:200]}" if body.url else "") + \
+           " — DA VERIFICARE: il merge non chiude, guarda e conferma."
+    esiti = []
+    for chiave in [c.strip() for c in (body.chiavi or []) if c and c.strip()][:50]:
+        try:
+            t = braintasks.by_idempotency_key(chiave)
+        except Exception:
+            log.exception("da-merge: lettura fallita per %s", chiave)
+            esiti.append({"chiave": chiave, "esito": "errore"})
+            continue
+        if not t:
+            esiti.append({"chiave": chiave, "esito": "sconosciuta"})
+            continue
+        if t.get("status") in ("da-verificare", "fatta", "archiviata"):
+            esiti.append({"chiave": chiave, "esito": "gia", "status": t.get("status")})
+            continue
+        ok = braintasks.transition(t["id"], "da-verificare", note=nota)
+        esiti.append({"chiave": chiave, "esito": "mossa" if ok else "non-mossa"})
+    return {"ok": True, "esiti": esiti,
+            "nota": "Il merge non chiude le task: le mette da verificare."}
+
+
 class ProposalIn(BaseModel):
     id: str
 
@@ -1014,13 +1109,45 @@ def admin_status(authorization: str = Header(default="")):
         "retention_days": settings.retention_days,
         "content_encryption": crypto.enabled(),
         "default_lang": settings.default_lang,
+        # V7/B1 · Le migrazioni attese e quelle davvero applicate. Ogni voce
+        # mancante dice cosa smette di funzionare: è la differenza fra scoprirlo
+        # in dieci secondi e scoprirlo da un 500 due settimane dopo.
+        "db_schema": dbcheck.stato(),
+        # V7/A1 · Quanti fili di conversazione vivi in memoria. Una memoria che
+        # non si vede è peggio di una che non c'è: qui si sa quanta ce n'è.
+        "fili_in_memoria": filo.quante(),
     }
+
+
+def _console_sha() -> str:
+    """V7/B3 · L'identità della console servita da questo servizio.
+
+    È l'hash complessivo dei tre file che devono essere byte-identici nei due
+    repo, letto dal manifesto `panel/CONSOLE.sha256` (che la CI di ciascun repo
+    verifica contro i file veri). Serve alla console per confrontare le due copie
+    a runtime e DIRE se hanno divergiuto: due repo non possono leggersi a vicenda
+    in CI senza un token nuovo, ma i due servizi parlano entrambi con la console.
+    Stringa vuota se il manifesto non c'è: la console mostrerà «—»."""
+    try:
+        from pathlib import Path as _P
+        m = _P(__file__).resolve().parent.parent / "panel" / "CONSOLE.sha256"
+        for riga in m.read_text("utf-8").splitlines():
+            parti = riga.split()
+            if len(parti) == 2 and parti[1] == "console":
+                return parti[0]
+    except Exception:
+        pass
+    return ""
+
+
+_CONSOLE_SHA = _console_sha()      # letto una volta: è un file che non cambia a caldo
 
 
 @app.get("/version")
 def version():
     """Build info pubbliche: versione app + commit. Utile per sapere cosa è in prod."""
-    return {"name": "Divina", "version": settings.app_version, "commit": settings.git_sha[:12]}
+    return {"name": "Divina", "version": settings.app_version, "commit": settings.git_sha[:12],
+            "console_sha": _CONSOLE_SHA}
 
 
 def _to_csv(rows: list, fields: list) -> str:
