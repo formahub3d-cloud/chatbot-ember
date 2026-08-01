@@ -465,6 +465,15 @@ def run() -> dict:
         import logging
         logging.getLogger("ember.ingest").exception("grafo cervello non aggiornato (ignorato)")
 
+    # 6) V5b · Punto 9: registra il COMMIT appena letto — l'allarme del
+    #    pannello confronta questo con vault_info(), non le ore. Best-effort.
+    try:
+        from . import brain
+        brain.set_ingest_commit(vinfo.get("vault_commit", ""))
+    except Exception:
+        import logging
+        logging.getLogger("ember.ingest").exception("commit ingest non registrato (ignorato)")
+
     # Fix A0: commit e data del vault SEMPRE nella risposta — «cervello
     # allineato al commit X del giorno Y», verificabile a occhio.
     return {"notes": n_notes, "chunks": len(points), "documents_synced": synced,

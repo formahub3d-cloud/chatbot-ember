@@ -61,7 +61,7 @@ AUDIT_BIS = [
 
 def seed(post) -> list[dict]:
     """Idempotente (chiave stabile). `post(path, json) -> dict` è il trasporto:
-    httpx in produzione, TestClient nei test — stessa logica, testabile."""
+    urllib in produzione, TestClient nei test — stessa logica, testabile."""
     esiti = []
     for key, titolo, nota, in_corso in AUDIT_BIS:
         r = post("/admin/tasks", {"kind": "audit", "title": titolo, "note": nota,
@@ -76,7 +76,8 @@ def seed(post) -> list[dict]:
 
 
 def main() -> int:
-    import httpx
+    import json as _json
+    import urllib.request
     base = os.environ.get("EMBER_URL", "http://localhost:8000").rstrip("/")
     tok = os.environ.get("ADMIN_TOKEN", "")
     if not tok:
@@ -84,10 +85,13 @@ def main() -> int:
         return 2
 
     def post(path, body):
-        r = httpx.post(base + path, json=body,
-                       headers={"Authorization": f"Bearer {tok}"}, timeout=30)
-        r.raise_for_status()
-        return r.json()
+        # urllib, non httpx (punto 8, 1/08): uno script di manutenzione deve
+        # girare col Python di sistema, senza costruire un ambiente virtuale.
+        req = urllib.request.Request(base + path, data=_json.dumps(body).encode(),
+                                     headers={"Authorization": f"Bearer {tok}",
+                                              "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return _json.loads(r.read().decode())
 
     for e in seed(post):
         print(f"  {e['key']} · {e['status']} · id={e['id']}")

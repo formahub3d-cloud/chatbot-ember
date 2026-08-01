@@ -11,7 +11,7 @@
  *    dati vivi, mai una risposta vecchia spacciata per fresca.
  * La versione della cache segue la versione della console: bump = pulizia. */
 "use strict";
-const VERSIONE = "divina-guscio-01-08d";
+const VERSIONE = "divina-guscio-01-08e";
 const GUSCIO = ["./", "./index.html", "./voce.js", "./brain3d.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {

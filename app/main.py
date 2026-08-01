@@ -640,8 +640,11 @@ def admin_brain(authorization: str = Header(default="")):
     _require_admin(authorization)
     # Fix A0: commit e data del vault locale («cervello allineato al commit X
     # del giorno Y») — la spia che rende VISIBILE un cervello stantio.
+    # V5b · Punto 9: anche il commit dell'ULTIMA INGEST — l'allarme confronta
+    # i due commit, non le ore (il tempo è un'approssimazione della freschezza).
     return {"persist": brain.enabled(), "stats": brain.stats(),
-            "recent": brain.notes(limit=10), "vault": ingest.vault_info()}
+            "recent": brain.notes(limit=10), "vault": ingest.vault_info(),
+            "ingest_commit": brain.ingest_commit()}
 
 
 @app.get("/admin/brain/graph")

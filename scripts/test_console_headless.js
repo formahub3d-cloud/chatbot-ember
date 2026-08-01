@@ -251,6 +251,15 @@ function trovaChromium() {
     const m = el && el.textContent.match(/^([\d.,]+)\s+neuroni/);
     return m ? m[1] : null;
   });
+  // 5c · V5b (punto 9): i DUE commit affiancati — quello che il cervello ha
+  //      letto e quello del vault — e, allineati (demo), NESSUN allarme:
+  //      l'1/08 il buco era invisibile perché si guardavano le ore.
+  const commitV5b = await page.evaluate(() => {
+    const txt = document.getElementById("content").textContent;
+    const a = document.getElementById("brainAlert");
+    return { cerv: /cervello\s*1f73289abc12/.test(txt), vault: /vault\s*1f73289abc12/.test(txt),
+             allarme: !!(a && !a.hidden) };
+  });
 
   await b.close();
 
@@ -271,6 +280,8 @@ function trovaChromium() {
   if (temiN < 1) { console.error("FAIL (V5-4): la lente Temi resta spenta anche coi tag presenti (temi=" + temiN + ")"); ko = 1; }
   else console.log("[temi] accesi: " + temiN + " dai tag tema/*");
   if (!homeV5.testa || !homeV5.spie) { console.error("FAIL (V5-1): home senza titolo in testa o senza la colonnina di stati " + JSON.stringify(homeV5)); ko = 1; }
+  if (!commitV5b.cerv || !commitV5b.vault) { console.error("FAIL (V5b-9): la riga «cervello · vault» non mostra i due commit affiancati " + JSON.stringify(commitV5b)); ko = 1; }
+  if (commitV5b.allarme) { console.error("FAIL (V5b-9): allarme acceso coi commit ALLINEATI — il confronto è rotto"); ko = 1; }
   if (!human.svg || !human.scheda || !human.riservata) { console.error("FAIL (Human): figura/scheda/avviso-riservatezza mancanti " + JSON.stringify(human)); ko = 1; }
   if (initVox !== 1) { console.error("FAIL (V2-A): aprendo il vox l'orb si è inizializzato " + initVox + " volte (atteso: 1 — l'audit ne contava 3)"); ko = 1; }
   if (initDopoRipetuta !== initVox || orbRipetuti < 1) { console.error("FAIL (V2-A): l'init ripetuto sulla stessa canvas non è stato ignorato (init=" + initDopoRipetuta + ", warning=" + orbRipetuti + ")"); ko = 1; }

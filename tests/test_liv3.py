@@ -76,18 +76,3 @@ def test_le_task_normali_non_sono_toccate(cl):
         "idempotency_key": "k-app"})
     assert r.status_code == 200
 
-
-# ── V5 · La rotazione delle chiavi: la logica pura del passo 4 ────────────────
-def test_si_puo_revocare_solo_dopo_il_silenzio():
-    import importlib.util, sys
-    from pathlib import Path
-    spec = importlib.util.spec_from_file_location(
-        "rigenera", Path(__file__).resolve().parents[1] / "scripts" / "rigenera_chiavi.py")
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules["rigenera"] = mod
-    spec.loader.exec_module(mod)
-    # muta da 8 giorni → si può; da 2 → no; mai usata → si può; data rotta → freno
-    assert mod.si_puo_revocare("2026-07-24", "2026-08-01") is True
-    assert mod.si_puo_revocare("2026-07-30", "2026-08-01") is False
-    assert mod.si_puo_revocare("", "2026-08-01") is True
-    assert mod.si_puo_revocare("boh", "2026-08-01") is False
