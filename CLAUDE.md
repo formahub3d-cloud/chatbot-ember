@@ -1,7 +1,7 @@
 # CLAUDE.md — Contesto progetto per Claude Code
 
-> Leggi questo file prima di lavorare. Aggiornato al 31-07-2026 (era fermo di tre
-> settimane: ora sa di orbite, voce e guardiano). Prodotto: **Divina** — dominio
+> Leggi questo file prima di lavorare. Aggiornato all'01-08-2026 (V6: l'orbita
+> della home, la conversazione, le conversazioni che diventano cervello). Prodotto: **Divina** — dominio
 > `divina.formahub.it`. Nomi storici («Ember», «Jarvis», «OVY») rimossi da ciò che
 > una persona legge; restano SOLO dove sono contratti (vedi sotto).
 
@@ -36,7 +36,7 @@ note .md del vault ──ingest──> Qdrant (vettori + scope/org/tenant/sub_te
                                     │ retrieval filtrato per scope (+ focus orbita)
      domanda + chiave tenant ──────►│
                                     ▼
-                       LLM (Mistral/Claude) ──> risposta + fonti (+ ⟦fuori⟧ solo owner)
+                       LLM (Mistral/Claude) ──> risposta + fonti (+ ⟦fuori⟧ owner/libera)
 upload ──OCR──► estrazione ──(conferma umana)──► write-back vault (marcato se da conversazione)
 ```
 
@@ -49,23 +49,34 @@ in console) è un filtro slug in `must`: restringe soltanto, mai allarga.
 provenienza obbligatoria ⟦fuori⟧…⟦/fuori⟧, resa come blocchi «fuori dal
 cervello · non verificato»; i tenant clienti restano vincolati al vault.
 
+**V6 · La distinzione da non perdere.** Il **tono** della conversazione (saluti,
+chiacchiera, tornare indietro, ammettere il buco con una frase umana e offrire di
+colmarlo) vale per **tutti**: è uno strato del system prompt (`rag._TONO_IT`), non
+un permesso. Il **contenuto fuori dal vault** no: solo owner, o tenant con la
+spunta `libera` (tenant_flags, stessa famiglia di `liv3` — server-side, mai nella
+richiesta). Il motivo: il widget sul sito di un cliente non può inventare sul
+cliente. Quando il cervello non sa, la risposta porta `gap` e la console ci
+attacca l'offerta di scrivere la nota, nella bolla.
+
 ## Mappa file
 
 - `app/config.py` — settings da `.env` (incl. `VAULT_GIT_REF=main`, guardie ingest, espressività voce `ELEVENLABS_*`)
 - `app/providers.py` — embeddings + chat (switch Mistral/Claude)
 - `app/ingest.py` — vault→Qdrant: sync git deterministico (fetch+reset, clone-swap che preserva i dati cliente, MAI riuso silenzioso), guard anti-stantio (`INGEST_MAX_VAULT_AGE_H`), guard min-note, perimetro unico `is_note_included`, `vault_info()` (commit+data in /ingest e /admin/brain)
-- `app/rag.py` — retrieval filtrato + risposta vincolata; focus_slugs (O2); free/owner con marcatori (O4); tier=solo stile; web additivo; aggancio systemq PRIMA del retrieval
+- `app/rag.py` — retrieval filtrato + risposta vincolata; focus_slugs (O2); free/owner con marcatori (O4); tono per tutti + `gap` nella risposta (V6/B1-B2); tier=solo stile; web additivo; aggancio systemq PRIMA del retrieval
+- `app/learned.py` — V6/B3: da 0 a 3 «cose imparate» da una conversazione, ognuna con la CITAZIONE verificata nel testo (una citazione non ritrovata fa cadere la proposta), PII scartate (mai redatte), `andrea-aloia/human/` sempre fuori. Non scrive: propone
+- `app/flags.py` — permessi per-tenant sul server: `liv3` (agire fuori) e `libera` (conoscenza generale). Default SPENTI
 - `app/systemq.py` — saluti e domande SUL sistema («dimmi cosa sai» → metadati dell'indice, coi buchi); riconoscitori prudenti, fallback esplicito al retrieval
 - `app/voice.py` — proxy STT/TTS (chiavi SUL SERVER): ElevenLabs con `voice_settings` da env + `language_code`, TTS in streaming (0 byte → 502, mai un 200 muto), `status()` per /admin/status (`voice_id_set` = spia voce italiana)
 - `widget/voce.js` — **MOTORE VOCALE UNICO** (U1): frasi (emSentenze, marcatori testati), coda TTS ordinata, barge-in con soglia RELATIVA all'eco (K appreso, marcatori EM_VAD testati, `setBarge` a caldo), invio automatico a fine parlato, parziali STT, ampiezza in/out per l'orb. Copia byte-identica in `panel/voce.js` (parità = test). La meccanica voce si tocca SOLO qui.
 - `widget/embed.js` — widget embeddable (Shadow DOM); carica voce.js come fratello; fallback browser se il modulo manca
-- `panel/index.html` — console SPA (file unico, no build; versione nel footer). V2: SEI PORTE (Mondo · Cervello · Clienti · Squadra · Integrazioni · Impostazioni) + Diagnostica richiudibile; CHAT SEMPRE PRESENTE (pannello destro fuori da #content, tab agenti dinamiche, traccia tool, chip→nota); orb sfera unica colore-unico con fps adattivi; orbite+lenti (O2/O3), modo vocale (U2/U3), «Miglioramenti» con FATTE firmate, quadro potenziamento (X3), allarme cervello fermo (task 18), preboot+[boot] (P3), modalità cliente e demo
+- `panel/index.html` — console SPA (file unico, no build; versione nel footer). V6: HOME = L'ORBITA (grande, centrale, nessuna etichetta, colore/forma per stato, UNA riga di testo sotto — il colore da solo non basta); offerta di colmare il buco attaccata alla risposta; «Cosa abbiamo imparato»; spunta `libera` in Impostazioni. V2: SEI PORTE (Mondo · Cervello · Clienti · Squadra · Integrazioni · Impostazioni) + Diagnostica richiudibile; CHAT SEMPRE PRESENTE (pannello destro fuori da #content, tab agenti dinamiche, traccia tool, chip→nota); orb sfera unica colore-unico con fps adattivi; orbite+lenti (O2/O3), modo vocale (U2/U3), «Miglioramenti» con FATTE firmate, quadro potenziamento (X3), allarme cervello fermo (task 18), preboot+[boot] (P3), modalità cliente e demo
 - `panel/manifest.webmanifest` `panel/sw.js` `panel/icon-*.png` — PWA (Fase 9): guscio offline prudente, navigazioni sempre prima in rete, API mai in cache
-- `panel/brain3d.js` — renderer 3D del grafo (istanza, riusato da home e Cervello vivo)
-- `app/main.py` — API: `/health` `/ingest` `/chat` (SSE; `focus`; free per owner) `/upload` `/voice/*`; MCP: `/search` `/document` `/context` `/writeback` (con `origin=conversazione` → marcatura server-side «NON verificato»); admin: `/admin/status` (spie voce), `/admin/brain*`, `/admin/tasks` (brain_tasks, kind incl. `audit`), `/admin/roadmap`, `/admin/proposals`, `/admin/clients*`, `/admin/learning`; `/client/*` (accessi cliente via `app/clientauth.py`)
+- `panel/brain3d.js` — renderer 3D del grafo (istanza, riusato da home e Cervello vivo). V6/A: `setAccent` (tinta unica o gradiente fra due agenti, transizione 600 ms) e `setMood` (riposo=respiro · pensa=contrazione · lavora=onda dal punto dell'agente · legge=cascata); `labels:'none'` = mai testo, mai hover
+- `app/main.py` — API: `/health` `/ingest` `/chat` (SSE; `focus`; free per owner) `/upload` `/voice/*`; MCP: `/search` `/document` `/context` `/writeback` (con `origin=conversazione` → marcatura server-side «NON verificato»); admin: `/admin/status` (spie voce), `/admin/brain*`, `/admin/tasks` (brain_tasks, kind incl. `audit`), `/admin/roadmap`, `/admin/proposals` (incl. proposte `conversazione`: approvare = scrivere la nota marcata), `/admin/conversazione/imparato`, `/admin/liv3`, `/admin/libera`, `/admin/clients*`, `/admin/learning`; `/client/*` (accessi cliente via `app/clientauth.py`)
 - `app/tenants.py` `app/rls.py` `app/docstore.py` `app/brain.py` `app/braintasks.py` `app/proposals.py` — chiavi/RLS/metadati/grafo/coda/proposte
 - `db/` — DDL Supabase: `schema.sql`, `brain_tasks*.sql`, `brain_graph.sql`, `client_access.sql` (i nomi SQL interni, es. schema `ovyon`, sono contratti e restano)
-- `scripts/` — `test_console_headless.js` (**il guardiano**: in CI a ogni push), `test_voce_sentenze.js` (17 casi chunker), `test_voce_vad.js` (7 casi barge-in), `contract_console.py` (console↔API, 0 endpoint fantasma), `count_notes.py` (parità perimetro col vault), `verify_ingest.py`, `seed_audit_2026_07_31*.py` (21 task audit come dati, idempotenti) · `close_audit_2026_07_31.py`/`close_audit_2026_08_01.py` (chiusure per idempotency_key, con nota) · `reset_chiavi.py` (reset chiavi: FORMA prima, poi revoca con freno) · `seed_task_allarme_commit.py` (punto 9). **Gli script di manutenzione usano `urllib`, MAI httpx**: girano col Python di sistema, senza venv (regola 1/08)
+- `scripts/` — `test_console_headless.js` (**il guardiano**: in CI a ogni push), `test_voce_sentenze.js` (17 casi chunker), `test_voce_vad.js` (7 casi barge-in), `contract_console.py` (console↔API, 0 endpoint fantasma), `count_notes.py` (parità perimetro col vault), `verify_ingest.py`, `seed_audit_2026_07_31*.py` (21 task audit come dati, idempotenti) · `seed_task_v6_2026_08_01.py` (11 task V6, chiavi 22-32, priorità inclusa) · `close_audit_2026_07_31.py`/`close_audit_2026_08_01.py` (chiusure per idempotency_key, con nota) · `reset_chiavi.py` (reset chiavi: FORMA prima, poi revoca con freno) · `seed_task_allarme_commit.py` (punto 9). **Gli script di manutenzione usano `urllib`, MAI httpx**: girano col Python di sistema, senza venv (regola 1/08)
 - `mcp-connector/` — server MCP (5 tool `ovy_*`) · `SETUP-PRODUZIONE.md` — runbook produzione
 
 ## Comandi
@@ -73,7 +84,7 @@ cervello · non verificato»; i tenant clienti restano vincolati al vault.
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest -q                      # ~385 test offline (DB/LLM/rete mockati)
+python -m pytest -q                      # ~485 test offline (DB/LLM/rete mockati)
 node scripts/test_console_headless.js    # il guardiano: apre DAVVERO la console (serve Playwright)
 uvicorn app.main:app --reload --port 8000
 curl -X POST localhost:8000/ingest -H "Authorization: Bearer $ADMIN_TOKEN"   # indicizza
@@ -90,12 +101,14 @@ curl -X POST localhost:8000/ingest -H "Authorization: Bearer $ADMIN_TOKEN"   # i
 7. **Ogni consegna finisce in una PR aperta e VERIFICATA** (`list_pull_requests` dopo la creazione). Io non mergio mai: merge = Andrea. Se la PR del branch è già mergiata, si riparte da main (mai accodare a storia chiusa).
 8. Prima di dire «fatto»: suite verde, guardiano headless verde, contract test verde.
 
-## Stato (31-07-2026)
+## Stato (01-08-2026)
 
 - ✅ In produzione: RAG multi-tenant, voce continua (frasi/barge-in a turni/mani libere/modo vocale; prima sillaba 55 ms), orbite+lenti+focus, conversazione libera owner, «Miglioramenti» (task audit 01-03, 09, 10 FATTE via `close_audit_*`; quadro di potenziamento collegato alla nota del vault), console che dichiara quando è pronta (riga `[boot]`; produzione 1265 ms), guardiano in CI, accessi cliente, ingest anti-stantio.
-- ⏳ Aperti: task audit 04-08 e 11-21 (conversazione normale, sei sezioni, allarme cervello fermo, valore clienti, voce su telefono, case study Centioni, …), lente Temi (aspetta i tag `tema/*` decisi da Andrea — proposta in `docs/lenti-temi-proposta.md`), R2/R3 del piano nomi (migrazioni, non rename).
+- ✅ V6 (01-08 notte, in PR): **l'orbita è la home** (grande e centrale, nessuna etichetta sui nodi, colore per agente — Divina gialla, Dante rosso —, respiro a riposo, onda quando un agente lavora, cascata durante l'ingest) con **una riga di testo** che dice sempre quello che dice il colore (accessibilità, non rifinitura); **settima area** del quadro «Estetica e resa visiva» (il radar è un ettagono); **il muro diventa una porta** (`gap` + offerta di scrivere la nota attaccata alla risposta); **tono per tutti / contenuto fuori dal vault solo con `libera`**; **le conversazioni propongono note** con la citazione, in coda Proposte, mai in automatico.
+- ⏳ Aperti: task audit 04-08 e 11-21, più le 22-32 del V6 (conversazione normale, sei sezioni, allarme cervello fermo, valore clienti, voce su telefono, case study Centioni, …), lente Temi (aspetta i tag `tema/*` decisi da Andrea — proposta in `docs/lenti-temi-proposta.md`), R2/R3 del piano nomi (migrazioni, non rename).
 
 ## Riferimenti
 
 - Confronto e roadmap: `docs/confronto-divina-zoey.md` · voce: `docs/voce-continua.md`
+- V6 (orbita della home + conversazione + knowledge base dalle conversazioni): `docs/orbita-e-conversazione.md`
 - Audit in console: sezione «Miglioramenti» → «Gli audit» (`panel/audit-*.html`)

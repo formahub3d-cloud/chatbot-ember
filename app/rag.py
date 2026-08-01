@@ -22,8 +22,30 @@ from . import events, metrics, websearch
 
 log = logging.getLogger("ember.rag")
 
-NO_ANSWER = "Non ho questa informazione nelle aree a cui ho accesso."
-_NO_ANSWER_EN = "I don't have this information in the areas I can access."
+# V6/B1 · Il muro che cade. La vecchia frase («Non ho questa informazione nelle
+# aree a cui ho accesso.») era corretta e inutile: chiudeva la conversazione
+# invece di aprirla. Il buco che qualcuno scopre è il momento in cui è più
+# facile riempirlo, quindi la frase AMMETTE e poi OFFRE. Resta una frase
+# esatta perché il system prompt la impone al modello parola per parola: è
+# così che la console la riconosce e ci attacca il bottone (vedi `gap`).
+NO_ANSWER = ("Questo nel cervello non c'è: nelle aree a cui ho accesso non lo trovo. "
+             "Se vuoi, aggiungiamolo adesso — così la prossima volta lo so.")
+_NO_ANSWER_EN = ("This isn't in the brain: I can't find it in the areas I can access. "
+                 "If you want, let's add it now — so next time I'll know it.")
+
+# La stessa ammissione, quando la conoscenza generale è concessa (owner o
+# tenant con la spunta `libera`): lì il buco non ferma la risposta, la
+# accompagna. Non entra nel system prompt — la usa solo l'offerta in console.
+_GAP_OFFER_IT = "Aggiungiamolo al cervello: scrivo io la nota, tu la confermi."
+_GAP_OFFER_EN = "Let's add it to the brain: I'll draft the note, you confirm it."
+
+
+def gap_offer(lang: str = "it") -> str:
+    """L'offerta attaccata alla risposta quando il cervello non sapeva (B1).
+
+    Sta ATTACCATA alla risposta, non in un menu altrove: il momento in cui il
+    buco si scopre è il momento in cui è più facile riempirlo."""
+    return _GAP_OFFER_EN if _lang(lang) == "en" else _GAP_OFFER_IT
 
 
 def _lang(lang) -> str:
@@ -123,14 +145,39 @@ _WEB_NOTE_EN = (
 )
 
 
+# ── V6/B2 · Il TONO vale per tutti; il CONTENUTO fuori dal vault no ──────────
+# Questo blocco è uno strato di MODO DI PARLARE, non un permesso sui dati: si
+# aggiunge sempre, per owner e per clienti allo stesso modo. La differenza fra i
+# due la fa `free` (il blocco sotto), che è l'unico a concedere conoscenza
+# generale — e solo dal record del tenant, mai dalla richiesta.
+_TONO_IT = (
+    " MODO DI PARLARE (vale sempre): parla come una persona, non come un motore di"
+    " ricerca. Saluti, ringraziamenti e chiacchiera si ricambiano in una riga, senza"
+    " tirare dentro il CONTENUTO. Segui i riferimenti ai turni precedenti ('e quello?',"
+    " 'torniamo a prima') senza farti ripetere la domanda. Quando il CONTENUTO non"
+    " basta, dillo con naturalezza e OFFRI di colmare il buco, invece di chiudere il"
+    " discorso. Questo riguarda SOLO il tono: il permesso sui dati non cambia — ogni"
+    " affermazione specifica continua a venire esclusivamente dal CONTENUTO."
+)
+_TONO_EN = (
+    " TONE (always): speak like a person, not a search engine. Return greetings, thanks"
+    " and small talk in one line, without dragging in the CONTENT. Follow references to"
+    " previous turns ('and that one?', 'back to before') without asking the user to"
+    " repeat. When the CONTENT isn't enough, say so naturally and OFFER to fill the gap"
+    " instead of closing the conversation. This is about TONE only: the data permission"
+    " does not change — every specific claim still comes exclusively from the CONTENT."
+)
+
+
 def _system(lang: str = "it", tier: str | None = None, web: bool = False,
             free: bool = False) -> str:
     """System prompt vincolato al contenuto, nella lingua richiesta. In CODA si
     AGGIUNGONO (mai si sostituiscono) eventuali direttive: lo stile del tier e, se
     ci sono fonti web nel contesto, la nota sull'uso non fidato delle FONTI WEB. I
-    vincoli anti-injection e di scope restano intatti. Senza tier e senza web il
-    prompt è identico a prima → retro-compatibile."""
+    vincoli anti-injection e di scope restano intatti. Lo strato di TONO (B2) si
+    aggiunge SEMPRE e per chiunque: è modo di parlare, non permesso sui dati."""
     base = _SYSTEM_EN if _lang(lang) == "en" else _SYSTEM_IT
+    base = base + (_TONO_EN if _lang(lang) == "en" else _TONO_IT)   # B2: tono per tutti
     style = style_directive(tier)
     if style:
         base = f"{base} {style}"
@@ -162,7 +209,9 @@ _FREE_NOTE_EN = (
     " ⟦/fuori⟧. Never present general knowledge as brain data."
 )
 
-SYSTEM = _SYSTEM_IT   # retro-compatibilità (default italiano)
+# Retro-compatibilità: il prompt di default (italiano, senza tier/web/deroghe).
+# Da V6 comprende lo strato di TONO, che vale sempre: è il default, non un extra.
+SYSTEM = _system("it")
 
 
 def _clean_answer(text: str) -> str:
@@ -298,6 +347,16 @@ def _hist_block(history) -> str:
             + "\n".join(turns) + "\n\n") if turns else ""
 
 
+def _gap_payload(question: str, lang: str) -> dict:
+    """B1 · Il «buco», dichiarato nella risposta perché ci si possa fare qualcosa.
+
+    Contiene la domanda (titolo proposto per la nota) e la frase dell'offerta. NON
+    scrive niente: il write-back resta a due tempi con conferma umana (regola #4).
+    La domanda è REDATTA come nei log — se qualcuno ha scritto un IBAN nella
+    chat, non torna indietro dentro un titolo pronto da salvare."""
+    return {"question": redact_pii(question)[:300], "offer": gap_offer(lang)}
+
+
 def _log_gap(question: str, grants) -> None:
     """Traccia (redatto) una domanda a cui il cervello non sa rispondere: serve a
     capire quali contenuti aggiungere per ciascuno scope/cliente."""
@@ -345,15 +404,20 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     hits = _retrieve(question, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
     scopes = scopes_of(grants)
     web_results = _maybe_web(question, hits, web, web_enabled)
+    gap = None
     if not hits and not web_results:
         _log_gap(question, grants)
         q_red = redact_pii(question)[:200]
         metrics.bump_gap(scopes, q_red)
         events.record("gap", scopes, q_red)
+        # B1 · L'offerta di scrivere la nota viaggia CON la risposta: la console e
+        # il widget ci attaccano il bottone, invece di lasciarla in un menu altrove.
+        gap = _gap_payload(question, lang)
         if not free:
-            return {"answer": no_answer(lang), "sources": [], "scopes": scopes}
-        # O4 (solo owner): il muro diventa un inizio — si risponde con conoscenza
-        # generale, TUTTA dentro i marcatori di provenienza (il gap resta tracciato).
+            return {"answer": no_answer(lang), "sources": [], "scopes": scopes, "gap": gap}
+        # O4 (owner o tenant con `libera`): il muro diventa un inizio — si risponde
+        # con conoscenza generale, TUTTA dentro i marcatori di provenienza, e
+        # l'offerta di colmare il buco resta attaccata comunque.
 
     context = _build_context(hits)
     user = (f"{_hist_block(history)}CONTENUTO:\n{context}\n\n"
@@ -365,6 +429,8 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     res = {"answer": out, "sources": sources, "scopes": scopes}
     if free:
         res["free"] = True                  # la console mostra la legenda di provenienza
+    if gap:
+        res["gap"] = gap                    # B1: l'offerta resta attaccata alla risposta
     return res
 
 
@@ -465,13 +531,15 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
         return
     hits = _retrieve(question, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
     web_results = _maybe_web(question, hits, web, web_enabled)
+    gap = None
     if not hits and not web_results:
         _log_gap(question, grants)
         q_red = redact_pii(question)[:200]
         metrics.bump_gap(scopes, q_red)
         events.record("gap", scopes, q_red)
+        gap = _gap_payload(question, lang)          # B1: l'offerta viaggia con la risposta
         if not free:
-            yield sse("sources", {"sources": [], "scopes": scopes})
+            yield sse("sources", {"sources": [], "scopes": scopes, "gap": gap})
             yield sse(None, {"delta": no_answer(lang)})
             yield sse("done", {})
             return
@@ -479,7 +547,9 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
     sources = _merge_sources(hits, web_results)
     metrics.bump_chat(scopes)
     events.record("chat", scopes)
-    yield sse("sources", {"sources": sources, "scopes": scopes, **({"free": True} if free else {})})
+    yield sse("sources", {"sources": sources, "scopes": scopes,
+                          **({"free": True} if free else {}),
+                          **({"gap": gap} if gap else {})})
 
     context = _build_context(hits)
     user = (f"{_hist_block(history)}CONTENUTO:\n{context}\n\n"

@@ -114,12 +114,43 @@ function trovaChromium() {
     // V5-2: il radar esagonale (griglia + poligono di oggi; con «prima» anche
     // il tratteggiato) ha preso il posto della polilinea
     radar: document.querySelectorAll("#quadroBox svg polygon").length >= 2,
+    // V6/A3: la SETTIMA area («Estetica e resa visiva») c'è, e il radar la
+    // disegna — l'esagono è diventato un ETTAGONO. Si contano i vertici del
+    // poligono «oggi» (l'ultimo con riempimento), non le etichette.
+    punte: (() => {
+      const p = [...document.querySelectorAll("#quadroBox svg polygon")].filter(g => g.getAttribute("fill") !== "none").pop();
+      return p ? p.getAttribute("points").trim().split(/\s+/).length : 0;
+    })(),
+    estetica: /Estetica e resa visiva/.test((document.getElementById("quadroBox") || { textContent: "" }).textContent),
     // M3: colonne affiancate e la priorità che si vede in DA FARE
     colonne: !!document.querySelector(".imp-cols"),
     prioVisibile: /ALTA/.test((document.getElementById("imp-dafare") || { textContent: "" }).textContent),
   }));
   await page.evaluate(() => route("chat"));
   await page.waitForTimeout(300);
+
+  // 1b-bis · V6/B1 e V6/B3, resi in chat. Si iniettano i due messaggi che il
+  //      server sa produrre (una risposta con `gap`, una proposta «imparato»)
+  //      e si verifica che la console li mostri per quello che sono: un'offerta
+  //      ATTACCATA alla risposta, e una citazione che dice da dove viene.
+  const convV6 = await page.evaluate(() => {
+    const salvo = state.chat.slice();
+    state.demo = false;                       // l'offerta non si mostra in demo
+    state.chat = [{ role: "user", text: "che orari fate il sabato?" },
+                  { role: "bot", text: "Questo nel cervello non c'è.", sources: [],
+                    gap: { question: "che orari fate il sabato?", offer: "Aggiungiamolo al cervello." } },
+                  { role: "imparato", voci: [{ nota_titolo: "Il sabato si chiude alle 13",
+                    detail: "Orario ridotto il sabato.", citazione: "il sabato chiudiamo all'una" }] }];
+    renderChat();
+    const out = {
+      offerta: !!document.querySelector(".gap-offerta"),
+      bottone: /Scrivi la nota adesso/.test(document.getElementById("chatInner").textContent),
+      cita: /il sabato chiudiamo all'una/.test(document.getElementById("chatInner").textContent),
+      nonSalvate: /non salvate/.test(document.getElementById("chatInner").textContent),
+    };
+    state.chat = salvo; state.demo = true; renderChat();
+    return out;
+  });
 
   // 1c · R2: la barra di scrittura sta DENTRO il pannello col suo respiro —
   //      niente testo tagliato dal bordo (il difetto visto in produzione).
@@ -234,16 +265,43 @@ function trovaChromium() {
   //     di neuroni — stessa sorgente (stats.notes), verificata qui in CI.
   await page.evaluate(() => route("home"));
   await page.waitForTimeout(700);
+  // V6-2 · la riga DICE quello che dice il colore, e cambia con lo stato vero.
+  // È accessibilità, non rifinitura: chi non distingue il rosso dall'azzurro
+  // deve capire lo stesso cosa sta succedendo. Gli stati si forzano uno a uno
+  // (il riposo per ULTIMO: in demo la regia ha dispatch recenti veri).
+  const frasi = await page.evaluate(() => {
+    const leggi = () => (document.getElementById("orbFraseT") || {}).textContent || "";
+    const out = {};
+    state._dispatch = [];                       // la regia demo ha dispatch veri e recenti
+    state._pensa = true; aggiornaOrbita(); out.pensa = leggi();
+    state._pensa = false;
+    state._dispatch = [{ at: Math.floor(Date.now() / 1000) - 5, agent: "virgilio",
+                         role: "sta cercando nel cervello", routed: true }];
+    aggiornaOrbita(); out.lavora = leggi();
+    state._dispatch = [{ at: Math.floor(Date.now() / 1000) - 5, agent: "dante", routed: true },
+                       { at: Math.floor(Date.now() / 1000) - 9, agent: "beatrice", routed: true }];
+    aggiornaOrbita(); out.due = leggi();
+    state._dispatch = []; state._ingestFresca = false; aggiornaOrbita(); out.riposo = leggi();
+    return out;
+  });
   const nHome = await page.evaluate(() => {
-    const el = document.getElementById("homeSub");                 // testata della home (V5: fuori dal grafo)
-    const m = el && el.textContent.match(/^([\d.,]+)\s+neuroni/);
+    // V6: i neuroni della home stanno nella RIGA sotto l'orbita (dove sta lo
+    // stato), non più nel sottotitolo: un numero, un posto solo.
+    const el = document.getElementById("orbFraseT");
+    const m = el && el.textContent.match(/([\d.,]+)\s+neuroni/);
     return m ? m[1] : null;
   });
-  // 5b · V5-1: titolo in testa (fuori dal grafo) + colonnina degli stati veri
-  const homeV5 = await page.evaluate(() => ({
+  // 5b · V6-1: titolo in testa, UNA riga di stato sotto l'orbita, e la vecchia
+  //      colonnina di tre spie SPARITA (era tre etichette per una cosa sola).
+  const homeV6 = await page.evaluate(() => ({
     testa: !!document.querySelector(".home-testa h1"),
-    spie: ["stPensa", "stLavora", "stAggiorna"].every(id => !!document.getElementById(id)),
+    riga: !!document.getElementById("orbFrase"),
+    spieVia: !["stPensa", "stLavora", "stAggiorna"].some(id => !!document.getElementById(id)),
+    // `state` è un binding const del modulo, NON una proprietà di window: si
+    // legge per nome, altrimenti il controllo passa sempre… fallendo.
+    api: !!(state._brain3d && state._brain3d.setMood && state._brain3d.setAccent),
   }));
+
   await page.evaluate(() => route("brain"));
   await page.waitForTimeout(800);
   const nBrain = await page.evaluate(() => {
@@ -273,13 +331,22 @@ function trovaChromium() {
   if (!quadro.fatteFirmate) { console.error("FAIL: il gruppo FATTE non mostra le task chiuse con la firma di chi ha chiuso"); ko = 1; }
   if (quadro.barre < 4) { console.error("FAIL (M1): il quadro non disegna le barre dei punteggi (trovate " + quadro.barre + ")"); ko = 1; }
   if (!quadro.radar) { console.error("FAIL (V5-2): il radar esagonale non si disegna nel quadro (poligoni SVG assenti)"); ko = 1; }
+  if (quadro.punte !== 7 || !quadro.estetica) { console.error("FAIL (V6-3): il quadro non ha la settima area «Estetica e resa visiva» (punte=" + quadro.punte + ", area=" + quadro.estetica + ")"); ko = 1; }
+  else console.log("[quadro] ettagono: " + quadro.punte + " aree");
   if (!quadro.colonne) { console.error("FAIL (M3): le colonne IN CORSO · DA FARE · FATTE non sono affiancate (.imp-cols assente)"); ko = 1; }
   if (!quadro.prioVisibile) { console.error("FAIL (M3): la priorità ALTA non si vede nella colonna DA FARE"); ko = 1; }
+  if (!convV6.offerta || !convV6.bottone) { console.error("FAIL (V6-B1): la risposta che ammette il buco non porta l'offerta di colmarlo " + JSON.stringify(convV6)); ko = 1; }
+  if (!convV6.cita || !convV6.nonSalvate) { console.error("FAIL (V6-B3): le «cose imparate» non mostrano la citazione o non dichiarano di NON essere salvate " + JSON.stringify(convV6)); ko = 1; }
   if (!composer || !composer.dentro || composer.margine < 14) { console.error("FAIL (R2): la barra di scrittura è tagliata o senza respiro (margine=" + (composer && composer.margine) + "px, minimo 14)"); ko = 1; }
   if (!pillole || !pillole.ordine) { console.error("FAIL (V5-3): le pillole cliente/tema e i companion non stanno SOPRA il campo di scrittura " + JSON.stringify(pillole)); ko = 1; }
   if (temiN < 1) { console.error("FAIL (V5-4): la lente Temi resta spenta anche coi tag presenti (temi=" + temiN + ")"); ko = 1; }
   else console.log("[temi] accesi: " + temiN + " dai tag tema/*");
-  if (!homeV5.testa || !homeV5.spie) { console.error("FAIL (V5-1): home senza titolo in testa o senza la colonnina di stati " + JSON.stringify(homeV5)); ko = 1; }
+  if (!homeV6.testa || !homeV6.riga || !homeV6.spieVia || !homeV6.api) { console.error("FAIL (V6-1): la home non è l'orbita col titolo in testa e UNA riga di stato " + JSON.stringify(homeV6)); ko = 1; }
+  if (!/pensando/i.test(frasi.pensa || "") || !/virgilio/i.test(frasi.lavora || "")
+      || !/dante/i.test(frasi.due || "") || !/beatrice/i.test(frasi.due || "")
+      || !/riposo/i.test(frasi.riposo || "")) {
+    console.error("FAIL (V6-2): la riga sotto l'orbita non dice lo stato a parole " + JSON.stringify(frasi)); ko = 1;
+  } else console.log("[orbita] " + frasi.riposo + " · " + frasi.pensa + " · " + frasi.lavora + " · " + frasi.due);
   if (!commitV5b.cerv || !commitV5b.vault) { console.error("FAIL (V5b-9): la riga «cervello · vault» non mostra i due commit affiancati " + JSON.stringify(commitV5b)); ko = 1; }
   if (commitV5b.allarme) { console.error("FAIL (V5b-9): allarme acceso coi commit ALLINEATI — il confronto è rotto"); ko = 1; }
   if (!human.svg || !human.scheda || !human.riservata) { console.error("FAIL (Human): figura/scheda/avviso-riservatezza mancanti " + JSON.stringify(human)); ko = 1; }
