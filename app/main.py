@@ -51,7 +51,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -704,8 +704,18 @@ def admin_tasks(limit: int = 100, status: str = "", authorization: str = Header(
 def admin_tasks_create(body: TaskIn, authorization: str = Header(default="")):
     """Crea una task operativa del cervello. Le AZIONI con effetto esterno nascono
     'in-approvazione' e non partono mai senza l'ok dell'owner (Z2). Titolo già
-    redatto (niente PII). Bearer ADMIN_TOKEN."""
+    redatto (niente PII). Bearer ADMIN_TOKEN.
+
+    V5 · LIVELLO 3 sul server: un'azione esterna (kind azione/agente che nasce
+    in-approvazione) si accoda SOLO se il tenant ha liv3 acceso — lo stato
+    vive in tenant_flags, non nel browser. Spento = 403, e la spunta del
+    pannello è solo la vista di questo."""
     _require_admin(authorization)
+    if body.kind in ("azione", "agente") and body.status == "in-approvazione":
+        if not flags.liv3(body.scope):
+            raise HTTPException(403, "Livello 3 spento per questo tenant: le azioni "
+                                     "esterne non si accodano. Si accende in "
+                                     "Impostazioni (stato sul server, non nel browser).")
     t = braintasks.add(body.title, scope=body.scope, note=body.note, kind=body.kind,
                        status=body.status, idempotency_key=body.idempotency_key,
                        priorita=body.priorita)
@@ -743,6 +753,33 @@ def admin_tasks_transition(body: TaskTransitionIn, authorization: str = Header(d
         raise HTTPException(422, "Transizione non valida (stato di partenza, "
                                  "nome mancante o task inesistente).")
     return {"ok": True}
+
+
+class Liv3In(BaseModel):
+    tenant: str
+    on: bool
+    by: str                    # chi decide: obbligatorio, è il permesso più delicato
+
+
+@app.get("/admin/liv3")
+def admin_liv3_get(tenant: str = "", authorization: str = Header(default="")):
+    """Lo stato del livello 3 del tenant, dal SERVER (tenant_flags).
+    Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    t = (tenant or "").strip()
+    if not t:
+        raise HTTPException(422, "Indica il tenant.")
+    return {"tenant": t, "liv3": flags.liv3(t), "persist": flags.enabled()}
+
+
+@app.post("/admin/liv3")
+def admin_liv3_set(body: Liv3In, authorization: str = Header(default="")):
+    """Accende/spegne il livello 3 del tenant — decisione umana, col nome.
+    Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    if not flags.set_liv3(body.tenant, body.on, body.by):
+        raise HTTPException(422, "Servono tenant e il nome di chi decide (by).")
+    return {"ok": True, "tenant": body.tenant.strip(), "liv3": bool(body.on)}
 
 
 class TaskPrioritaIn(BaseModel):

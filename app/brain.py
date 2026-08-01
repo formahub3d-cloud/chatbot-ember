@@ -78,16 +78,19 @@ def notes(q: str = "", limit: int = 50) -> list[dict]:
                 if q:
                     like = f"%{q}%"
                     cur.execute(
-                        "SELECT slug, title, path, tenant_code, updated_at FROM documents "
+                        "SELECT slug, title, path, tenant_code, updated_at, tags FROM documents "
                         "WHERE title ILIKE %s OR slug ILIKE %s OR path ILIKE %s "
                         "ORDER BY updated_at DESC LIMIT %s", (like, like, like, limit))
                 else:
                     cur.execute(
-                        "SELECT slug, title, path, tenant_code, updated_at FROM documents "
+                        "SELECT slug, title, path, tenant_code, updated_at, tags FROM documents "
                         "ORDER BY updated_at DESC LIMIT %s", (limit,))
                 rows = cur.fetchall()
+        # `tags` (V5 · lente Temi): senza, il pannello non può calcolare
+        # tema → note e la lente resta spenta anche coi tag nel vault.
         return [{"slug": r[0], "title": r[1] or r[0], "path": r[2], "tenant": r[3],
-                 "updated_at": r[4].isoformat() if hasattr(r[4], "isoformat") else str(r[4])}
+                 "updated_at": r[4].isoformat() if hasattr(r[4], "isoformat") else str(r[4]),
+                 "tags": list(r[5]) if r[5] else []}
                 for r in rows]
     except Exception:  # pragma: no cover
         log.warning("brain: lettura note fallita (ignorata)", exc_info=True)

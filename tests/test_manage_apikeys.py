@@ -30,7 +30,7 @@ class _Cur:
         elif s.startswith("UPDATE API_KEYS SET ACTIVE=FALSE"):
             self.st["revoke"] = params
             self.rowcount = 2
-        elif s.startswith("SELECT NAME, ACTIVE"):
+        elif s.startswith("SELECT NAME, ACTIVE") or s.startswith("SELECT K.NAME, K.ACTIVE"):
             self._rows = self.st["rows"]
 
     def fetchall(self):
@@ -93,9 +93,14 @@ def test_revoke(monkeypatch):
 
 
 def test_list(monkeypatch):
-    _en(monkeypatch, rows=[("X", True, ["forma"], ["x"], 2000, True)])
+    _en(monkeypatch, rows=[("X", True, ["forma"], ["x"], 2000, True,
+                            ["sub1"], ["https://x.it"], {"title": "T"},
+                            "2026-08-01", 5)])
     out = M.list_keys()
     assert out[0]["name"] == "X" and out[0]["branding"] is True
+    # V5: l'ultimo uso per chiave — gli occhi del passo 3 della rotazione
+    assert out[0]["ultimo_uso"] == "2026-08-01" and out[0]["usi"] == 5
+    assert out[0]["subs"] == ["sub1"] and out[0]["branding_full"] == {"title": "T"}
 
 
 def test_ready_off(monkeypatch):

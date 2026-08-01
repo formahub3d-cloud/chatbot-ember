@@ -109,9 +109,11 @@ function trovaChromium() {
     apri: !!document.getElementById("quadroApri"),
     // le CHIUSE si vedono: nel gruppo FATTE c'è chi ha chiuso e la nota di chiusura
     fatteFirmate: /andrea/.test((document.getElementById("imp-fatte") || { textContent: "" }).textContent),
-    // M1+M2: barre coi punteggi e curva SVG, senza aprire niente
+    // M1: barre coi punteggi, senza aprire niente
     barre: document.querySelectorAll("#quadroBox .qbar").length,
-    curva: !!document.querySelector("#quadroBox svg"),
+    // V5-2: il radar esagonale (griglia + poligono di oggi; con «prima» anche
+    // il tratteggiato) ha preso il posto della polilinea
+    radar: document.querySelectorAll("#quadroBox svg polygon").length >= 2,
     // M3: colonne affiancate e la priorità che si vede in DA FARE
     colonne: !!document.querySelector(".imp-cols"),
     prioVisibile: /ALTA/.test((document.getElementById("imp-dafare") || { textContent: "" }).textContent),
@@ -127,6 +129,19 @@ function trovaChromium() {
     const t = ta.getBoundingClientRect(), s = sc.getBoundingClientRect();
     return { margine: Math.round(s.bottom - t.bottom), dentro: t.bottom <= s.bottom };
   });
+
+  // 1d · V5-3: le PILLOLE stanno SOPRA il campo di scrittura (revisione di
+  //      Andrea: contesto prima, scrittura dopo). Si misura la geometria.
+  const pillole = await page.evaluate(() => {
+    const fb = document.getElementById("focusBar"), op = document.getElementById("orbPicks"), ta = document.getElementById("chatMsg");
+    if (!fb || !op || !ta) return null;
+    const f = fb.getBoundingClientRect(), o = op.getBoundingClientRect(), t = ta.getBoundingClientRect();
+    return { ordine: f.top <= o.top && o.bottom <= t.top + 1 };
+  });
+
+  // 1e · V5-4: la lente Temi si ACCENDE dai tag veri (le note demo li
+  //      portano, come il vault dall'1/08): se il calcolo perde i tags → 0.
+  const temiN = await page.evaluate(async () => { await ensureOrbite(); return Object.keys((state._orbite || {}).temi || {}).length; });
 
   // 2 · il modo vocale si apre e l'ORB DISEGNA (pixel ≠ fondo).
   //     V2-A: aprendo il vox l'orb si inizializza UNA volta (l'audit 31-07
@@ -220,10 +235,15 @@ function trovaChromium() {
   await page.evaluate(() => route("home"));
   await page.waitForTimeout(700);
   const nHome = await page.evaluate(() => {
-    const el = document.getElementById("homeSub");                 // overlay della home O1
+    const el = document.getElementById("homeSub");                 // testata della home (V5: fuori dal grafo)
     const m = el && el.textContent.match(/^([\d.,]+)\s+neuroni/);
     return m ? m[1] : null;
   });
+  // 5b · V5-1: titolo in testa (fuori dal grafo) + colonnina degli stati veri
+  const homeV5 = await page.evaluate(() => ({
+    testa: !!document.querySelector(".home-testa h1"),
+    spie: ["stPensa", "stLavora", "stAggiorna"].every(id => !!document.getElementById(id)),
+  }));
   await page.evaluate(() => route("brain"));
   await page.waitForTimeout(800);
   const nBrain = await page.evaluate(() => {
@@ -243,10 +263,14 @@ function trovaChromium() {
   if (!quadro.box || !quadro.apri) { console.error("FAIL (X3): il quadro di potenziamento non si disegna in Miglioramenti (box=" + quadro.box + ", apri=" + quadro.apri + ")"); ko = 1; }
   if (!quadro.fatteFirmate) { console.error("FAIL: il gruppo FATTE non mostra le task chiuse con la firma di chi ha chiuso"); ko = 1; }
   if (quadro.barre < 4) { console.error("FAIL (M1): il quadro non disegna le barre dei punteggi (trovate " + quadro.barre + ")"); ko = 1; }
-  if (!quadro.curva) { console.error("FAIL (M2): manca la curva di crescita (SVG) nel quadro"); ko = 1; }
+  if (!quadro.radar) { console.error("FAIL (V5-2): il radar esagonale non si disegna nel quadro (poligoni SVG assenti)"); ko = 1; }
   if (!quadro.colonne) { console.error("FAIL (M3): le colonne IN CORSO · DA FARE · FATTE non sono affiancate (.imp-cols assente)"); ko = 1; }
   if (!quadro.prioVisibile) { console.error("FAIL (M3): la priorità ALTA non si vede nella colonna DA FARE"); ko = 1; }
   if (!composer || !composer.dentro || composer.margine < 14) { console.error("FAIL (R2): la barra di scrittura è tagliata o senza respiro (margine=" + (composer && composer.margine) + "px, minimo 14)"); ko = 1; }
+  if (!pillole || !pillole.ordine) { console.error("FAIL (V5-3): le pillole cliente/tema e i companion non stanno SOPRA il campo di scrittura " + JSON.stringify(pillole)); ko = 1; }
+  if (temiN < 1) { console.error("FAIL (V5-4): la lente Temi resta spenta anche coi tag presenti (temi=" + temiN + ")"); ko = 1; }
+  else console.log("[temi] accesi: " + temiN + " dai tag tema/*");
+  if (!homeV5.testa || !homeV5.spie) { console.error("FAIL (V5-1): home senza titolo in testa o senza la colonnina di stati " + JSON.stringify(homeV5)); ko = 1; }
   if (!human.svg || !human.scheda || !human.riservata) { console.error("FAIL (Human): figura/scheda/avviso-riservatezza mancanti " + JSON.stringify(human)); ko = 1; }
   if (initVox !== 1) { console.error("FAIL (V2-A): aprendo il vox l'orb si è inizializzato " + initVox + " volte (atteso: 1 — l'audit ne contava 3)"); ko = 1; }
   if (initDopoRipetuta !== initVox || orbRipetuti < 1) { console.error("FAIL (V2-A): l'init ripetuto sulla stessa canvas non è stato ignorato (init=" + initDopoRipetuta + ", warning=" + orbRipetuti + ")"); ko = 1; }

@@ -234,8 +234,8 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .orb{width:76px;height:76px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-family:'Orbitron';font-weight:800;font-size:21px;color:#fff;background:radial-gradient(circle at 30% 28%,rgba(255,255,255,.34),transparent 42%),linear-gradient(140deg,var(--magenta),var(--cyan));box-shadow:0 0 44px rgba(221,36,242,.45);animation:breathe 4.5s ease-in-out infinite}
 @keyframes breathe{0%,100%{transform:scale(1);box-shadow:0 0 34px rgba(221,36,242,.38)}50%{transform:scale(1.05);box-shadow:0 0 54px rgba(14,212,228,.5)}}
 .hero h1{font-size:clamp(20px,3.4vw,27px);letter-spacing:-.4px;line-height:1.25}
-.hero .grad{background:linear-gradient(90deg,var(--magenta),var(--cyan) 55%,var(--green));-webkit-background-clip:text;background-clip:text;color:transparent}
-.hero .sub{font-size:13px;color:var(--text-2);margin-top:7px;max-width:640px;line-height:1.65}
+.hero .grad,.home-testa .grad{background:linear-gradient(90deg,var(--magenta),var(--cyan) 55%,var(--green));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .sub,.home-testa .sub{font-size:13px;color:var(--text-2);margin-top:7px;max-width:640px;line-height:1.65}
 .hero .cta{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
 .mic-btn.rec{color:#fff;border-color:transparent;background:var(--neg);animation:pulse 1.2s infinite}
 /* ── Orb «Brain Motion» (spec artifact v2): la sfera reagisce alla voce e cambia col companion ── */
@@ -270,9 +270,21 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .bubble .fuori{display:block;border-left:3px solid var(--orange);background:color-mix(in srgb,var(--orange) 8%,transparent);padding:6px 10px;margin:6px 0;border-radius:6px}
 .bubble .fuori-tag{display:block;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--orange);margin-bottom:3px;font-weight:700}
 /* ── O1 · il rientro: la home È il cervello ── */
-.home-overlay{position:absolute;left:0;right:0;bottom:0;padding:26px 28px 22px;pointer-events:none;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--bg) 82%,transparent) 55%)}
-.home-overlay .cta button{pointer-events:auto}
-.home-overlay h1{font-size:clamp(22px,3.4vw,34px)}
+/* V5 · home: titolo FUORI dal grafo (in testa), il cervello prende tutta la
+   scena, a destra la colonnina degli stati veri del motore. */
+.home-testa{text-align:center;padding:4px 10px 14px}
+.home-testa h1{font-size:clamp(22px,3.4vw,34px)}
+.home-testa .sub{margin-left:auto;margin-right:auto}
+.home-testa .cta{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.home-scena{padding:0;overflow:hidden;display:flex;align-items:stretch}
+.home-scena canvas{flex:1;min-width:0;height:clamp(320px,calc(100vh - 460px),900px);display:block}
+.home-stati{display:flex;flex-direction:column;gap:10px;justify-content:center;padding:14px 12px;border-left:1px solid var(--border);min-width:96px;flex-shrink:0}
+.stato{background:none;border:1px solid var(--border);border-radius:12px;padding:9px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text);font:inherit}
+.stato b{font-size:12px}
+.stato-dot{width:10px;height:10px;border-radius:50%;background:currentColor;opacity:.22;transition:opacity .3s}
+.stato.on .stato-dot{opacity:1;box-shadow:0 0 9px currentColor;animation:stato-pulse 1.6s ease-in-out infinite}
+@keyframes stato-pulse{50%{transform:scale(1.25)}}
+@media (max-width:700px){.home-scena{flex-direction:column}.home-stati{flex-direction:row;border-left:none;border-top:1px solid var(--border);justify-content:center}}
 #focusBar{padding:0 22px}
 #focusBar:not(:empty){display:flex;gap:10px;align-items:center;padding:7px 22px;border-top:1px solid var(--border);background:color-mix(in srgb,var(--cyan) 7%,transparent)}
 .focus-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)}
@@ -451,7 +463,7 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
       <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="15"></span> Stato &amp; audit</button>
     </div>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 01-08c · human</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 01-08d · v5</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -636,10 +648,15 @@ function demoData(service, path, opts){
     if(path.startsWith('/admin/human')) return Promise.resolve({exists:true,path:'andrea-aloia/human/human-evoluzione.md',updated:'2026-08-01 09:30',text:'# Human (DEMO)\n\n## Salute\n- peso: 78 kg (2026-08-01)\n- attività fisica: corsa 2 volte a settimana (2026-07-28)\n- sonno: ~6h30, da portare a 7h (2026-07-30)\n\n## Punti di forza\n- visione di prodotto: vede il sistema intero prima dei dettagli\n- costanza: un\'ora al giorno sul cervello, ogni giorno\n\n## Da migliorare\n- delega: tende a fare invece che affidare (2026-07-25)\n\n## Hobby\n- stampa 3D sperimentale\n- cucina del sud\n\n## Interessi\n- agenti AI e orchestrazione\n- GDPR e sovranità del dato\n\n## Obiettivi\n- portare Divina al primo cliente esterno (2026-08-01)\n- dormire 7 ore per un mese intero (2026-08-01)'});
     if(path.startsWith('/document')) return Promise.resolve({slug:'workspace-potenziamento-divina',title:'(DEMO) Schema di potenziamento — dove sta Divina e cosa manca',path:'forma/workspace/workspace-potenziamento-divina.md',tenant:'forma-core',text:'(DEMO — in produzione qui c\'è la nota vera, letta dal cervello)\n\n# Schema di potenziamento\n\n| Area | Punteggio |\n|---|---|\n| **Affidabilità e controlli** | **9 / 10** | 6 |\n| **Voce** | **8 / 10** | 3 |\n| **Struttura dell\'interfaccia** | **5 / 10** | 4 |\n| **Contenuto del cervello** | **5 / 10** | 4 |\n| **Conversazione** | **4 / 10** | 3 |\n| **Vendibilità** | **3 / 10** | 3 |\n\n**Media: 5,7 / 10** (era 3,8 stamattina).'});
     if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:100},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));/* M5: stesso numero di stats.notes (100), un dato solo */gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
-    if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'cliente-hrh',title:'Cliente — Home Restaurant Hotel',path:'forma/clienti/hrh/cliente-hrh.md',tenant:'hrh',updated_at:nowIso(9800e3)},{slug:'cliente-centioni',title:'Cliente — Centioni',path:'forma/clienti/centioni/cliente-centioni.md',tenant:'centioni',updated_at:nowIso(5*3600e3)},{slug:'cliente-parbonetti',title:'Cliente — Parbonetti',path:'forma/clienti/parbonetti/cliente-parbonetti.md',tenant:'parbonetti',updated_at:nowIso(30*3600e3)},{slug:'cliente-libero-pensiero',title:'Cliente — Libero Pensiero',path:'forma/clienti/libero-pensiero/cliente-libero-pensiero.md',tenant:'libero-pensiero',updated_at:nowIso(46*3600e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3)},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3)}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
+    if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'cliente-hrh',title:'Cliente — Home Restaurant Hotel',path:'forma/clienti/hrh/cliente-hrh.md',tenant:'hrh',updated_at:nowIso(9800e3),tags:['tema/business']},{slug:'cliente-centioni',title:'Cliente — Centioni',path:'forma/clienti/centioni/cliente-centioni.md',tenant:'centioni',updated_at:nowIso(5*3600e3),tags:['tema/business','tema/marketing']},{slug:'cliente-parbonetti',title:'Cliente — Parbonetti',path:'forma/clienti/parbonetti/cliente-parbonetti.md',tenant:'parbonetti',updated_at:nowIso(30*3600e3)},{slug:'cliente-libero-pensiero',title:'Cliente — Libero Pensiero',path:'forma/clienti/libero-pensiero/cliente-libero-pensiero.md',tenant:'libero-pensiero',updated_at:nowIso(46*3600e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3),tags:['tema/crescita-personale']},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3),tags:['tema/tecnico']}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
     if(path.startsWith('/admin/proposals/approve')) return Promise.resolve({ok:true,task:{id:'t-demo',kind:'gap',status:'aperta'}});
     if(path.startsWith('/admin/proposals/dismiss')) return Promise.resolve({ok:true});
     if(path==='/admin/tasks'&&(opts.method||'GET')==='POST') return Promise.resolve({ok:true,task:{id:'t-demo',kind:(opts.body&&opts.body.kind)||'manuale',scope:(opts.body&&opts.body.scope)||'',title:(opts.body&&opts.body.title)||'Task',note:(opts.body&&opts.body.note)||'',status:'aperta',created_at:new Date().toISOString()}});
+    /* V5 · liv3 anche in demo rispecchia il vero: stato per sessione, default spento */
+    if(path.startsWith('/admin/liv3')){
+      if((opts.method||'GET')==='POST'){state._demoLiv3=!!(opts.body&&opts.body.on);return Promise.resolve({ok:true,tenant:(opts.body&&opts.body.tenant)||'',liv3:state._demoLiv3,by:(opts.body&&opts.body.by)||'',persist:false});}
+      return Promise.resolve({tenant:new URLSearchParams(path.split('?')[1]||'').get('tenant')||'',liv3:!!state._demoLiv3,persist:false});
+    }
     const D={
       '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123'},
       '/health':{status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
@@ -648,7 +665,7 @@ function demoData(service, path, opts){
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.'}]},
       '/admin/proposals':{proposals:[{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
-      '/admin/brain':{persist:true,stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3)},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3)}]},
+      '/admin/brain':{persist:true,stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']}]},
       '/admin/tasks':{persist:true,tasks:[{id:'t0',kind:'azione',scope:'ats',title:'Invia 3 solleciti email ai clienti ATS in ritardo',note:'Preparati da Dante · invoice-chase — testi pronti, NESSUN invio senza il tuo ok',status:'in-approvazione',priorita:'alta',created_at:nowIso(600e3)},{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',priorita:'alta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',priorita:'media',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta negativa ricorrente',status:'aperta',priorita:'bassa',created_at:nowIso(50*3600e3)}]},
       '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
       '/admin/usage':{'ats':{count:412,cost_eur:2.06,alert:false},'forma-core':{count:198,cost_eur:0.99,alert:false},'andrea':{count:640,cost_eur:3.20,alert:true},'ovyon':{count:54,cost_eur:0.27,alert:false}},
@@ -678,7 +695,14 @@ function demoData(service, path, opts){
       {id:'beatrice',name:'Beatrice',archetype:'la crescita/visione',tagline:'Trova clienti, racconta la tua storia, tiene i conti in ordine',skills:[
         {id:'copywriting',role:'Scrive testi che vendono',desc:'copy per sito, email e offerte',department:'Marketing'},{id:'ai-seo',role:'Ti fa trovare dalle AI',desc:'come comparire nelle risposte di ChatGPT & co.',department:'Marketing'},{id:'cro',role:'Trasforma più visite in clienti',desc:'migliora la conversione del sito',department:'Marketing'},{id:'ad-creative',role:'Prepara le inserzioni',desc:'titoli e visual per le campagne',department:'Marketing'},{id:'customer-research',role:'Ascolta cosa dicono i clienti',desc:'recensioni e feedback, sintetizzati',department:'Marketing'},{id:'lead-magnets',role:"Crea l'esca per raccogliere contatti",desc:"guide e risorse in cambio dell'email",department:'Marketing'},
         {id:'post-writer',role:'Scrive i post per LinkedIn',desc:'nella tua voce, pronti da pubblicare',department:'Social'},{id:'profile-optimizer',role:'Sistema il tuo profilo',desc:'bio, foto, presentazione: al meglio',department:'Social'},{id:'reels-scripting',role:'Sceneggia i tuoi Reel',desc:'script pronti da girare',department:'Social'},{id:'hook-generator',role:'Trova la frase che ferma lo scroll',desc:'aperture forti per i post',department:'Social'},{id:'voice-builder',role:'Definisce il tuo tono di voce',desc:'come parli, ovunque scrivi',department:'Social'},{id:'youtube-thumbnail',role:'Sceglie la copertina giusta',desc:'test sulle miniature che fanno cliccare',department:'Social'},
-        {id:'financial-statements',role:'Prepara i bilanci',desc:'prospetti pronti per il commercialista',department:'Finanza'},{id:'journal-entry',role:'Registra le scritture contabili',desc:'la prima nota, in ordine',department:'Finanza'},{id:'reconciliation',role:'Fa quadrare i conti',desc:'banca e contabilità allineate',department:'Finanza'},{id:'variance-analysis',role:'Spiega perché i numeri sono cambiati',desc:'gli scostamenti, in chiaro',department:'Finanza'},{id:'audit-support',role:'Prepara le carte per la revisione',desc:'documenti pronti per il revisore',department:'Finanza'},{id:'close-management',role:'Chiude il mese senza affanni',desc:'la checklist di chiusura, guidata',department:'Finanza'}]}]},
+        {id:'financial-statements',role:'Prepara i bilanci',desc:'prospetti pronti per il commercialista',department:'Finanza'},{id:'journal-entry',role:'Registra le scritture contabili',desc:'la prima nota, in ordine',department:'Finanza'},{id:'reconciliation',role:'Fa quadrare i conti',desc:'banca e contabilità allineate',department:'Finanza'},{id:'variance-analysis',role:'Spiega perché i numeri sono cambiati',desc:'gli scostamenti, in chiaro',department:'Finanza'},{id:'audit-support',role:'Prepara le carte per la revisione',desc:'documenti pronti per il revisore',department:'Finanza'},{id:'close-management',role:'Chiude il mese senza affanni',desc:'la checklist di chiusura, guidata',department:'Finanza'}]}],
+      /* V5 · sub-agenti come dal server: capacità VERE risolte dal genitore */
+      subagents:[
+        {id:'caronte',name:'Caronte',sotto:'beatrice',archetype:'il traghettatore',tagline:"Porta i clienti da una riva all'altra: ricerca, primo contatto, email",da:'andrea',skills:[{id:'customer-research',role:'Ascolta cosa dicono i clienti',desc:'recensioni e feedback, sintetizzati'}]},
+        {id:'cerbero',name:'Cerbero',sotto:'virgilio',archetype:'il guardiano a tre teste',tagline:'Sicurezza: guarda chi entra, sorveglia chiavi e permessi',da:'andrea',skills:[]},
+        {id:'minosse',name:'Minosse',sotto:'divina',archetype:'il giudice',tagline:'Giudica e smista: triage delle richieste in arrivo',da:'proposta',skills:[]},
+        {id:'catone',name:'Catone',sotto:'virgilio',archetype:'il guardiano del Purgatorio',tagline:'Conformità, qualità, revisione prima di pubblicare',da:'proposta',skills:[]},
+        {id:'ulisse',name:'Ulisse',sotto:'beatrice',archetype:'il viaggiatore curioso',tagline:'Ricerca sul web e fuori dal cervello',da:'proposta',skills:[]}]},
     '/agents/dispatches':{dispatches:[{at:now-15,kind:'run',tenant:'forma-core',input:'[test] Bozza email di collaudo',agent:'worker',skill:'gmail-crea-bozza',role:'Worker',department:'Azioni fidate',routed:true,esito:'ok'},{at:now-40,kind:'route',tenant:'ats',input:'Prepara i solleciti per le fatture scadute del cliente ATS',agent:'dante',skill:'invoice-chase',role:'Sollecita le fatture in ritardo',department:'Piccola impresa',routed:true,confidence:.86},{at:now-520,kind:'run',tenant:'forma',input:'Analisi UI/UX del pannello Divina',agent:'virgilio',skill:'ui-ux-pro-max',role:"Disegna l'interfaccia completa",department:'Design',routed:true},{at:now-1900,kind:'route',tenant:'ats',input:'boh qualcosa sui prezzi forse',routed:false,confidence:.31}]},
     '/contradictions':{contradictions:[{id:'c1',description:'Il prezzo SLA differisce tra "listino-2026" e "faq-prezzi": €18 vs €22.',status:'irrisolto',created_at:nowIso(3600e3),node_a:'listino-2026',node_b:'faq-prezzi'},{id:'c2',description:'Orari discordanti tra scheda cliente ATS e pagina contatti.',status:'irrisolto',created_at:nowIso(26*3600e3),node_a:'scheda-ats',node_b:'contatti'}]},
     '/nodes/recent':{nodes:[{node_id:'n1',slug:'processo-onboarding-cliente',title:'Processo di onboarding cliente',kind:'processo',status:'bozza',summary:'Flusso in 5 step.',confidence:0.82,updated_at:nowIso(1200e3)},{node_id:'n2',slug:'listino-stampa-3d-2026',title:'Listino stampa 3D 2026',kind:'documento',status:'promosso',summary:'Prezzi FDM/SLA giugno 2026.',confidence:0.95,updated_at:nowIso(8*3600e3)},{node_id:'n3',slug:'faq-resi-rimborsi',title:'FAQ resi e rimborsi',kind:'faq',status:'bozza',summary:'Reso entro 14 giorni.',confidence:0.7,updated_at:nowIso(30*3600e3)}]},
@@ -737,31 +761,37 @@ const VIEWS={
 
   /* ---------- HOME · IL TUO MONDO (stile AI OS, brand FORMA) ---------- */
   async home(){
-    /* O1 · Il rientro: entri e vedi il CERVELLO — l'orbita di Divina coi nodi
-       connessi dalle sinapsi reali. Non un diagramma da studiare: un colpo
-       d'occhio che dice «c'è dentro roba, ed è connessa». Il dettaglio si
-       raggiunge cliccando (hover sui nodi, poi «Lavora con Divina»), non
-       leggendo. Un solo invito. Il renderer è brain3d.js: lo stesso grafo che
-       già funziona nel Cervello vivo (rAF suo, destroy al cambio vista,
-       reduced-motion = frame statico, stato vuoto onesto senza nodi finti). */
+    /* O1+V5 · Il rientro: entri e il CERVELLO prende tutta la scena. Il titolo
+       esce dal grafo e va in testa (fuori, non sovrapposto), un solo invito,
+       e a destra la colonnina degli STATI VERI del motore:
+         pensa    = un turno di chat in corso (lo stesso setThink di brain3d);
+         lavora   = i dispatch della regia (/agents/dispatches, la stessa
+                    fonte della Regia live e del widget «La squadra»);
+         aggiorna = last_ingest da /admin/brain (quando ha letto il vault).
+       Sono stati reali e possono dirlo: niente etichetta «dimostrazione».
+       R1 · sul grafo NIENTE nomi stampati: il nome appare al passaggio. */
     const connected=state.engOk||state.orchOk;
     C.innerHTML=`
-    <div class="card" style="padding:0;overflow:hidden;position:relative">
-      <!-- R4 · il cervello riempie lo spazio che c'è (minimo su finestre basse);
-           R1 · qui NIENTE nomi stampati sui nodi: il nome appare al passaggio -->
-      <canvas id="homeBrain" style="width:100%;height:clamp(360px,calc(100vh - 310px),980px);display:block"></canvas>
-      <div class="home-overlay">
-        <h1 style="margin:0 0 6px"><span class="grad">Il tuo mondo. La tua AI.</span></h1>
-        <div class="sub" id="homeSub">il cervello si sta accendendo…</div>
-        <div class="small muted" id="brainCap" style="min-height:16px;margin-top:3px"></div>
-        <div class="cta" style="margin-top:12px">
-          <button class="btn cta-brand" onclick="route('chat')">${icon('spark',16)} Lavora con Divina</button>
-          ${!connected?`<button class="btn" onclick="openConn()">${icon('plug',16)} Connetti i servizi</button>`:''}
-        </div>
+    <div class="home-testa">
+      <h1 style="margin:0 0 4px"><span class="grad">Il tuo mondo. La tua AI.</span></h1>
+      <div class="sub" id="homeSub">il cervello si sta accendendo…</div>
+      <div class="small muted" id="brainCap" style="min-height:16px;margin-top:3px"></div>
+      <div class="cta" style="margin-top:10px">
+        <button class="btn cta-brand" onclick="route('chat')">${icon('spark',16)} Lavora con Divina</button>
+        ${!connected?`<button class="btn" onclick="openConn()">${icon('plug',16)} Connetti i servizi</button>`:''}
+      </div>
+    </div>
+    <div class="card home-scena">
+      <canvas id="homeBrain"></canvas>
+      <div class="home-stati">
+        <button class="stato" id="stPensa" onclick="apriChat(true)" title="Si accende mentre Divina risponde a un turno di chat vero"><span class="stato-dot" style="color:var(--magenta)"></span><b>pensa</b><span class="small muted" id="stPensaV">in ascolto</span></button>
+        <button class="stato" id="stLavora" onclick="route('live')" title="I dispatch della regia — la stessa fonte della Regia live"><span class="stato-dot" style="color:var(--cyan)"></span><b>lavora</b><span class="small muted" id="stLavoraV">—</span></button>
+        <button class="stato" id="stAggiorna" onclick="route('brain')" title="Quando il cervello ha letto il vault l'ultima volta"><span class="stato-dot" style="color:var(--green)"></span><b>aggiorna</b><span class="small muted" id="stAggiornaV">—</span></button>
       </div>
     </div>
     <div class="grid g-2" id="homeWidgets" style="margin-top:14px"></div>`;
     caricaHomeWidgets();
+    statiHome();
     const sub=$('#homeSub');
     /* M5 · UN numero solo per un dato solo: i neuroni si contano in UN posto
        (stats.notes di /admin/brain, la stessa fonte del Cervello vivo). Il
@@ -769,6 +799,7 @@ const VIEWS={
        con l'età, non con un numero diverso. */
     let g=null,stats=null;
     try{const d=await api('engine','/admin/brain');stats=(d&&d.stats)||null;}catch(_){}
+    statoAggiorna(stats&&stats.last_ingest);       // V5 · la spia «aggiorna» = dato vero
     try{g=await api('engine','/admin/brain/graph');}catch(_){}
     if(g&&(g.nodes||[]).length){
       startBrainCanvas(g.nodes,g.links,'homeBrain');
@@ -908,21 +939,41 @@ const VIEWS={
 
   /* ---------- IMPOSTAZIONI (Fase 7: i tre livelli + le due frasi in prima fila) ---------- */
   async impostazioni(){
-    const liv3=localStorage.getItem('dv_liv3')==='1';
+    /* V5 · Il livello 3 abita sul SERVER (tenant_flags, come il flag owner):
+       la spunta qui è la VISTA di quello stato, non lo stato. Prima viveva
+       in localStorage — il permesso più delicato del sistema nel browser,
+       accendibile con una riga negli strumenti da sviluppatore. Il cambio
+       si firma (chi decide), come le contraddizioni. */
+    localStorage.removeItem('dv_liv3');            // il browser non lo tiene più
+    let lv=null,lvErr='';
+    try{const r=await api('engine','/admin/liv3?tenant='+encodeURIComponent(state.tenant));lv=!!r.liv3;}
+    catch(e){lvErr=e.message||'motore non raggiungibile';}
+    const liv3=lv===true;
     C.innerHTML=`
     <div class="card" style="margin-bottom:14px;border-color:color-mix(in srgb,var(--cyan) 40%,var(--border))"><div style="font-size:16px;font-weight:800;line-height:1.6">${icon('lock',16)} Ogni azione con effetto esterno passa dalla <span style="color:var(--cyan)">tua approvazione</span>.<br>${icon('brain',16)} Ogni risposta <span style="color:var(--magenta)">cita le fonti</span> da cui viene.</div><div class="small muted" style="margin-top:6px">Sono i due motivi per cui Divina si può usare per lavoro vero. Quello che ci distingue va mostrato, non confessato.</div></div>
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Cosa può fare Divina</h3><p>Tre livelli, in ordine di rischio. Non serve sapere cosa sia uno «scope»: leggere · costruire · toccare il mondo fuori.</p></div></div>
       <div class="perm-row"><div><b>1 · Azioni base</b><div class="small muted">leggere e cercare nel cervello, preparare note (con la tua conferma), assegnare compiti agli agenti</div></div><span class="tag pos">sempre attivo</span></div>
       <div class="perm-row"><div><b>2 · Costruire e configurare</b><div class="small muted">creare capacità, orbite e cruscotti dentro la console</div></div><span class="tag pos">sempre attivo</span></div>
-      <div class="perm-row"><div><b>3 · Cancellare e agire fuori</b><div class="small muted">inviare email, pubblicare, scrivere su strumenti esterni — <b>anche da acceso, ogni azione resta ferma finché non la approvi tu</b> (la coda di approvazione non si può scavalcare)</div></div><button class="btn sm ${liv3?'':'primary'}" id="liv3Btn">${liv3?'Acceso — spegni':'Spento (consigliato) — accendi'}</button></div>
-      <div class="small muted" style="margin-top:8px">Il livello 3 spento è il default, anche per i pannelli cliente: da spento, le azioni esterne non si accodano nemmeno.</div></div>
+      <div class="perm-row"><div><b>3 · Cancellare e agire fuori</b><div class="small muted">inviare email, pubblicare, scrivere su strumenti esterni — <b>anche da acceso, ogni azione resta ferma finché non la approvi tu</b> (la coda di approvazione non si può scavalcare)</div></div>${lv===null?`<span class="tag warn" title="${esc(lvErr)}">stato non leggibile</span>`:`<button class="btn sm ${liv3?'':'primary'}" id="liv3Btn">${liv3?'Acceso — spegni':'Spento (consigliato) — accendi'}</button>`}</div>
+      <div id="liv3Conferma" hidden class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap;align-items:center"><span class="small">Il permesso più delicato si firma — chi decide?</span><input id="liv3Chi" placeholder="nome e cognome" style="max-width:200px"><button class="btn sm primary" id="liv3Vai">${liv3?'Confermo: spegni':'Confermo: accendi'}</button></div>
+      <div class="small muted" style="margin-top:8px">Lo stato vive <b>sul server</b>, per tenant (adesso: <b>${esc(state.tenant)}</b>) — come il flag owner, non nel browser. Spento è il default per ogni tenant: da spento, le azioni esterne non si accodano nemmeno.${lv===null?' <span style="color:var(--orange)">Il motore non risponde: da qui non si cambia niente — il freno resta quello vero, sul server.</span>':''}</div></div>
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Connessione e aspetto</h3><p>URL, token e chiave tenant restano nel tuo browser</p></div></div>
       <div class="row" style="flex-wrap:wrap"><button class="btn sm" onclick="openConn()">${icon('plug',14)} Connessione…</button><button class="btn sm" onclick="setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark')">Tema chiaro/scuro</button><button class="btn sm" onclick="route('usage')">Uso &amp; costi →</button><button class="btn sm" onclick="route('system')">Stato &amp; audit →</button></div></div>
     <div class="card"><div class="card-head"><div><h3>Divina sul telefono</h3><p>La console si installa come app: niente store, niente attese</p></div></div>
       <div class="row" style="flex-wrap:wrap;margin-bottom:8px"><button class="btn sm primary" id="pwaInstall" hidden>${icon('spark',14)} Installa Divina</button><span class="small muted" id="pwaStato"></span></div>
       <div class="small muted">Su <b>iPhone/iPad</b>: Condividi → «Aggiungi alla schermata Home». Le notifiche push su iOS arrivano <b>solo</b> se l'app è installata in Home (iOS 16.4+) — meglio saperlo prima che scoprirlo.</div></div>`;
     const b=$('#liv3Btn');
-    b.onclick=()=>{const on=localStorage.getItem('dv_liv3')==='1';localStorage.setItem('dv_liv3',on?'0':'1');toast(on?'Livello 3 spento: le azioni esterne non si accodano più':'Livello 3 acceso: le azioni esterne si POSSONO accodare — ma nessuna parte senza la tua approvazione','info');route('impostazioni');};
+    if(b)b.onclick=()=>{const box=$('#liv3Conferma');box.hidden=!box.hidden;if(!box.hidden)$('#liv3Chi').focus();};
+    const vai=$('#liv3Vai');
+    if(vai)vai.onclick=async()=>{
+      const by=($('#liv3Chi').value||'').trim();
+      if(!by){toast('Serve il nome di chi decide: il livello 3 si firma, come le contraddizioni','bad');return;}
+      try{
+        await api('engine','/admin/liv3',{method:'POST',body:{tenant:state.tenant,on:!liv3,by}});
+        toast(!liv3?`Livello 3 acceso per ${state.tenant} (firmato ${by}): le azioni esterne si POSSONO accodare — ma nessuna parte senza la tua approvazione`:`Livello 3 spento per ${state.tenant}: le azioni esterne non si accodano più`,'info');
+        route('impostazioni');
+      }catch(e){toast(e.message,'bad');}
+    };
     pwaBottone();
   },
 
@@ -1184,18 +1235,15 @@ const VIEWS={
     /* V3+V4 (01-08) · La squadra COMPATTA con la gerarchia esplicita:
        Divina in testa (orchestratrice e CEO: smista, non esegue), tre righe
        richiudibili — chi entra vuole sapere CHI fa cosa, non leggere
-       quaranta righe — e i sub-agenti come struttura dichiarata: nessuno
-       esegue finché non ha capacità vere, e lo si DICE. */
+       quaranta righe.
+       V5 · I sub-agenti arrivano dal SERVER (/agents → subagents), con le
+       capacità VERE risolte dal genitore: un sub-agente esiste quando ha
+       almeno una cosa che sa fare da solo. Caronte è il primo (ricerca
+       clienti — riusa customer-research di Beatrice); gli altri restano
+       struttura dichiarata, e lo si DICE. */
     if(needSvc('orch'))return; C.innerHTML=skeleton(5);
     const LAVORO={dante:'i soldi di tutti i giorni',virgilio:'costruire e tutelare',beatrice:'crescere e raccontare'};
-    const SUBAG=[
-      {n:'Cerbero',sotto:'virgilio',da:'andrea',d:'sicurezza: guarda chi entra, sorveglia chiavi e permessi'},
-      {n:'Caronte',sotto:'beatrice',da:'andrea',d:'porta i clienti da una riva all\'altra: ricerca, primo contatto, email'},
-      {n:'Minosse',sotto:'divina',da:'proposta',d:'giudica e smista: triage delle richieste in arrivo'},
-      {n:'Catone',sotto:'virgilio',da:'proposta',d:'guardiano del Purgatorio: conformità, qualità, revisione prima di pubblicare'},
-      {n:'Ulisse',sotto:'beatrice',da:'proposta',d:'il viaggiatore curioso: ricerca sul web e fuori dal cervello'},
-    ];
-    try{const ag=await api('orch','/agents');const agents=ag.agents||[];$('#b-agents').textContent=agents.length;
+    try{const ag=await api('orch','/agents');const agents=ag.agents||[];const SUBAG=ag.subagents||[];$('#b-agents').textContent=agents.length;
       const aperti=state._sqAperti||(state._sqAperti={});
       const riga=a=>{const col=AG_COLORS[a.id]||'var(--magenta)';const n=(a.skills||[]).length;const su=aperti[a.id];
         const byDept={};(a.skills||[]).forEach(s=>{(byDept[s.department]=byDept[s.department]||[]).push(s);});
@@ -1212,10 +1260,14 @@ const VIEWS={
         <div class="agent-avatar" style="background:linear-gradient(135deg,var(--magenta),var(--cyan));width:38px;height:38px">DV</div>
         <div><b style="font-size:15px">Divina</b><div class="small muted">orchestratrice e CEO — smista il lavoro alla squadra, non esegue</div></div></div></div>
       ${agents.map(riga).join('')}
-      <div class="card" style="margin-top:14px"><div class="card-head"><div><h3>Sub-agenti</h3><p>Specialisti sotto i tre companion, nel tema della Commedia — struttura dichiarata, non ancora operativa</p></div></div>
-        <div class="small" style="color:var(--orange);margin-bottom:10px">${icon('alert',12)} Nessun sub-agente esegue ancora niente: prima le capacità vere, poi il lavoro. Un agente disegnato che non fa niente è peggio di un agente assente.</div>
-        ${SUBAG.map(s2=>`<div class="imp-riga"><div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><b>${esc(s2.n)}</b><span class="small muted">sotto ${esc(s2.sotto.charAt(0).toUpperCase()+s2.sotto.slice(1))}</span>${s2.da==='andrea'?'<span class="tag pos">voluto da Andrea</span>':'<span class="tag warn">proposta — da validare</span>'}</div><div class="small muted" style="margin-top:2px">${esc(s2.d)}</div></div>`).join('')}
-      </div>`;
+      ${SUBAG.length?`<div class="card" style="margin-top:14px"><div class="card-head"><div><h3>Sub-agenti</h3><p>Specialisti sotto i companion, nel tema della Commedia — dal server, con le capacità vere</p></div></div>
+        <div class="small muted" style="margin-bottom:10px">Un sub-agente esiste quando ha almeno una capacità vera. <b>Caronte è il primo</b>: gli altri restano struttura dichiarata finché non ne hanno una — un agente disegnato che non fa niente è peggio di un agente assente.</div>
+        ${SUBAG.map(s2=>{const caps=s2.skills||[];const col=AG_COLORS[s2.sotto]||'var(--magenta)';
+          return `<div class="imp-riga"><div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><b>${esc(s2.name)}</b><span class="small muted">sotto ${esc((s2.sotto||'').charAt(0).toUpperCase()+(s2.sotto||'').slice(1))}</span>${s2.da==='andrea'?'<span class="tag pos">voluto da Andrea</span>':'<span class="tag warn">proposta — da validare</span>'}${caps.length?`<span class="tag acc">operativo · ${caps.length} capacità</span>`:'<span class="tag mut">non ancora operativo</span>'}</div>
+          <div class="small muted" style="margin-top:2px">${esc(s2.tagline||'')}</div>
+          ${caps.length?`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${caps.map(c2=>`<button class="orbit-chip" onclick="quickRun('${esc(s2.id)}','${esc(c2.id)}')" title="${esc(c2.desc||'')}" style="border-color:${col}55">${icon('spark',11)} ${esc(c2.role||c2.id)}</button>`).join('')}</div>`:''}
+        </div>`;}).join('')}
+      </div>`:''}`;
       $$('[data-sq]').forEach(b=>b.onclick=()=>{aperti[b.dataset.sq]=!aperti[b.dataset.sq];route('agents');});
     }catch(e){C.innerHTML=errBox(e);}
   },
@@ -1341,19 +1393,26 @@ function chatTemplate(){
      conversazione, che è la cosa per cui si sta qui. Ordine dal basso:
      campo → [pillole agenti] [Parla] [invia]. Lo stato dell'agente non ha
      una riga sua: è il punto che pulsa sulla pillola attiva (setOrb). */
+  /* V5 (01-08, revisione di Andrea — un cambio di idea, non un errore):
+     l'ordine definitivo, dall'alto: contesto (cliente·tema) → chi risponde
+     (pillole agenti) → campo → comandi. Il contesto si sceglie PRIMA di
+     scrivere, non dopo; qui si aggiungeranno le pillole del pannello clienti. */
   return `<div class="chat" id="chatWrap"><div class="chat-scroll" id="chatScroll"><div class="chat-inner" id="chatInner"></div></div>
+      <div class="composer">
       <div id="focusBar"></div>
-      <div class="composer"><div class="small muted" id="composerHint" hidden style="max-width:820px;margin:0 auto 6px">Invio per inviare · Shift+Invio va a capo</div>
+      <div class="composer-inner" style="margin-bottom:6px">
+        <div class="orb-picks" id="orbPicks" style="flex-wrap:wrap"><button class="orb-pick" data-oc="divina" title="Smistamento automatico">${icon('spark',12)} Divina</button><button class="orb-pick" data-oc="dante" title="Finanza & numeri">Dante</button><button class="orb-pick" data-oc="virgilio" title="Legale & operazioni">Virgilio</button><button class="orb-pick" data-oc="beatrice" title="Marketing & contenuti">Beatrice</button></div>
+      </div>
+      <div class="small muted" id="composerHint" hidden style="max-width:820px;margin:0 auto 6px">Invio per inviare · Shift+Invio va a capo</div>
       <div class="composer-inner" style="margin-bottom:8px">
         <textarea id="chatMsg" placeholder="Scrivi o detta…" rows="1"></textarea>
       </div>
       <div class="composer-inner" style="align-items:center">
-        <div class="orb-picks" id="orbPicks" style="flex-wrap:wrap"><button class="orb-pick" data-oc="divina" title="Smistamento automatico">${icon('spark',12)} Divina</button><button class="orb-pick" data-oc="dante" title="Finanza & numeri">Dante</button><button class="orb-pick" data-oc="virgilio" title="Legale & operazioni">Virgilio</button><button class="orb-pick" data-oc="beatrice" title="Marketing & contenuti">Beatrice</button></div>
+        <button class="btn" id="voxBtn" title="Modo vocale a tutto schermo — parla con Divina" style="white-space:nowrap">${icon('mic',15)} Parla con Divina</button>
+        <button class="btn primary" id="chatSend" style="min-width:52px">${icon('send',18)}</button>
         <span style="flex:1"></span>
         <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">${icon('mic',18)}</button>
         <button class="icon-btn" id="chatTts" title="Lettura vocale delle risposte">${icon(state.tts?'speakon':'speakoff',18)}</button>
-        <button class="btn" id="voxBtn" title="Modo vocale a tutto schermo — parla con Divina" style="white-space:nowrap">${icon('mic',15)} Parla</button>
-        <button class="btn primary" id="chatSend" style="min-width:52px">${icon('send',18)}</button>
       </div></div></div>`;
 }
 function wireChat(){
@@ -1563,6 +1622,21 @@ function calcolaOrbite(notes,graph){
     g.slugs.push(n.slug);
   });
   Object.values(out.lenti).forEach(g=>{g.n=g.slugs.length;g.set=new Set(g.slugs);});
+  /* V5 · I TEMI dai tag VERI: tema/* nel frontmatter (scritti nel vault
+     l'1/08, esposti da /admin/brain/notes col campo tags). Finché nessuna
+     nota li porta — perché manca la ingest o il motore non li espone —
+     out.temi resta vuoto e l'interfaccia lo dice: mai un filtro che filtra
+     su niente. Quando i tag arrivano, qui si accende tutto da solo. */
+  out.temi={};
+  (notes||[]).forEach(n=>{
+    (n.tags||[]).forEach(t=>{
+      const mt=String(t).match(/^tema\/(.+)$/);if(!mt)return;
+      const id=mt[1];
+      const g=out.temi[id]=out.temi[id]||{id,label:id.replace(/-/g,' '),slugs:[],set:null,fam:'tema'};
+      g.slugs.push(n.slug);
+    });
+  });
+  Object.values(out.temi).forEach(g=>{g.n=g.slugs.length;g.set=new Set(g.slugs);});
   return out;
 }
 /* Focus effettivo = orbita ∩ lente. Intersezione VUOTA → si manda una slug
@@ -1574,7 +1648,7 @@ function focusPayload(){
   let slugs=f?f.slugs.slice():null;
   if(l)slugs=slugs?slugs.filter(s=>l.set.has(s)):l.slugs.slice();
   if(!slugs.length)slugs=['__nessuna-nota__'];
-  const label=[f&&f.label,l&&('lente '+l.label)].filter(Boolean).join(' · ');
+  const label=[f&&f.label,l&&((l.fam==='tema'?'tema ':'lente ')+l.label)].filter(Boolean).join(' · ');
   return {label,slugs:slugs.slice(0,300)};
 }
 async function ensureOrbite(){
@@ -1602,15 +1676,24 @@ function renderOrbite(){
     const on=state.focus&&state.focus.kind===kind&&state.focus.id===g.id;
     return `<button class="orbit-chip ${on?'active':''}" data-okind="${kind}" data-oid="${esc(g.id)}" title="clic: lavora qui dentro — Divina risponde da queste note e i salvataggi finiscono qui">${esc(g.label)}<span class="orbit-meta">${g.n} not${g.n===1?'a':'e'} · ${g.link} sin.</span></button>`;
   }).join('');
-  const ls=Object.values(state._orbite.lenti||{}).sort((a2,b2)=>b2.n-a2.n);
-  const lenti=ls.map(g=>{
+  const chipLente=(g,fam)=>{
     const on=state.lens&&state.lens.id===g.id;
-    return `<button class="orbit-chip ${on?'active':''}" data-lid="${esc(g.id)}" title="lente: restringe alle note di questa categoria">${esc(g.label)}<span class="orbit-meta">${g.n}</span></button>`;
-  }).join('')+`<button class="orbit-chip" disabled style="opacity:.45;cursor:not-allowed" title="La classificazione tematica (business, legale, tecnico…) oggi NON esiste nel frontmatter: nessuno può calcolarla senza indovinare. Il posto è pronto: si accende quando le note avranno i tag tema/* (proposta in docs/lenti-temi-proposta.md).">Temi · in attesa dei tag</button>`;
-  s.innerHTML=`<div class="orbit-tabs">${tabs}<span class="small muted" style="margin-left:auto">orbite e lenti dai dati reali del vault</span></div><div class="orbit-row">${chips||'<span class="small muted">nessuna orbita in questo raggruppamento</span>'}</div><div class="orbit-row" style="margin-top:6px"><span class="small muted" style="align-self:center;flex-shrink:0">Lenti:</span>${lenti}</div>`;
+    return `<button class="orbit-chip ${on?'active':''}" data-lid="${esc(g.id)}" data-lfam="${fam}" title="${fam==='temi'?'tema: restringe alle note col tag tema/'+esc(g.id):'lente: restringe alle note di questa categoria'}">${esc(g.label)}<span class="orbit-meta">${g.n}</span></button>`;
+  };
+  const ls=Object.values(state._orbite.lenti||{}).sort((a2,b2)=>b2.n-a2.n);
+  const lenti=ls.map(g=>chipLente(g,'lenti')).join('');
+  /* V5 · La riga Temi si ACCENDE dai dati: se almeno una nota porta tema/*,
+     i temi sono chip veri che filtrano. Se no, un posto dichiaratamente
+     vuoto che dice quale passo manca (i tag sono nel vault dall'1/08:
+     restano la ingest e il motore che espone il campo tags). */
+  const ts=Object.values(state._orbite.temi||{}).sort((a2,b2)=>b2.n-a2.n);
+  const temi=ts.length?ts.map(g=>chipLente(g,'temi')).join('')
+    :`<button class="orbit-chip" disabled style="opacity:.45;cursor:not-allowed" title="I tag tema/* sono nel vault dall'1/08: perché questi bottoni filtrino davvero servono una ingest e il motore aggiornato che espone il campo tags. Finché il cervello non li vede, filtrare mentirebbe.">Temi · in attesa della ingest coi tag</button>`;
+  s.innerHTML=`<div class="orbit-tabs">${tabs}<span class="small muted" style="margin-left:auto">orbite e lenti dai dati reali del vault</span></div><div class="orbit-row">${chips||'<span class="small muted">nessuna orbita in questo raggruppamento</span>'}</div><div class="orbit-row" style="margin-top:6px"><span class="small muted" style="align-self:center;flex-shrink:0">Lenti:</span>${lenti}</div><div class="orbit-row" style="margin-top:6px"><span class="small muted" style="align-self:center;flex-shrink:0">Temi:</span>${temi}</div>`;
   $$('#orbitStrip .orbit-tab').forEach(b2=>b2.onclick=()=>{state._orbKind=b2.dataset.ok;renderOrbite();});
   $$('#orbitStrip .orbit-chip[data-lid]').forEach(b2=>b2.onclick=()=>{
-    const g=(state._orbite.lenti||{})[b2.dataset.lid];if(!g)return;
+    const fam=b2.dataset.lfam==='temi'?'temi':'lenti';
+    const g=(state._orbite[fam]||{})[b2.dataset.lid];if(!g)return;
     state.lens=(state.lens&&state.lens.id===g.id)?null:g;
     renderOrbite();renderFocusBar();
   });
@@ -1626,12 +1709,12 @@ function setFocus(f){
 }
 /* ── V2 (01-08) · Il selettore in DUE PASSI: prima il CLIENTE, poi il TEMA.
    La chat nasce già orientata e DICE cosa sta facendo («HRH · business»
-   sopra il campo, non nascosto in un menu). DIPENDENZA DICHIARATA: i sette
-   temi sono decisi ma nessuna nota porta ancora tema/* nel frontmatter (il
-   vault lo scrive Cowork) — quindi il passo 2 mostra i sette bottoni e DICE
-   che aspetta i tag, invece di filtrare su niente facendo sembrare vuoto il
-   cliente. Un filtro che non filtra è peggio di un filtro assente. Quando i
-   tag ci saranno, il passo 2 si accende senza altro lavoro qui. */
+   sopra il campo, non nascosto in un menu).
+   V5 · Il passo 2 si ACCENDE dai dati: i tag tema/* sono nel vault (1/08)
+   e il motore li espone in /admin/brain/notes — se le note li portano,
+   i temi filtrano davvero (state._orbite.temi); se no, i sette bottoni
+   restano spenti e DICONO quale passo manca. Un filtro che non filtra è
+   peggio di un filtro assente. */
 const TEMI=['business','legale','marketing','prodotto','tecnico','persone','crescita personale'];
 function renderFocusBar(){
   const fb=$('#focusBar');if(!fb)return;
@@ -1649,18 +1732,23 @@ function renderFocusBar(){
       ${cli.length?cli.map(g=>`<button class="orbit-chip" data-selcli="${esc(g.id)}">${esc(g.label)}<span class="orbit-meta">${g.n} not${g.n===1?'a':'e'}</span></button>`).join(''):'<span class="small muted">carico i clienti dal cervello…</span>'}
       <button class="orbit-chip" data-selcli="">tutto il cervello</button></div>`;
   }else if(apre==='tema'){
-    esteso=`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px;width:100%">
-      ${TEMI.map(t=>`<button class="orbit-chip" data-seltema="${esc(t)}" style="opacity:.55">${esc(t)}</button>`).join('')}
-      <span class="small" style="color:var(--orange);align-self:center">${icon('alert',11)} in attesa dei tag tema/* nelle note — filtrare adesso farebbe sembrare vuoto il cliente</span></div>`;
+    const ts=Object.values((state._orbite||{}).temi||{}).sort((a2,b2)=>b2.n-a2.n);
+    esteso=ts.length
+      ?`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px;width:100%">
+        ${ts.map(g=>`<button class="orbit-chip ${state.lens&&state.lens.id===g.id?'active':''}" data-seltema="${esc(g.id)}">${esc(g.label)}<span class="orbit-meta">${g.n}</span></button>`).join('')}
+        <button class="orbit-chip" data-seltema="">senza tema</button></div>`
+      :`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px;width:100%">
+        ${TEMI.map(t=>`<button class="orbit-chip" disabled style="opacity:.55;cursor:not-allowed">${esc(t)}</button>`).join('')}
+        <span class="small" style="color:var(--orange);align-self:center">${icon('alert',11)} i tag tema/* sono nel vault dall'1/08: dopo una ingest col motore aggiornato questi bottoni filtrano davvero</span></div>`;
   }
   fb.innerHTML=`<div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;padding:2px 10px 4px">
     ${chip}
-    <button class="orbit-tab" id="selTema" title="I sette temi sono decisi; i tag nelle note non ci sono ancora">+ Tema</button>
+    <button class="orbit-tab" id="selTema" title="Restringe la conversazione a un tema (tag tema/* nelle note)">+ Tema</button>
     <span style="flex:1"></span>
     ${fp?'':`<span class="small muted">la conversazione parte già orientata</span>`}
     ${esteso}</div>`;
   const sc=$('#selCli');if(sc)sc.onclick=async()=>{state._selApre=state._selApre==='cliente'?null:'cliente';renderFocusBar();await ensureOrbite();renderFocusBar();};
-  const st2=$('#selTema');if(st2)st2.onclick=()=>{state._selApre=state._selApre==='tema'?null:'tema';renderFocusBar();};
+  const st2=$('#selTema');if(st2)st2.onclick=async()=>{state._selApre=state._selApre==='tema'?null:'tema';renderFocusBar();await ensureOrbite();renderFocusBar();};
   const ft=$('#focusTogli');if(ft)ft.onclick=()=>{state.lens=null;setFocus(null);};
   $$('#focusBar [data-selcli]').forEach(b=>b.onclick=()=>{
     state._selApre=null;
@@ -1669,7 +1757,13 @@ function renderFocusBar(){
     setFocus({kind:'clienti',id:g.id,label:g.label,slugs:g.slugs,scope:g.scope,n:g.n,link:g.link});
   });
   $$('#focusBar [data-seltema]').forEach(b=>b.onclick=()=>{
-    toast('Il tema «'+b.dataset.seltema+'» aspetta i tag tema/* nelle note (li scrive Cowork nel vault). Quando ci saranno, questo bottone filtra davvero — oggi mentirebbe.','info');
+    state._selApre=null;
+    const id=b.dataset.seltema;
+    if(!id){state.lens=null;renderOrbite();renderFocusBar();toast('Tema tolto: la conversazione torna a tutto il perimetro scelto','info');return;}
+    const g=((state._orbite||{}).temi||{})[id];if(!g)return;
+    state.lens=(state.lens&&state.lens.id===g.id)?null:g;
+    renderOrbite();renderFocusBar();
+    if(state.lens)toast(`Tema «${g.label}»: la conversazione resta dentro ${g.n} not${g.n===1?'a':'e'}`,'info');
   });
 }
 
@@ -1682,15 +1776,25 @@ async function chatTurn(text,history){
   const fp=focusPayload();
   const payload={message:text,history,...(comp?{agent:true,companion:comp}:{}),
     ...(fp?{focus:fp}:{})};
-  const r=state.clientMode
-    ?await (async()=>{const res=await fetch('/client/chat',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(res.status===401){toast('Sessione scaduta: entra di nuovo','bad');setTimeout(()=>location.reload(),1200);throw new Error('sessione scaduta');}if(!res.ok)throw new Error(res.status+' · '+(await res.text()).slice(0,160));return res.json();})()
-    :await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:payload});
-  const answer=r.answer||r.text||r.message||(typeof r==='string'?r:'(nessuna risposta)');
-  const sources=r.sources||[];
-  const used=sources.filter(x=>x&&typeof x==='object'&&x.slug&&!x.type).map(x=>x.slug);
-  if(used.length){state._recentFires.push(...used);state._recentFires=state._recentFires.slice(-40);}
-  const ag=sources.find(s=>s.type==='agent');
-  return {answer,sources,agent:ag?ag.agent:null,comp};
+  /* V5 · «pensa» è uno stato VERO: acceso qui, per la durata del turno.
+     Il grafo in home lo mostra (setThink di brain3d) e la spia della
+     colonnina lo legge da state._pensa. */
+  state._pensa=true;statoPensa();
+  if(state._brain3d)state._brain3d.setThink(true);
+  try{
+    const r=state.clientMode
+      ?await (async()=>{const res=await fetch('/client/chat',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(res.status===401){toast('Sessione scaduta: entra di nuovo','bad');setTimeout(()=>location.reload(),1200);throw new Error('sessione scaduta');}if(!res.ok)throw new Error(res.status+' · '+(await res.text()).slice(0,160));return res.json();})()
+      :await api('engine','/chat',{method:'POST',auth:false,tenantKey:true,body:payload});
+    const answer=r.answer||r.text||r.message||(typeof r==='string'?r:'(nessuna risposta)');
+    const sources=r.sources||[];
+    const used=sources.filter(x=>x&&typeof x==='object'&&x.slug&&!x.type).map(x=>x.slug);
+    if(used.length){state._recentFires.push(...used);state._recentFires=state._recentFires.slice(-40);}
+    const ag=sources.find(s=>s.type==='agent');
+    return {answer,sources,agent:ag?ag.agent:null,comp};
+  }finally{
+    state._pensa=false;statoPensa();
+    if(state._brain3d)state._brain3d.setThink(false);
+  }
 }
 
 /* ---- ORB «Brain Motion» (spec artifact v2) ----
@@ -2177,6 +2281,43 @@ function humanScheda(testo,aggiornata){
 }
 /* ── Fase 10 · I widget di casa: i VUOTI parlano — dicono cosa ci finirà
    dentro e come farcelo arrivare, mai uno zero muto. ── */
+/* ── V5 · La colonnina di stato della home: tre spie AGGANCIATE a stati veri.
+   pensa = state._pensa, acceso da chatTurn (e brain3d riceve setThink: il
+   grafo «pensa» davvero mentre Divina risponde); lavora = dispatch della
+   regia negli ultimi 10 minuti (stessa fonte della Regia live); aggiorna =
+   last_ingest da /admin/brain. Senza dato la spia resta spenta e dice «—»:
+   mai una luce accesa per finta. */
+function statoPensa(){
+  const el=document.getElementById('stPensa');if(!el)return;
+  el.classList.toggle('on',!!state._pensa);
+  const v=document.getElementById('stPensaV');
+  if(v)v.textContent=state._pensa?'adesso':'in ascolto';
+}
+function statoAggiorna(lastIngest){
+  const el=document.getElementById('stAggiorna');if(!el)return;
+  const v=document.getElementById('stAggiornaV');
+  if(!lastIngest){el.classList.remove('on');if(v)v.textContent='—';return;}
+  const h=(Date.now()-new Date(lastIngest).getTime())/36e5;
+  el.classList.toggle('on',!isNaN(h)&&h<=24);      // fresco = entro un giorno
+  if(v){v.textContent=timeAgoIso(lastIngest);if(!isNaN(h)&&h>24)v.style.color='var(--orange)';}
+}
+async function statoLavora(){
+  const el=document.getElementById('stLavora');if(!el)return;
+  let dd=[];
+  try{const d=await api('orch','/agents/dispatches?limit=5');dd=(d&&d.dispatches)||[];}catch(_){}
+  if(!document.getElementById('stLavora'))return;  // vista cambiata nel frattempo
+  const adesso=Math.floor(Date.now()/1000);
+  const rec=dd.filter(e=>e.at&&(adesso-Number(e.at))<600);
+  el.classList.toggle('on',rec.length>0);
+  const v=document.getElementById('stLavoraV');
+  if(v)v.textContent=rec.length?`${rec[0].agent||'agente'} · ${timeAgoTs(rec[0].at)}`
+                    :dd.length?`ultimo ${timeAgoTs(dd[0].at)}`:'nessuno';
+}
+function statiHome(){
+  statoPensa();statoLavora();
+  if(state._homeTimer)clearInterval(state._homeTimer);
+  state._homeTimer=setInterval(()=>{statoPensa();statoLavora();},15000);
+}
 async function caricaHomeWidgets(){
   const box=document.getElementById('homeWidgets');if(!box)return;
   const [ft,disp,contra]=await Promise.all([
@@ -2353,12 +2494,16 @@ function renderImprove(){
 const QUADRO_SLUG='workspace-potenziamento-divina';
 /* M1+M2 (31-07 sera) · I numeri si vedono SENZA aprire niente: barra colorata
    per area col voto a destra e, SOTTO, la barra grigia di dov'era prima — il
-   progresso a colpo d'occhio. La media grande con la variazione. La CURVA è
-   una polilinea SVG: i punti vengono dalla tabella «Storico» della nota se
-   c'è; finché non c'è, dai due valori che la nota stessa dichiara (adesso +
-   «era X stamattina») — stessa fonte, zero numeri duplicati nel pannello.
-   Se la nota non risponde: l'ULTIMA LETTURA RIUSCITA con la data, mai un
-   errore nudo («punteggi del 31/07, la nota non risponde adesso» > «404»). */
+   progresso a colpo d'occhio. La media grande con la variazione.
+   V5 (01-08) · Con SEI aree la forma giusta è il RADAR ESAGONALE, non la
+   linea: la linea dice quanto sei migliorato in media, l'esagono dice DOVE
+   sei forte e dove no, tutto insieme. Due poligoni sovrapposti — oggi pieno,
+   prima tratteggiato — dicono anche di quanto ti sei mosso, area per area.
+   Stessi dati del parser (voto + «com'era prima»), solo resa SVG diversa.
+   La polilinea resta IN PICCOLO solo quando la tabella «Storico» della nota
+   ha una storia vera (≥3 punti): con due soli valori direbbe quello che il
+   tratteggio dice già. Se la nota non risponde: l'ULTIMA LETTURA RIUSCITA
+   con la data, mai un errore nudo. */
 function _quadroParse(text){
   const punte=[];let media=0,mediaPrima=0;const punti=[];
   let inStorico=false;
@@ -2377,6 +2522,40 @@ function _quadroParse(text){
   }
   return {punte,media,mediaPrima,punti};
 }
+function _quadroRadar(punte){
+  if(!punte||punte.length<3)return '';
+  const W=360,H=252,cx=W/2,cy=H/2+4,R=88;
+  const N=punte.length;
+  const ang=i=>-Math.PI/2+i*2*Math.PI/N;
+  const px=(i,v)=>(cx+Math.cos(ang(i))*R*v/10).toFixed(1);
+  const py=(i,v)=>(cy+Math.sin(ang(i))*R*v/10).toFixed(1);
+  const poly=vs=>vs.map((v,i)=>`${px(i,v)},${py(i,v)}`).join(' ');
+  const griglia=[2.5,5,7.5,10].map(r2=>`<polygon points="${poly(punte.map(()=>r2))}" fill="none" stroke="var(--border)" stroke-width="1"/>`).join('');
+  const raggi=punte.map((_,i)=>`<line x1="${cx}" y1="${cy}" x2="${px(i,10)}" y2="${py(i,10)}" stroke="var(--border)" stroke-width="1"/>`).join('');
+  const oggi=poly(punte.map(p=>p.voto));
+  const haPrima=punte.some(p=>p.prima!=null);
+  const prima=haPrima?poly(punte.map(p=>p.prima!=null?p.prima:p.voto)):'';
+  const etichette=punte.map((p,i)=>{
+    const c=Math.cos(ang(i)),s2=Math.sin(ang(i));
+    const lx=cx+c*(R+14),ly=cy+s2*(R+14)+(Math.abs(c)>0.92?0:s2>0?8:-3);
+    const anchor=Math.abs(c)<0.35?'middle':(c>0?'start':'end');
+    /* i nomi lunghi ai lati si spezzano su due righe: mai fuori dal bordo
+       (il dettaglio completo sta comunque nelle barre accanto) */
+    let righe=[p.area];
+    if(anchor!=='middle'&&p.area.length>13){
+      const sp=[...p.area].reduce((best,ch,j)=>ch===' '&&Math.abs(j-p.area.length/2)<Math.abs(best-p.area.length/2)?j:best,-1);
+      if(sp>0)righe=[p.area.slice(0,sp),p.area.slice(sp+1)];
+    }
+    const y0=righe.length>1?ly-5:ly;
+    return `<text x="${lx.toFixed(1)}" y="${y0.toFixed(1)}" text-anchor="${anchor}" font-size="10" fill="var(--text-2)">${righe.map((r3,j)=>`<tspan x="${lx.toFixed(1)}" dy="${j?11:0}">${esc(r3)}${j===righe.length-1?` · <tspan font-weight="700" fill="var(--text)">${p.voto}</tspan>`:''}</tspan>`).join('')}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:380px;height:auto;display:block;margin:0 auto" role="img" aria-label="le aree del potenziamento: oggi pieno, prima tratteggiato">
+    ${griglia}${raggi}
+    ${prima?`<polygon points="${prima}" fill="none" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4 3" opacity=".75"/>`:''}
+    <polygon points="${oggi}" fill="var(--cyan)" fill-opacity=".16" stroke="var(--cyan)" stroke-width="2" stroke-linejoin="round"/>
+    ${etichette}</svg>
+  ${haPrima?`<div class="row small muted" style="justify-content:center;gap:16px;margin-top:2px"><span><span style="display:inline-block;width:16px;height:2px;background:var(--cyan);vertical-align:middle;margin-right:4px"></span>oggi</span><span><span style="display:inline-block;width:16px;border-top:2px dashed var(--text-3);vertical-align:middle;margin-right:4px"></span>prima</span></div>`:''}`;
+}
 function _quadroCurva(punti){
   if(!punti||punti.length<2)return '';
   const W=560,H=64,PAD=6;
@@ -2392,19 +2571,22 @@ function _quadroCurva(punti){
 }
 function _quadroRender(el,q,fonte){
   const {punte,media,mediaPrima}=q;
-  let punti=q.punti&&q.punti.length>=2?q.punti:null;
-  if(!punti&&media&&mediaPrima)punti=[{q:'31/07 mattina',v:mediaPrima},{q:'adesso',v:media}];
+  const storico=q.punti&&q.punti.length>=3?q.punti:null;   // V5: solo storia VERA
   const barra=p=>{const col=p.voto>=7?'var(--cyan)':p.voto>=5?'var(--orange)':'var(--magenta)';
-    return `<div class="qbar" style="flex:1;min-width:190px"><div class="row" style="justify-content:space-between;margin-bottom:3px"><span class="small">${esc(p.area)}</span><b class="small">${p.voto}</b></div>
+    return `<div class="qbar" style="min-width:0"><div class="row" style="justify-content:space-between;margin-bottom:3px"><span class="small">${esc(p.area)}</span><b class="small">${p.voto}</b></div>
       <div style="height:5px;border-radius:99px;background:var(--surface-2);overflow:hidden"><div style="width:${Math.max(4,Math.min(100,p.voto*10))}%;height:100%;background:${col}"></div></div>
       ${p.prima!=null?`<div style="height:3px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:2px" title="dov'era prima: ${p.prima}"><div style="width:${Math.max(2,Math.min(100,p.prima*10))}%;height:100%;background:var(--text-3);opacity:.5"></div></div>`:''}
     </div>`;};
   const delta=media&&mediaPrima?(media>mediaPrima?`▲ da ${String(mediaPrima).replace('.',',')}`:media<mediaPrima?`▼ da ${String(mediaPrima).replace('.',',')}`:'='):'';
+  const radar=_quadroRadar(punte);
   el.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Schema di potenziamento</h3><p>${fonte}</p></div>
     <div style="text-align:right">${media?`<div style="font-size:26px;font-weight:900;line-height:1">${String(media).replace('.',',')}</div>${delta?`<div class="small" style="color:${media>=mediaPrima?'var(--cyan)':'var(--orange)'}">${delta}</div>`:''}`:''}
       <button class="btn sm ghost" id="quadroApri" style="margin-top:4px">Apri la nota</button></div></div>
-    ${punte.length?`<div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-end">${punte.map(barra).join('')}</div>`:`<div class="small muted">La tabella dei punteggi non si riconosce più: apri la nota per intero.</div>`}
-    ${_quadroCurva(punti)}</div>`;
+    ${punte.length?(radar
+      ?`<div class="row" style="gap:20px;flex-wrap:wrap;align-items:center"><div style="flex:1 1 300px;min-width:260px">${radar}</div><div style="flex:1 1 220px;min-width:200px;display:flex;flex-direction:column;gap:10px">${punte.map(barra).join('')}</div></div>`
+      :`<div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-end">${punte.map(p=>`<div style="flex:1;min-width:190px">${barra(p)}</div>`).join('')}</div>`)
+      :`<div class="small muted">La tabella dei punteggi non si riconosce più: apri la nota per intero.</div>`}
+    ${storico?_quadroCurva(storico):''}</div>`;
 }
 async function renderQuadro(){
   const el=document.getElementById('quadroBox');if(!el)return;
@@ -2518,11 +2700,15 @@ function renderAgentOut(r){
 /* Z1 (azioni fidate): la bozza del companion diventa una task 'azione' in-approvazione —
    nessun effetto esterno finché l'owner non la approva in Proposte audit. */
 async function queueAction(){
-  /* Fase 7 · Livello 3 («cancellare e agire fuori») SPENTO = default: le
-     azioni con effetto esterno non si accodano nemmeno. Acceso, si accodano
-     ma restano comunque ferme finché un umano non le approva (Z2). */
-  if(localStorage.getItem('dv_liv3')!=='1'){
-    toast('Il livello 3 (agire fuori) è spento: accendilo in Impostazioni per poter accodare azioni esterne. Anche da acceso, niente parte senza la tua approvazione.','bad');
+  /* Fase 7+V5 · Livello 3 («cancellare e agire fuori») SPENTO = default: le
+     azioni con effetto esterno non si accodano nemmeno. Il FRENO VERO sta
+     sul server (tenant_flags → 403 su POST /admin/tasks): questa lettura
+     serve solo a dirlo con gentilezza prima di provarci. Se la lettura
+     fallisce si procede e decide il server — mai un guardrail nel browser. */
+  let lv=null;
+  try{const r=await api('engine','/admin/liv3?tenant='+encodeURIComponent(state.tenant));lv=!!r.liv3;}catch(_){}
+  if(lv===false){
+    toast('Il livello 3 (agire fuori) è spento per questo tenant — sul server, non nel browser. Si accende in Impostazioni, col nome di chi decide. Anche da acceso, niente parte senza la tua approvazione.','bad');
     return;
   }
   const o=state._lastOut;if(!o||!o.output){toast('Nessun esito da accodare','bad');return;}
@@ -2584,6 +2770,7 @@ function route(view){
   }
   if(state._vox&&state._vox.open){console.info('[vox] chiusura richiesta da route('+view+')');voxClose();}
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
+  if(state._homeTimer){clearInterval(state._homeTimer);state._homeTimer=null;}   /* V5: le spie della home */
   if(state._brain3d){state._brain3d.destroy();state._brain3d=null;}   /* B1: mai animazioni accumulate */
   state._brainOn=false;
   /* il pannello chat vive FUORI da #content: il suo orb non si spegne mai qui */
