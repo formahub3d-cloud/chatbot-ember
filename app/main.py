@@ -748,8 +748,28 @@ def admin_tasks_claim(body: TaskClaimIn, authorization: str = Header(default="")
 def admin_tasks_transition(body: TaskTransitionIn, authorization: str = Header(default="")):
     """Muove una task nella macchina a stati (Z2): approvata/fatta/archiviata
     richiedono `by` (decide un umano — mai automatico); 'fallita' registra
-    l'errore. Transizioni fuori catalogo → 422. Bearer ADMIN_TOKEN."""
+    l'errore. Transizioni fuori catalogo → 422. Bearer ADMIN_TOKEN.
+
+    V5c (revisione 1/08 notte) · La PORTA DI SERVIZIO del livello 3: nascere
+    'aperta' e poi transitare a 'in-approvazione' aggirava il freno del POST
+    /admin/tasks — e il pannello promette che da spento «le azioni esterne
+    non si accodano nemmeno». Stesso guardrail QUI: kind azione/agente che
+    ENTRA in approvazione → serve liv3 acceso sul tenant. kind e scope sono
+    IMMUTABILI dopo la nascita (nessuna transizione li tocca), quindi
+    leggere-poi-decidere non ha corse. Le task audit/gap/manuale passano
+    (close_audit_* porta le 11 e 16 in-approvazione: kind='audit')."""
     _require_admin(authorization)
+    if body.to == "in-approvazione":
+        try:
+            t = braintasks.get(body.id)
+        except RuntimeError:
+            raise HTTPException(503, "Stato della task non leggibile: transizione "
+                                     "rifiutata — in dubbio, freno.")
+        if t and t.get("kind") in ("azione", "agente") and not flags.liv3(t.get("scope") or ""):
+            raise HTTPException(403, "Livello 3 spento per questo tenant: le azioni "
+                                     "esterne non si accodano — nemmeno passando "
+                                     "dalla transizione. Si accende in Impostazioni "
+                                     "(stato sul server, non nel browser).")
     ok = braintasks.transition(body.id, body.to, by=body.by, error=body.error,
                                note=body.note, priorita=body.priorita)
     if not ok:
