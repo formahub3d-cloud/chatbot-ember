@@ -62,3 +62,21 @@ def test_save_graph_fallback_e_endpoint(monkeypatch):
     body = client.get("/admin/brain/graph", headers=_h()).json()
     assert body["persist"] is False and body["links"] == [[0, 1]]
     assert [x["slug"] for x in body["nodes"]] == ["a", "b"]
+
+
+# ── V5b · Punto 9: il commit dell'ultima ingest, per l'allarme che confronta ──
+def test_ingest_commit_registrato_ed_esposto(monkeypatch):
+    monkeypatch.setattr(settings, "admin_token", "SEG")
+    # mai registrato (motore vecchio / tabella assente) → None, e il pannello
+    # torna al confronto sulle ore invece di fingere un allineamento
+    assert brain.ingest_commit() is None
+    b = client.get("/admin/brain", headers=_h()).json()
+    assert b["ingest_commit"] is None
+    # registrato → {vault_commit, at} in /admin/brain, pronto per il confronto
+    brain.set_ingest_commit("1f73289abc12")
+    b = client.get("/admin/brain", headers=_h()).json()
+    assert b["ingest_commit"]["vault_commit"] == "1f73289abc12"
+    assert b["ingest_commit"]["at"].endswith("Z")
+    # vuoto = no-op: un commit illeggibile non deve cancellare l'ultimo vero
+    brain.set_ingest_commit("")
+    assert brain.ingest_commit()["vault_commit"] == "1f73289abc12"

@@ -67,7 +67,8 @@ def assegna(get, post) -> list[dict]:
 
 
 def main() -> int:
-    import httpx
+    import json as _json
+    import urllib.request
     base = os.environ.get("EMBER_URL", "http://localhost:8000").rstrip("/")
     tok = os.environ.get("ADMIN_TOKEN", "")
     if not tok:
@@ -76,14 +77,17 @@ def main() -> int:
     h = {"Authorization": f"Bearer {tok}"}
 
     def get(path):
-        r = httpx.get(base + path, headers=h, timeout=30)
-        r.raise_for_status()
-        return r.json()
+        # urllib, non httpx (punto 8, 1/08): uno script di manutenzione deve
+        # girare col Python di sistema, senza costruire un ambiente virtuale.
+        req = urllib.request.Request(base + path, headers=h)
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return _json.loads(r.read().decode())
 
     def post(path, body):
-        r = httpx.post(base + path, json=body, headers=h, timeout=30)
-        r.raise_for_status()
-        return r.json()
+        req = urllib.request.Request(base + path, data=_json.dumps(body).encode(),
+                                     headers={**h, "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return _json.loads(r.read().decode())
 
     for e in assegna(get, post):
         print(f"  {e['key']} · {e['priorita']} · {e['esito']}")

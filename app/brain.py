@@ -34,6 +34,7 @@ _LINK_RE = re.compile(r"\[\[([^\]|#\n]+?)(?:[|#][^\]\n]*)?\]\]")
 
 _glock = Lock()
 _mem_graph: dict | None = None      # fallback quando Supabase è off (dev/test)
+_mem_ingest: dict | None = None     # idem, per il commit dell'ultima ingest
 
 
 def enabled() -> bool:
@@ -169,8 +170,60 @@ def graph() -> dict | None:
         return _mem_graph
 
 
+# ── V5b · Punto 9: il commit che l'ultima ingest ha DAVVERO letto ────────────
+# L'allarme «cervello fermo» (task 18) misurava le ORE dall'ultima ingest: 6h
+# con il vault avanti di un commit = tutto verde, e il buco non si vedeva.
+# La domanda utile è «il cervello ha letto l'ultima versione del vault?» —
+# e si risponde confrontando questo commit con vault_info(). Persistito su
+# ingest_meta (db/ingest_meta.sql), fallback in-memory, mai bloccante.
+
+def set_ingest_commit(sha: str) -> None:
+    """Registra il commit del vault appena indicizzato. Best-effort: mai
+    un'eccezione verso l'ingest."""
+    global _mem_ingest
+    sha = (sha or "").strip()
+    if not sha:
+        return
+    rec = {"vault_commit": sha,
+           "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    with _glock:
+        _mem_ingest = rec
+    if enabled():
+        try:
+            with tenants._conn() as c:
+                with c.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO ingest_meta (id, vault_commit, at) "
+                        "VALUES (1, %s, now()) "
+                        "ON CONFLICT (id) DO UPDATE SET "
+                        "vault_commit = EXCLUDED.vault_commit, at = now()", (sha,))
+                c.commit()
+        except Exception:  # pragma: no cover - best-effort
+            log.warning("brain: commit ingest non persistito (resta in-memory)", exc_info=True)
+
+
+def ingest_commit() -> dict | None:
+    """{vault_commit, at} dell'ultima ingest riuscita; None se mai registrato
+    (motore più vecchio del punto 9, o tabella non ancora applicata) — il
+    pannello in quel caso torna al confronto sulle ore, e lo dice."""
+    if enabled():
+        try:
+            with tenants._conn() as c:
+                with c.cursor() as cur:
+                    cur.execute("SELECT vault_commit, at FROM ingest_meta WHERE id = 1")
+                    row = cur.fetchone()
+            if row and row[0]:
+                return {"vault_commit": row[0],
+                        "at": row[1].isoformat() if hasattr(row[1], "isoformat") else str(row[1])}
+        except Exception:  # pragma: no cover
+            log.warning("brain: lettura commit ingest fallita (ignorata)", exc_info=True)
+    with _glock:
+        return _mem_ingest
+
+
 def reset() -> None:
     """Solo per i test."""
-    global _mem_graph
+    global _mem_graph, _mem_ingest
     with _glock:
         _mem_graph = None
+        _mem_ingest = None

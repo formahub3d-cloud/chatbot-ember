@@ -120,9 +120,14 @@ def test_risposta_ingest_contiene_commit_e_data(tmp_path, monkeypatch):
         "vault_commit": "feed12345678", "vault_commit_date": fresco})
     monkeypatch.setattr(ingest, "client", lambda: fake)
     monkeypatch.setattr(ingest, "embed", lambda texts: [[0.0] * 8 for _ in texts])
+    from app import brain
+    brain.reset()
     out = ingest.run()
     assert out["vault_commit"] == "feed12345678"
     assert out["vault_commit_date"] == fresco
+    # V5b · Punto 9: la ingest REGISTRA il commit che ha letto — è il numero
+    # che l'allarme del pannello confronta col vault (non le ore).
+    assert brain.ingest_commit()["vault_commit"] == "feed12345678"
 
 
 def test_vault_info_su_repo_vero(tmp_path):

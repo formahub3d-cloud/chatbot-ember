@@ -463,7 +463,7 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
       <button class="nav-item" data-view="system"><span class="ic" data-ic="gear" data-ics="15"></span> Stato &amp; audit</button>
     </div>
 
-    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 01-08d · v5</div>
+    <div class="side-foot">Divina · un prodotto FORMA<br>Il tuo mondo. La tua AI.<br><span id="foot-ver">motore — · orch —</span><br>console 01-08e · v5b</div>
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
@@ -665,7 +665,7 @@ function demoData(service, path, opts){
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.'}]},
       '/admin/proposals':{proposals:[{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
-      '/admin/brain':{persist:true,stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']}]},
+      '/admin/brain':{persist:true,vault:{vault_commit:'1f73289abc12',vault_commit_date:nowIso(840e3)},ingest_commit:{vault_commit:'1f73289abc12',at:nowIso(3600e3)},stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']}]},
       '/admin/tasks':{persist:true,tasks:[{id:'t0',kind:'azione',scope:'ats',title:'Invia 3 solleciti email ai clienti ATS in ritardo',note:'Preparati da Dante · invoice-chase — testi pronti, NESSUN invio senza il tuo ok',status:'in-approvazione',priorita:'alta',created_at:nowIso(600e3)},{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',priorita:'alta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',priorita:'media',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta negativa ricorrente',status:'aperta',priorita:'bassa',created_at:nowIso(50*3600e3)}]},
       '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
       '/admin/usage':{'ats':{count:412,cost_eur:2.06,alert:false},'forma-core':{count:198,cost_eur:0.99,alert:false},'andrea':{count:640,cost_eur:3.20,alert:true},'ovyon':{count:54,cost_eur:0.27,alert:false}},
@@ -1076,9 +1076,14 @@ const VIEWS={
     if(needSvc('engine'))return; C.innerHTML=skeleton(5);
     try{const d=await api('engine','/admin/brain');const s=d.stats||{},rec=d.recent||[];
       /* A0 · spia anti-stantio: commit del vault fotografato dal motore. Se la
-         fotografia è più vecchia di 48h la spia diventa arancione. */
+         fotografia è più vecchia di 48h la spia diventa arancione.
+         V5b · Punto 9: accanto, il commit che l'ultima ingest HA LETTO — i
+         due numeri affiancati, e il confronto fatto: diversi = arancione. */
       const v=d.vault||{},vAgeH=v.vault_commit_date?Math.round((Date.now()-new Date(v.vault_commit_date).getTime())/36e5):null;
-      const vaultMeta=v.vault_commit?`vault <span class="mono">${esc(v.vault_commit)}</span> · ${vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`:'sync metadati note';
+      const ic=(d.ingest_commit&&d.ingest_commit.vault_commit)||null;
+      const disallineato=!!(v.vault_commit&&ic&&v.vault_commit!==ic);
+      const cervMeta=ic?`cervello <span class="mono" ${disallineato?'style="color:var(--orange);font-weight:700"':''}>${esc(ic)}</span> · `:'';
+      const vaultMeta=v.vault_commit?`${cervMeta}vault <span class="mono">${esc(v.vault_commit)}</span> · ${disallineato?`<span style="color:var(--orange);font-weight:700">non letto — serve una ingest</span>`:vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`:'sync metadati note';
       const noteRow=n=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div><div class="small muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.path||'')}</div></div><div class="row" style="gap:8px;flex-shrink:0"><span class="scope-chip" style="background:${scopeColor(n.tenant)}22;color:${scopeColor(n.tenant)};border-color:${scopeColor(n.tenant)}44">${esc(n.tenant||'')}</span><span class="small muted" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</span></div></div>`;
       C.innerHTML=`
       <!-- R3 (scelta a): le ORBITE vivono qui, a tutta larghezza — la scelta
@@ -2831,19 +2836,33 @@ async function refreshBadges(){
     try{const c=await api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'}));$('#b-contra').textContent=(c.contradictions||[]).length;}catch(_){}
   }
   /* Task 18 · L'ALLARME del cervello fermo: è già successo — tredici giorni di
-     fotografia congelata coi workflow verdi. Oltre la soglia (24h) lo dice DA
-     SOLO, ovunque tu sia nella console, non a piè di pagina in grigio. */
+     fotografia congelata coi workflow verdi.
+     V5b · Punto 9: l'allarme misurava la cosa sbagliata. L'1/08 il vault era
+     avanti di UN COMMIT e tutto era verde, perché 6 ore sono meno di 24. La
+     domanda utile non è «da quanto non legge» ma «HA LETTO l'ultima versione
+     del vault?» — quindi PRIMA si confrontano i commit (vault vs ultima
+     ingest, /admin/brain li espone entrambi); le ore restano come riserva
+     quando i commit non si leggono (motore vecchio o tabella non applicata). */
   if(state.engOk){
     try{
       const d=await api('engine','/admin/brain');
       const li=d&&d.stats&&d.stats.last_ingest;
+      const vc=(d&&d.vault&&d.vault.vault_commit)||null;
+      const ic=(d&&d.ingest_commit&&d.ingest_commit.vault_commit)||null;
       const el=$('#brainAlert');
       if(el){
-        const h=li?(Date.now()-new Date(li).getTime())/36e5:null;
-        if(h!=null&&isFinite(h)&&h>24){
+        if(vc&&ic&&vc!==ic){
           el.hidden=false;
-          el.innerHTML=`${icon('alert',13)} Il cervello non si aggiorna da <b>${h>48?Math.round(h/24)+' giorni':Math.round(h)+' ore'}</b> — le risposte invecchiano con lui. Lancia una ingest.`;
-        }else el.hidden=true;
+          el.innerHTML=`${icon('alert',13)} Il vault è avanti (<span class="mono">${esc(vc)}</span>): il cervello è fermo a <span class="mono">${esc(ic)}</span> — non ha letto l'ultimo aggiornamento. Lancia una ingest.`;
+        }else if(vc&&ic){
+          el.hidden=true;                       // commit uguali = cervello allineato
+        }else{
+          const h=li?(Date.now()-new Date(li).getTime())/36e5:null;
+          if(h!=null&&isFinite(h)&&h>24){
+            el.hidden=false;
+            el.innerHTML=`${icon('alert',13)} Il cervello non si aggiorna da <b>${h>48?Math.round(h/24)+' giorni':Math.round(h)+' ore'}</b> — le risposte invecchiano con lui. Lancia una ingest.`;
+          }else el.hidden=true;
+        }
       }
     }catch(_){}
   }

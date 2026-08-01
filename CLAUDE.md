@@ -19,7 +19,10 @@ cliente è un *tenant* con una chiave che limita le aree del cervello che legge.
 
 > **Identificatori-contratto col vecchio nome — NON rinominarli** (li leggono
 > clienti, database, segreti o il calcolo dei permessi): DB Mongo `MONGO_DB=ember`,
-> prefisso chiavi tenant `ember_…`/`ovy_…` (già nei siti dei clienti), logger
+> prefisso chiavi tenant `ember_…`/`ovy_…` (formato storico del generatore — **NESSUNA
+> chiave è installata presso clienti**: verificato con Andrea l'1/08, erano emesse in
+> previsione di vendite non avvenute; regola: una chiave esiste solo se qualcuno la sta
+> usando — reset con `scripts/reset_chiavi.py`, la FORMA si riemette PRIMA), logger
 > `ember`, segreti/variabili `EMBER_URL`/`EMBER_ADMIN_TOKEN` (CI + Railway, si
 > cambiano solo in coppia), nomi tool MCP `ovy_*`, cartella `ovyon/` del vault
 > (= scope: rinominarla fa SPARIRE le note ai tenant), schema/GUC SQL `ovyon.*`,
@@ -62,7 +65,7 @@ cervello · non verificato»; i tenant clienti restano vincolati al vault.
 - `app/main.py` — API: `/health` `/ingest` `/chat` (SSE; `focus`; free per owner) `/upload` `/voice/*`; MCP: `/search` `/document` `/context` `/writeback` (con `origin=conversazione` → marcatura server-side «NON verificato»); admin: `/admin/status` (spie voce), `/admin/brain*`, `/admin/tasks` (brain_tasks, kind incl. `audit`), `/admin/roadmap`, `/admin/proposals`, `/admin/clients*`, `/admin/learning`; `/client/*` (accessi cliente via `app/clientauth.py`)
 - `app/tenants.py` `app/rls.py` `app/docstore.py` `app/brain.py` `app/braintasks.py` `app/proposals.py` — chiavi/RLS/metadati/grafo/coda/proposte
 - `db/` — DDL Supabase: `schema.sql`, `brain_tasks*.sql`, `brain_graph.sql`, `client_access.sql` (i nomi SQL interni, es. schema `ovyon`, sono contratti e restano)
-- `scripts/` — `test_console_headless.js` (**il guardiano**: in CI a ogni push), `test_voce_sentenze.js` (17 casi chunker), `test_voce_vad.js` (7 casi barge-in), `contract_console.py` (console↔API, 0 endpoint fantasma), `count_notes.py` (parità perimetro col vault), `verify_ingest.py`, `seed_audit_2026_07_31*.py` (21 task audit come dati, idempotenti) · `close_audit_2026_07_31.py` (chiusure per idempotency_key, con nota di chiusura)
+- `scripts/` — `test_console_headless.js` (**il guardiano**: in CI a ogni push), `test_voce_sentenze.js` (17 casi chunker), `test_voce_vad.js` (7 casi barge-in), `contract_console.py` (console↔API, 0 endpoint fantasma), `count_notes.py` (parità perimetro col vault), `verify_ingest.py`, `seed_audit_2026_07_31*.py` (21 task audit come dati, idempotenti) · `close_audit_2026_07_31.py`/`close_audit_2026_08_01.py` (chiusure per idempotency_key, con nota) · `reset_chiavi.py` (reset chiavi: FORMA prima, poi revoca con freno) · `seed_task_allarme_commit.py` (punto 9). **Gli script di manutenzione usano `urllib`, MAI httpx**: girano col Python di sistema, senza venv (regola 1/08)
 - `mcp-connector/` — server MCP (5 tool `ovy_*`) · `SETUP-PRODUZIONE.md` — runbook produzione
 
 ## Comandi
