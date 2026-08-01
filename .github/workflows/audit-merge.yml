@@ -1,0 +1,57 @@
+# V7/C · Il merge aggiorna l'audit — ma NON chiude niente.
+#
+# Una PR mergiata sposta le task che NOMINA in «da verificare» e lo segnala nel
+# pannello. Diventano «fatta» solo dopo che una persona le ha guardate, col suo
+# nome: la stessa logica di CONFERMA_VISTA, che l'1/08 ha già dimostrato di
+# servire (la 07 andava chiusa, la 18 ha fatto emergere che l'allarme misurava
+# la cosa sbagliata).
+#
+# Se il merge chiudesse da solo, il pannello direbbe «fatto» su cose che nessuno
+# ha aperto — ed è esattamente il modo in cui erano nate le tre affermazioni
+# sbagliate corrette l'1/08.
+#
+# Nessun segreto nuovo: usa EMBER_URL ed EMBER_ADMIN_TOKEN, che la CI ha già.
+# Se mancano, il job si ferma con un messaggio e NON fallisce la pipeline:
+# un'automazione di contorno non deve tingere di rosso un merge sano.
+
+name: audit-merge
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  da-verificare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # servono i messaggi di TUTTI i commit del merge
+
+      # Il messaggio del commit di MERGE contiene solo «Merge pull request #NN»
+      # + il titolo della PR: le chiavi citate nel corpo della PR o nei singoli
+      # commit non ci sarebbero. Si leggono quindi tutti i messaggi entrati con
+      # questo push — che è dove le chiavi si scrivono davvero.
+      - name: Raccogli i messaggi dei commit entrati
+        id: msg
+        env:
+          PRIMA: ${{ github.event.before }}
+        run: |
+          {
+            echo 'testo<<FINE_MSG'
+            if git cat-file -e "$PRIMA^{commit}" 2>/dev/null; then
+              git log --format=%B "$PRIMA..${{ github.sha }}"
+            else
+              git log -1 --format=%B "${{ github.sha }}"
+            fi
+            echo FINE_MSG
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Le task citate passano a «da verificare»
+        env:
+          EMBER_URL: ${{ secrets.EMBER_URL }}
+          ADMIN_TOKEN: ${{ secrets.EMBER_ADMIN_TOKEN }}
+          MSG: ${{ steps.msg.outputs.testo }}
+          SHA: ${{ github.sha }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: python3 scripts/audit_da_merge.py

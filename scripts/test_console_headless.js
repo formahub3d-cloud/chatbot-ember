@@ -124,6 +124,10 @@ function trovaChromium() {
     estetica: /Estetica e resa visiva/.test((document.getElementById("quadroBox") || { textContent: "" }).textContent),
     // M3: colonne affiancate e la priorità che si vede in DA FARE
     colonne: !!document.querySelector(".imp-cols"),
+    // V7/C · «DA VERIFICARE» è la colonna del merge, e da lì non si esce senza
+    //   un nome: il bottone c'è, e il merge NON ha chiuso niente da solo.
+    daVerificare: /DA VERIFICARE/.test((document.getElementById("content")||{textContent:""}).textContent),
+    confermaUmana: !!document.querySelector("[data-vfok]") && !!document.querySelector("[data-vfno]"),
     prioVisibile: /ALTA/.test((document.getElementById("imp-dafare") || { textContent: "" }).textContent),
   }));
   await page.evaluate(() => route("chat"));
@@ -319,6 +323,19 @@ function trovaChromium() {
              allarme: !!(a && !a.hidden) };
   });
 
+  // V7/B1 · Diagnostica → Sistema: le migrazioni mancanti si vedono, e ognuna
+  //   dice cosa smette di funzionare. In demo ce n'è UNA (il caso vero di
+  //   stanotte: tenant_flags.libera), così si prova la resa del problema.
+  await page.evaluate(() => route("system"));
+  await page.waitForTimeout(500);
+  const diag = await page.evaluate(() => {
+    const t = (document.getElementById("content") || { textContent: "" }).textContent;
+    return { migrazioni: /migrazion[ei] da applicare/i.test(t),
+             cosaRompe: /conoscenza generale non si può concedere/i.test(t),
+             ddl: /tenant_flags_libera\.sql/.test(t),
+             parita: /La console è la stessa nei due servizi/.test(t) };
+  });
+
   await b.close();
 
   let ko = 0;
@@ -334,6 +351,7 @@ function trovaChromium() {
   if (quadro.punte !== 7 || !quadro.estetica) { console.error("FAIL (V6-3): il quadro non ha la settima area «Estetica e resa visiva» (punte=" + quadro.punte + ", area=" + quadro.estetica + ")"); ko = 1; }
   else console.log("[quadro] ettagono: " + quadro.punte + " aree");
   if (!quadro.colonne) { console.error("FAIL (M3): le colonne IN CORSO · DA FARE · FATTE non sono affiancate (.imp-cols assente)"); ko = 1; }
+  if (!quadro.daVerificare || !quadro.confermaUmana) { console.error("FAIL (V7-C): manca la colonna «DA VERIFICARE» o la conferma umana che la chiude " + JSON.stringify({c: quadro.daVerificare, b: quadro.confermaUmana})); ko = 1; }
   if (!quadro.prioVisibile) { console.error("FAIL (M3): la priorità ALTA non si vede nella colonna DA FARE"); ko = 1; }
   if (!convV6.offerta || !convV6.bottone) { console.error("FAIL (V6-B1): la risposta che ammette il buco non porta l'offerta di colmarlo " + JSON.stringify(convV6)); ko = 1; }
   if (!convV6.cita || !convV6.nonSalvate) { console.error("FAIL (V6-B3): le «cose imparate» non mostrano la citazione o non dichiarano di NON essere salvate " + JSON.stringify(convV6)); ko = 1; }
@@ -354,6 +372,8 @@ function trovaChromium() {
   if (initDopoRipetuta !== initVox || orbRipetuti < 1) { console.error("FAIL (V2-A): l'init ripetuto sulla stessa canvas non è stato ignorato (init=" + initDopoRipetuta + ", warning=" + orbRipetuti + ")"); ko = 1; }
   if (!nHome || !nBrain || nHome !== nBrain) { console.error("FAIL (F2): home dice «" + nHome + "» neuroni, Cervello vivo «" + nBrain + "» — la sorgente non è unica"); ko = 1; }
   else console.log("[numero unico] home=" + nHome + " · cervello=" + nBrain);
+  if (!diag.migrazioni || !diag.cosaRompe || !diag.ddl) { console.error("FAIL (V7-B1): Diagnostica non dichiara le migrazioni mancanti (o non dice cosa rompono) " + JSON.stringify(diag)); ko = 1; }
+  if (!diag.parita) { console.error("FAIL (V7-B3): Diagnostica non confronta le due console"); ko = 1; }
   if (!vox.aperto) { console.error("FAIL: il modo vocale non si è aperto"); ko = 1; }
   else if (vox.canvas && vox.px <= 200 && !vox.css) {
     console.error(`FAIL: l'orb NON disegna (canvas ${vox.w}x${vox.h}, cssW=${vox.cssW}, px=${vox.px})`); ko = 1;

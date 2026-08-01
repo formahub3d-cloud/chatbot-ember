@@ -35,14 +35,21 @@ PRIORITA = ("alta", "media", "bassa")
 # in-esecuzione(executing) → fatta(done) | fallita(failed) | archiviata(archived).
 # Le azioni con effetto esterno nascono 'in-approvazione' e NON partono mai
 # senza l'ok dell'owner (approved_by). Mai DELETE: si archivia.
-OPEN_STATUSES = ("aperta", "in-approvazione", "approvata", "in-esecuzione")
+# V7/C · «da-verificare» è lo stato del merge: il lavoro c'è, ma nessuno l'ha
+# ancora guardato. È l'unico stato che una macchina può assegnare da sola, e da
+# lì non si esce senza una persona che ci metta il nome.
+OPEN_STATUSES = ("aperta", "in-approvazione", "approvata", "in-esecuzione", "da-verificare")
 TRANSITIONS = {
-    "aperta":          {"fatta", "archiviata", "in-approvazione"},
+    "aperta":          {"fatta", "archiviata", "in-approvazione", "da-verificare"},
     "in-approvazione": {"approvata", "archiviata"},
     "approvata":       {"in-esecuzione", "archiviata"},
-    "in-esecuzione":   {"fatta", "fallita"},
+    "in-esecuzione":   {"fatta", "fallita", "da-verificare"},
+    "da-verificare":   {"fatta", "archiviata", "aperta"},   # «l'ho guardata»: sì, no, torna indietro
 }
 _NEEDS_BY = {"approvata", "fatta", "archiviata"}   # decisioni umane: nome obbligatorio
+# «da-verificare» NON è in _NEEDS_BY di proposito: è l'unica transizione che il
+# merge può fare senza una firma, perché non afferma che sia fatta — afferma
+# soltanto che qualcuno dovrebbe guardarla.
 
 _lock = Lock()
 _mem: list[dict] = []       # fallback quando Supabase è off — si azzera al redeploy
@@ -171,6 +178,56 @@ def get(task_id: str) -> dict | None:
     return None
 
 
+def annota(task_id: str, note: str) -> bool:
+    """Aggiunge una nota a una task SENZA muoverla di stato.
+
+    Simmetrica a `set_priorita`: ci sono cose che si scrivono su una task senza
+    che sia successo niente allo stato — «questa è il doppione di quell'altra»,
+    «misurato oggi: 55 ms». Prima l'unico modo era una transizione, e una
+    transizione finta sporca la storia della task."""
+    note = _clean(note, 400)
+    if not (task_id or "").strip() or not note:
+        return False
+    if enabled():
+        return _solo_nota(task_id, note)
+    with _lock:
+        for t in _mem:
+            if t["id"] == task_id:
+                t["note"] = ((t.get("note") or "") + ("\n" if t.get("note") else "") + note)[:800]
+                return True
+    return False
+
+
+def by_idempotency_key(chiave: str) -> dict | None:
+    """La task con quella `idempotency_key` (V7/C: il merge cita le CHIAVI, non
+    gli id — gli id cambiano fra ambienti, le chiavi no). None se assente.
+
+    Non crea niente: se la chiave non esiste, non esiste — una PR può nominare
+    una task di un altro repo, e inventarla sarebbe peggio che ignorarla."""
+    chiave = (chiave or "").strip()
+    if not chiave:
+        return None
+    if enabled():
+        try:
+            with tenants._conn() as c:
+                with c.cursor() as cur:
+                    cur.execute("SELECT task_id::text, kind, scope, status, title "
+                                "FROM brain_tasks WHERE idempotency_key = %s", (chiave,))
+                    row = cur.fetchone()
+        except Exception as e:
+            raise RuntimeError("brain_tasks: lettura per chiave fallita") from e
+        if not row:
+            return None
+        return {"id": row[0], "kind": row[1], "scope": row[2],
+                "status": row[3], "title": row[4]}
+    with _lock:
+        for t in _mem:
+            if t.get("idempotency_key") == chiave:
+                return {"id": t["id"], "kind": t.get("kind"), "scope": t.get("scope"),
+                        "status": t.get("status"), "title": t.get("title")}
+    return None
+
+
 def set_priorita(task_id: str, priorita: str) -> bool:
     """Assegna la priorità a una task esistente, SENZA muoverla di stato:
     la priorità è un giudizio, non una transizione. False se valore o task
@@ -239,7 +296,19 @@ def transition(task_id: str, to: str, by: str = "", error: str = "",
                     n = cur.rowcount
                 c.commit()
             return bool(n and n > 0)
-        except Exception:  # pragma: no cover
+        except Exception as e:  # pragma: no cover - DB giù, o CHECK non aggiornato
+            # V7/C + regola 1 del giro · «da-verificare» ha bisogno di una
+            # migrazione (il CHECK su status). Se non è applicata, il database
+            # rifiuta il valore: NON si perde il segnale del merge — la task
+            # resta dov'è e si annota che andrebbe verificata, dicendo anche
+            # perché lo stato non si è mosso. Il degrado si dichiara, non si
+            # subisce (e /admin/status elenca la migrazione mancante).
+            if to == "da-verificare" and _check_rifiutato(e):
+                log.warning("brain_tasks: stato «da-verificare» rifiutato dal CHECK — "
+                            "applica db/brain_tasks_da_verificare.sql. Resto sulla nota.")
+                ripiego = ((note + " ") if note else "") + \
+                    "[da verificare — stato non applicato: manca db/brain_tasks_da_verificare.sql]"
+                return _solo_nota(task_id, ripiego)
             log.warning("brain_tasks: transizione fallita (ignorata)", exc_info=True)
             return False
     with _lock:
@@ -260,6 +329,33 @@ def transition(task_id: str, to: str, by: str = "", error: str = "",
                     t["priorita"] = priorita
                 return True
     return False
+
+
+def _check_rifiutato(e: Exception) -> bool:
+    """L'errore è «il CHECK non ammette questo valore» (e non un DB giù)?"""
+    t = f"{type(e).__name__} {e}".lower()
+    return "check" in t and ("constraint" in t or "violat" in t)
+
+
+def _solo_nota(task_id: str, note: str) -> bool:
+    """Attacca una nota senza toccare lo stato. Il ripiego di `transition` quando
+    la migrazione dello stato non c'è: meglio una task aperta che dice «guardami»
+    che un segnale di merge perso del tutto."""
+    if not note:
+        return False
+    try:
+        with tenants._conn() as c:
+            with c.cursor() as cur:
+                cur.execute(
+                    "UPDATE brain_tasks SET note = left(coalesce(note,'') || CASE WHEN "
+                    "coalesce(note,'')='' THEN '' ELSE E'\n' END || %s, 800) "
+                    "WHERE task_id=%s::uuid", (note, task_id))
+                n = cur.rowcount
+            c.commit()
+        return bool(n and n > 0)
+    except Exception:  # pragma: no cover
+        log.warning("brain_tasks: nemmeno la nota di ripiego è passata", exc_info=True)
+        return False
 
 
 def claim_next(worker: str = "", kind: str = "") -> dict | None:

@@ -18,7 +18,7 @@ from .config import settings
 from .providers import embed, chat, chat_stream
 from .ingest import client
 from .security import sanitize_context, redact_pii
-from . import events, metrics, websearch
+from . import events, filo, metrics, websearch
 
 log = logging.getLogger("ember.rag")
 
@@ -331,20 +331,30 @@ def build_filter(grants, focus_slugs=None):
 
 
 def _hist_block(history) -> str:
-    """Ultimi turni della conversazione (max 6) come contesto per i follow-up.
-    Non è memoria persistente: la history arriva dal client a ogni richiesta."""
-    if not history:
+    """I turni precedenti come contesto per i follow-up.
+
+    V7/A1 · La finestra non è più «gli ultimi 6 turni» ma un budget in caratteri
+    (vedi `filo.finestra`): sei turni sono tanti per iscritto e pochissimi a voce,
+    dove si parla per frasi corte. Accetta sia la history grezza del client sia i
+    turni già normalizzati da `filo.risolvi`."""
+    turni = filo.normalizza(history)
+    if not turni:
         return ""
-    turns = []
-    for h in list(history)[-6:]:
-        if not isinstance(h, dict):
-            continue
-        who = "Utente" if h.get("role") == "user" else "Divina"
-        txt = (h.get("content") or "").strip()[:500]
-        if txt:
-            turns.append(f"{who}: {txt}")
+    righe = [f"{'Utente' if t['role'] == 'user' else 'Divina'}: {t['content']}"
+             for t in turni]
     return ("CONVERSAZIONE PRECEDENTE (per capire i riferimenti tipo 'e quello?'):\n"
-            + "\n".join(turns) + "\n\n") if turns else ""
+            + "\n".join(righe) + "\n\n")
+
+
+def _filo_meta(turni: list, question: str, q_ric: str) -> dict:
+    """V7/A1 · Quanto filo c'era, e se è servito a cercare meglio.
+
+    Torna nella risposta perché la console possa DIRLO: «sto rispondendo senza
+    contesto» è un'informazione, e un filo perso in silenzio era metà del
+    problema. `espansa` dice che la domanda era di seguito e il retrieval ha
+    usato anche i turni prima — utile per capire una risposta strana senza
+    aprire i log."""
+    return {"turni": len(turni), "espansa": q_ric != question}
 
 
 def _gap_payload(question: str, lang: str) -> dict:
@@ -401,9 +411,16 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
         metrics.bump_chat(scopes)
         events.record("chat", scopes)
         return {"answer": sq, "sources": [], "scopes": scopes, "system": True}
-    hits = _retrieve(question, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
+    # V7/A1 · Il filo. La domanda di seguito («e per quell'altro cliente?») si
+    # espande cogli ultimi turni UTENTE prima di cercare: da sola non somiglia a
+    # niente nel vault. Il testo espanso serve SOLO al retrieval — nel prompt e
+    # nella risposta resta la domanda vera. E NON tocca i grant: lo scope si
+    # ricalcola sempre dai permessi, mai da cosa si è detto prima.
+    turni = filo.normalizza(history)
+    q_ric = filo.query_retrieval(question, turni)
+    hits = _retrieve(q_ric, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
     scopes = scopes_of(grants)
-    web_results = _maybe_web(question, hits, web, web_enabled)
+    web_results = _maybe_web(q_ric, hits, web, web_enabled)
     gap = None
     if not hits and not web_results:
         _log_gap(question, grants)
@@ -414,13 +431,14 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
         # il widget ci attaccano il bottone, invece di lasciarla in un menu altrove.
         gap = _gap_payload(question, lang)
         if not free:
-            return {"answer": no_answer(lang), "sources": [], "scopes": scopes, "gap": gap}
+            return {"answer": no_answer(lang), "sources": [], "scopes": scopes, "gap": gap,
+                    "filo": _filo_meta(turni, question, q_ric)}
         # O4 (owner o tenant con `libera`): il muro diventa un inizio — si risponde
         # con conoscenza generale, TUTTA dentro i marcatori di provenienza, e
         # l'offerta di colmare il buco resta attaccata comunque.
 
     context = _build_context(hits)
-    user = (f"{_hist_block(history)}CONTENUTO:\n{context}\n\n"
+    user = (f"{_hist_block(turni)}CONTENUTO:\n{context}\n\n"
             f"{_build_web_context(web_results)}DOMANDA: {question}")
     out = _clean_answer(chat(_system(lang, tier, web=bool(web_results), free=free), user))
     sources = _merge_sources(hits, web_results)
@@ -431,6 +449,7 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
         res["free"] = True                  # la console mostra la legenda di provenienza
     if gap:
         res["gap"] = gap                    # B1: l'offerta resta attaccata alla risposta
+    res["filo"] = _filo_meta(turni, question, q_ric)
     return res
 
 
@@ -529,8 +548,10 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
         yield sse(None, {"delta": sq})
         yield sse("done", {})
         return
-    hits = _retrieve(question, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
-    web_results = _maybe_web(question, hits, web, web_enabled)
+    turni = filo.normalizza(history)
+    q_ric = filo.query_retrieval(question, turni)          # V7/A1 · vedi answer()
+    hits = _retrieve(q_ric, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
+    web_results = _maybe_web(q_ric, hits, web, web_enabled)
     gap = None
     if not hits and not web_results:
         _log_gap(question, grants)
@@ -539,7 +560,8 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
         events.record("gap", scopes, q_red)
         gap = _gap_payload(question, lang)          # B1: l'offerta viaggia con la risposta
         if not free:
-            yield sse("sources", {"sources": [], "scopes": scopes, "gap": gap})
+            yield sse("sources", {"sources": [], "scopes": scopes, "gap": gap,
+                                  "filo": _filo_meta(turni, question, q_ric)})
             yield sse(None, {"delta": no_answer(lang)})
             yield sse("done", {})
             return
@@ -548,11 +570,12 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
     metrics.bump_chat(scopes)
     events.record("chat", scopes)
     yield sse("sources", {"sources": sources, "scopes": scopes,
+                          "filo": _filo_meta(turni, question, q_ric),
                           **({"free": True} if free else {}),
                           **({"gap": gap} if gap else {})})
 
     context = _build_context(hits)
-    user = (f"{_hist_block(history)}CONTENUTO:\n{context}\n\n"
+    user = (f"{_hist_block(turni)}CONTENUTO:\n{context}\n\n"
             f"{_build_web_context(web_results)}DOMANDA: {question}")
     try:
         for delta in chat_stream(_system(lang, tier, web=bool(web_results), free=free), user):
