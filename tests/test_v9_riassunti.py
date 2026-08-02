@@ -232,3 +232,29 @@ def test_chiudere_vuole_una_chiave_valida(client, monkeypatch):
     monkeypatch.setattr(main.tenants, "get_tenant_by_key", lambda k: None)
     assert client.post("/chat/chiudi", json={"conversazione": "c1"},
                        headers={"X-Tenant-Key": "sbagliata"}).status_code == 401
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Il seed del giro (blocco E)
+# ══════════════════════════════════════════════════════════════════════════
+def test_le_sette_task_del_giro_esistono_con_chiave_e_priorita(client, monkeypatch):
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    from app import braintasks
+    monkeypatch.setattr(braintasks, "_mem", [])
+    spec = importlib.util.spec_from_file_location(
+        "seed_v9", Path(__file__).resolve().parents[1] / "scripts" / "seed_task_v9_2026_08_02.py")
+    m = importlib.util.module_from_spec(spec)
+    sys.modules["seed_v9"] = m
+    spec.loader.exec_module(m)
+
+    esiti = m.seed(lambda p, b: client.post(p, headers=AUTH, json=b).json())
+    assert [e["key"] for e in esiti] == [f"audit-2026-08-02-{n}" for n in range(44, 51)]
+    per_chiave = {t["idempotency_key"]: t for t in braintasks._mem}
+    assert per_chiave["audit-2026-08-02-45"]["priorita"] == "alta"
+    assert per_chiave["audit-2026-08-02-50"]["priorita"] == "bassa"
+    assert all(t["status"] == "aperta" for t in braintasks._mem)
+    m.seed(lambda p, b: client.post(p, headers=AUTH, json=b).json())
+    assert len(braintasks._mem) == 7            # idempotente
