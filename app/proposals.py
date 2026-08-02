@@ -30,6 +30,11 @@ _handled: set[str] = set()      # id già approvati o ignorati (in-memory)
 # perché una proposta persa è meglio di una nota scritta da sola.
 _imparato: list[dict] = []
 _MAX_IMPARATO = 60              # tetto: la coda è un posto dove si decide, non un archivio
+# V9/B · Le voci ricavate dal SITO di un cliente. Stessa specie delle «cose
+# imparate» — non derivate da un segnale ricalcolabile, quindi si tengono in coda
+# finché qualcuno decide — e stesso tetto, per lo stesso motivo.
+_sito: list[dict] = []
+_MAX_SITO = 80
 
 
 def _pid(source: str, scope: str, title: str) -> str:
@@ -98,36 +103,87 @@ def add_learned(items, conversazione: str = "") -> list[dict]:
     return fuori
 
 
+def add_sito(items, url: str = "") -> list[dict]:
+    """V9/B · Mette in coda le voci ricavate dal sito di un cliente.
+
+    NON scrive nel vault: mettere in coda non è salvare, è chiedere. Ogni voce
+    porta l'URL della pagina e la frase esatta da cui viene (le impone
+    `sitokb.filtra`): qui si conservano perché arrivino fino alla schermata dove
+    si decide. Una scheda cliente senza provenienza è peggio di una vuota,
+    perché sembra verificata."""
+    fuori: list[dict] = []
+    with _lock:
+        handled = set(_handled)
+        gia = {p["id"] for p in _sito}
+        for it in items or []:
+            titolo = str(it.get("titolo") or "").strip()
+            scope = str(it.get("scope") or "").strip()
+            if not titolo or not scope:
+                continue
+            pid = _pid("sito", scope, titolo)
+            if pid in handled or pid in gia:
+                continue
+            p = {"id": pid, "source": "sito", "scope": scope,
+                 "title": f"Dal sito di {scope}: «{titolo}»",
+                 "detail": str(it.get("contenuto") or "").strip(),
+                 "citazione": str(it.get("citazione") or "").strip(),
+                 "url": str(it.get("url") or url or "").strip(),
+                 "sezione": str(it.get("sezione") or "").strip(),
+                 "nota_titolo": titolo, "count": 1, "last_at": 0}
+            _sito.append(p)
+            gia.add(pid)
+            fuori.append(p)
+        if len(_sito) > _MAX_SITO:
+            del _sito[:-_MAX_SITO]
+    return fuori
+
+
 def generate() -> list[dict]:
     """Le proposte ancora da valutare (già approvate/ignorate escluse)."""
     with _lock:
         handled = set(_handled)
         imparato = [p for p in _imparato if p["id"] not in handled]
+        sito = [p for p in _sito if p["id"] not in handled]
     props = []
     for c in _candidates():
         pid = _pid(c["source"], c["scope"], c["title"])
         if pid not in handled:
             props.append({"id": pid, **c})
     # le cose imparate in cima: sono l'unica specie che scade con la conversazione
-    return imparato + props
+    return imparato + sito + props
 
 
 def _write_note(p: dict) -> dict | None:
     """B3 · Approvare una «cosa imparata» = scrivere la nota nel vault, MARCATA
     come nata da conversazione (lo marca il server, come in /writeback) e con la
     citazione della sua fonte dentro il corpo. È la conferma umana della regola
-    #4: prima non esisteva niente, adesso esiste perché qualcuno ha detto sì."""
+    #4: prima non esisteva niente, adesso esiste perché qualcuno ha detto sì.
+
+    V9/B · Vale identico per le voci nate dal SITO di un cliente: cambia la riga
+    di origine (che nomina l'URL) e cambiano i tag. La marcatura «NON verificato»
+    NON cambia — anzi qui pesa di più: quel testo l'ha scritto il cliente per i
+    suoi visitatori, non per noi, e finché non lo conferma resta una lettura."""
     from datetime import datetime, timezone
     from . import writeback
     oggi = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     titolo = p.get("nota_titolo") or p["title"]
-    corpo = (f"> Origine: conversazione con Divina · {oggi} · NON verificato\n\n"
-             + (p.get("detail") or "").strip()
-             + (f"\n\n## Da dove viene\n\n> {p['citazione']}\n" if p.get("citazione") else ""))
+    da_sito = p.get("source") == "sito"
+    origine = (f"> Origine: sito del cliente · {p.get('url', '')} · {oggi} · NON verificato"
+               if da_sito else
+               f"> Origine: conversazione con Divina · {oggi} · NON verificato")
+    fonte = ""
+    if p.get("citazione"):
+        fonte = "\n\n## Da dove viene\n\n> " + p["citazione"] + "\n"
+        if da_sito and p.get("url"):
+            fonte += f"\n<{p['url']}>\n"
+    corpo = origine + "\n\n" + (p.get("detail") or "").strip() + fonte
     try:
-        res = writeback.save_note(p.get("scope") or "", titolo, corpo,
-                                  summary="Imparato da una conversazione, da verificare",
-                                  tags=["conversazione", "da-verificare"])
+        res = writeback.save_note(
+            p.get("scope") or "", titolo, corpo,
+            summary=("Ricavato dal sito del cliente, da verificare con lui" if da_sito
+                     else "Imparato da una conversazione, da verificare"),
+            tags=(["sito-cliente", "da-verificare"] if da_sito
+                  else ["conversazione", "da-verificare"]))
     except Exception:  # pragma: no cover - disco/vault non disponibile
         log.warning("proposals: scrittura nota imparata fallita", exc_info=True)
         return None
@@ -142,13 +198,13 @@ def approve(pid: str) -> dict | None:
     for p in generate():
         if p["id"] != pid:
             continue
-        if p["source"] == "conversazione":
+        if p["source"] in ("conversazione", "sito"):
             res = _write_note(p)
             if res is None:
                 return None
             with _lock:
                 _handled.add(pid)
-            return {"nota": res, "kind": "conversazione", "title": p["title"]}
+            return {"nota": res, "kind": p["source"], "title": p["title"]}
         kind = p["source"] if p["source"] in ("gap", "feedback") else "manuale"
         t = braintasks.add(p["title"], scope=p["scope"], note=p["detail"], kind=kind)
         if t is None:
@@ -172,3 +228,4 @@ def reset() -> None:
     with _lock:
         _handled.clear()
         _imparato.clear()
+        _sito.clear()

@@ -799,6 +799,18 @@ function demoData(service, path, opts){
         degrado:{stato:'acceso',titolo:'«Cosa so di te»',dove:'',perche:'',come:'',manca:[]}});
     }
     /* V8/B2 · Le segnalazioni dei clienti, nella coda dell'owner */
+    /* V9/B · In demo si mostra la FORMA della proposta dal sito — con la pagina e
+       la frase — senza fingere di aver letto un sito che qui non si può leggere. */
+    if(path.startsWith('/admin/clients/kb-da-sito')){
+      const u=(opts.body&&opts.body.url)||'esempio.it';
+      const b='https://'+String(u).replace(/^https?:\/\//,'').replace(/\/$/,'');
+      return Promise.resolve({url:b,pagine:[b,b+'/servizi',b+'/contatti'],accodate:3,gia_in_coda:0,perche:'',
+        degrado:{stato:'acceso',titolo:'La knowledge base che nasce dal sito del cliente',dove:'',perche:'',come:'',manca:[]},
+        voci:[
+          {sezione:'identita',titolo:'Chi sono',contenuto:'(DEMO) Azienda di ristorazione con servizio a domicilio, attiva a Benevento dal 2018.',citazione:'dal 2018 portiamo la nostra cucina a casa vostra',url:b},
+          {sezione:'servizi',titolo:'Consegna a domicilio in giornata',contenuto:'(DEMO) Gli ordini entro le 11 arrivano lo stesso giorno nel comune di Benevento.',citazione:'gli ordini ricevuti entro le 11 vengono consegnati in giornata',url:b+'/servizi'},
+          {sezione:'contatti',titolo:'Come ci si mette in contatto',contenuto:'(DEMO) Recapito aziendale e indirizzo della sede.',citazione:'scrivici a info@esempio.it oppure passa in via Roma 12',url:b+'/contatti'}]});
+    }
     if(path.startsWith('/admin/segnalazioni/chiudi')) return Promise.resolve({ok:true});
     if(path.startsWith('/admin/segnalazioni')) return Promise.resolve({persist:true,totale:1,segnalazioni:[
       {id:'sg-demo',tenant:'ats',slug:'menu-ats',titolo:'Menu e orari ATS',stato:'aperta',da:'anna@ats.it',
@@ -834,7 +846,7 @@ function demoData(service, path, opts){
       '/admin/analytics':{uptime_s:186420,totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.'}]},
-      '/admin/proposals':{proposals:[{id:'p0',source:'conversazione',scope:'ats',title:'Impara dalla conversazione: «Il ritiro a domicilio copre solo il centro»',detail:'(DEMO) Il servizio di ritiro a domicilio è limitato al centro città; fuori si passa dal punto di raccolta.',citazione:'no, fuori dal centro il ritiro non lo facciamo, si passa dal punto di raccolta',conversazione:'chat console · 2026-08-01 23:40',count:1,last_at:now-300},{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
+      '/admin/proposals':{proposals:[{id:'ps',source:'sito',scope:'ats',title:'Dal sito di ats: «Consegna a domicilio in giornata»',detail:'(DEMO) Le consegne partite entro le 11 arrivano nella stessa giornata nel comune di Benevento.',citazione:'gli ordini ricevuti entro le 11 vengono consegnati in giornata',url:'https://ats.it/servizi',sezione:'servizi',count:1,last_at:now-120},{id:'p0',source:'conversazione',scope:'ats',title:'Impara dalla conversazione: «Il ritiro a domicilio copre solo il centro»',detail:'(DEMO) Il servizio di ritiro a domicilio è limitato al centro città; fuori si passa dal punto di raccolta.',citazione:'no, fuori dal centro il ritiro non lo facciamo, si passa dal punto di raccolta',conversazione:'chat console · 2026-08-01 23:40',count:1,last_at:now-300},{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
       '/admin/brain':{persist:true,vault:{vault_commit:'1f73289abc12',vault_commit_date:nowIso(840e3)},ingest_commit:{vault_commit:'1f73289abc12',at:nowIso(3600e3)},stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']}]},
       '/admin/tasks':{persist:true,tasks:[/* V7/C · una task messa «da verificare» dal merge: il codice c'è, nessuno l'ha ancora guardata — e da lì si esce solo con un nome. */{id:'tv1',kind:'audit',scope:'',title:'Il muro diventa una porta',note:'Merge PR #48 · V6 · L\'orbita che si guarda — DA VERIFICARE: il merge non chiude, guarda e conferma.',status:'da-verificare',priorita:'alta',created_at:nowIso(9*3600e3),idempotency_key:'audit-2026-08-01-22'},{id:'t0',kind:'azione',scope:'ats',title:'Invia 3 solleciti email ai clienti ATS in ritardo',note:'Preparati da Dante · invoice-chase — testi pronti, NESSUN invio senza il tuo ok',status:'in-approvazione',priorita:'alta',created_at:nowIso(600e3)},{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',priorita:'alta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',priorita:'media',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta negativa ricorrente',status:'aperta',priorita:'bassa',created_at:nowIso(50*3600e3)}]},
       '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
@@ -1069,8 +1081,8 @@ const VIEWS={
        qui: è la schermata in cui si decide, ed è lì che la provenienza serve.
        Senza, sarebbe una nota senza fonte — cioè una voce di corridoio. */
     ((pp&&pp.proposals)||[]).forEach(t=>items.push({
-      titolo:t.title,nota:(t.detail||'')+(t.citazione?`\n« ${t.citazione} »`:''),
-      origine:t.source==='conversazione'?'conversazione':'proposta',
+      titolo:t.title,nota:(t.detail||'')+(t.citazione?`\n« ${t.citazione} »`:'')+(t.url?`\n${t.url}`:''),
+      origine:['conversazione','sito'].includes(t.source)?t.source:'proposta',
       peso:t.count?t.count+'×':'',stato:'dafare',quando:'',k:'pr-'+t.id,pid:t.id}));
     /* V8/B2 · Le segnalazioni dei CLIENTI entrano nella stessa coda di tutto
        il resto, marcate per origine. Una coda separata è una coda che nessuno
@@ -1101,12 +1113,14 @@ const VIEWS={
     const righe=Object.values(cli).sort((a2,b2)=>b2.n-a2.n);
     if(!vivo(giro))return; C.innerHTML=`
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>I tuoi clienti</h3><p>Divina di FORMA vede tutto; ogni cliente vede SOLO la propria sfera — il confine è un filtro sul database, non una preferenza</p></div><button class="btn primary sm" id="cliAdd">+ Aggiungi cliente</button></div>
-    ${righe.length?`<div class="grid g-2">${righe.map(c=>`<div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div><h3 style="font-size:15px">${esc(c.label)}</h3><p class="mono small">forma/clienti/${esc(c.id)}/</p></div><span class="pill" title="note nel cervello — il numero che conta, in vista">${c.n} not${c.n===1?'a':'e'}</span></div><div class="small ${c.n<3?'':'muted'}" ${c.n<3?'style="color:var(--orange)"':''}>${c.n<3?'scheda quasi vuota — il valore del cervello si costruisce qui':'scheda viva'}${c.ultimo?' · aggiornata '+timeAgoIso(c.ultimo):''}</div></div>`).join('')}</div>`
+    ${righe.length?`<div class="grid g-2">${righe.map(c=>`<div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div><h3 style="font-size:15px">${esc(c.label)}</h3><p class="mono small">forma/clienti/${esc(c.id)}/</p></div><span class="pill" title="note nel cervello — il numero che conta, in vista">${c.n} not${c.n===1?'a':'e'}</span></div><div class="small ${c.n<3?'':'muted'}" ${c.n<3?'style="color:var(--orange)"':''}>${c.n<3?'scheda quasi vuota — il valore del cervello si costruisce qui':'scheda viva'}${c.ultimo?' · aggiornata '+timeAgoIso(c.ultimo):''}</div>
+      <div class="row" style="margin-top:9px"><button class="btn sm" data-sito="${esc(c.id)}">${icon('link',12)} Proponi dal sito</button></div></div>`).join('')}</div>`
     :emptyBox(icon('key',36),'Nessuna cartella cliente nel cervello','Le schede vivono in forma/clienti/&lt;nome&gt;/ — aggiungi il primo cliente qui sopra, o lancia una ingest se il vault le ha già.')}
     </div>
     <div class="card"><div class="card-head"><div><h3>Accessi cliente</h3><p>Email + codice a 6 cifre, gestiti da FORMA</p></div><button class="btn sm" onclick="route('tenants')">Chiavi tenant →</button></div>
     ${acc.length?`<div class="tbl-wrap"><table><thead><tr><th>Email</th><th>Nome</th><th>Stato</th><th>Ultimo accesso</th></tr></thead><tbody>${acc.map(a2=>`<tr><td>${esc(a2.email)}</td><td>${esc(a2.display_name||'')}</td><td><span class="tag ${a2.locked?'mut':'pos'}">${a2.locked?'bloccato':esc(a2.status||'attivo')}</span></td><td class="small muted">${a2.last_login_at?timeAgoIso(a2.last_login_at):'mai entrato'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="small muted">Nessun accesso cliente ancora creato.</div>'}</div>`;
     $('#cliAdd').onclick=cliAggiungi;
+    $$('[data-sito]').forEach(b=>b.onclick=()=>formDalSito(b.dataset.sito));
   },
 
   /* ---------- INTEGRAZIONI (Fase 10.3/10.4: catalogo ASTRATTO + consenso) ---------- */
@@ -2940,7 +2954,7 @@ async function chatApprove(tid,to){
 /* ── M1 · resa della coda unica: gruppi visibili (IN CORSO in cima), filtri
    in testa (origine + salto di stato), righe con titolo · origine · peso ·
    data di chiusura. Nessuna sotto-scheda da scegliere prima di capire. ── */
-const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)'],conversazione:['Da conversazione','var(--divina)'],cliente:['Dal cliente','var(--dante)']};
+const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)'],conversazione:['Da conversazione','var(--divina)'],cliente:['Dal cliente','var(--dante)'],sito:['Dal sito','#38bdf8']};
 /* ── H2 · La figura umana: SVG A STRATI (scelta a, motivata) — silhouette
    vettoriale con tre livelli semitrasparenti (corpo · asse interno · punti
    vivi) e una leggera parallasse al mouse. La sensazione di volume viene da
@@ -3741,6 +3755,59 @@ function enterClientMode(d){
   route('chat');
   const sub=$('#pageSub');if(sub)sub.textContent=`${d.account.display_name||d.account.email} · accesso cliente`;
 }
+/* ══════════ V9/B · LA KB DI UN CLIENTE NASCE DAL SUO SITO ══════════
+   Le schede clienti stanno fra le 61 e le 77 righe: scheletri. Non per un
+   limite tecnico — riempirle è lavoro manuale che dipende dal cliente, e per
+   chiederglielo bisognerebbe prima chiedergli un favore, cioè prima di avergli
+   mostrato il valore.
+
+   Il ribaltamento: si prende l'indirizzo del sito, se ne ricava una bozza, e
+   poi gli si apre il pannello e gli si chiede «cosa è sbagliato qui?».
+   Correggere è cento volte più facile che compilare.
+
+   Qui NON si scrive niente: ogni voce entra in coda con l'URL della pagina e la
+   frase da cui viene, e si approva una per una — anche quando sono dodici. */
+async function formDalSito(scope){
+  const back=document.createElement('div');back.className='modal-back open';
+  back.innerHTML=`<div class="modal" style="max-width:640px" id="dsBox">
+    <div class="card-head"><div><h3>Proponi la scheda dal sito</h3>
+      <p class="small muted">cliente <b>${esc(scope)}</b></p></div></div>
+    <div class="small muted" style="line-height:1.7;margin-bottom:10px">
+      Divina legge il sito e propone quello che un assistente dovrebbe sapere per rispondere
+      a chi scrive a quest'azienda. <b>Non scrive niente nel cervello</b>: ogni voce va in coda
+      con la pagina e la frase da cui viene, e la approvi tu. Le frasi che non si ritrovano nel
+      sito e quelle con dentro dati di persone vengono scartate — non corrette.</div>
+    <label class="fld"><span class="lt">Indirizzo del sito</span><input id="dsUrl" placeholder="es. ats.it"></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="dsNo">Annulla</button><button class="btn primary" id="dsGo">Leggi il sito</button></div>
+    <div id="dsOut" style="margin-top:14px"></div></div>`;
+  document.body.appendChild(back);
+  const via=()=>back.remove();
+  back.onclick=e=>{if(e.target===back)via();};
+  back.querySelector('#dsNo').onclick=via;
+  const url=back.querySelector('#dsUrl');
+  back.querySelector('#dsGo').onclick=async()=>{
+    const u=url.value.trim();const out=back.querySelector('#dsOut');
+    if(!u){out.innerHTML='<div class="small" style="color:var(--neg)">Scrivi l\'indirizzo del sito.</div>';return;}
+    out.innerHTML=skeleton(2);
+    try{
+      const r=await api('engine','/admin/clients/kb-da-sito',{method:'POST',body:{scope,url:u}});
+      const v=r.voci||[];
+      out.innerHTML=`${boxDegrado(r.degrado)}
+        ${v.length?`<div class="small" style="margin-bottom:8px"><b>${v.length} voc${v.length===1?'e':'i'} propost${v.length===1?'a':'e'}</b>
+            da ${(r.pagine||[]).length} pagin${(r.pagine||[]).length===1?'a':'e'} — ${icon('lock',11)} in coda, <b>non salvate</b>:
+            diventano cervello solo se le approvi in Miglioramenti.</div>
+          ${v.map(x=>`<div class="imparato-voce"><span class="pill">${esc(x.sezione)}</span>
+            <b class="small" style="margin-left:6px">${esc(x.titolo)}</b>
+            <div class="small muted" style="margin-top:3px">${esc(x.contenuto)}</div>
+            <div class="imparato-cita">«${esc(x.citazione)}»</div>
+            <div class="small muted mono" style="margin-top:3px">${esc(x.url)}</div></div>`).join('')}
+          <div class="row" style="margin-top:12px"><button class="btn sm" onclick="route('improve')">Vai a Miglioramenti</button></div>`
+        :`<div class="small muted" style="line-height:1.7">${esc(r.perche||'Nessuna voce proposta.')}</div>`}`;
+    }catch(e){out.innerHTML=errBox(e);}
+  };
+  url.focus();
+}
+
 /* V8/B2 · «Questa cosa è sbagliata» — una PROPOSTA, non una modifica.
    Il cliente non scrive nel vault e non lo scriverà mai da qui: la segnalazione
    arriva nella coda di FORMA, che corregge col suo nome. È la stessa governance

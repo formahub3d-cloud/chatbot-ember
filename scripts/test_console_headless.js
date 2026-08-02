@@ -286,6 +286,34 @@ function trovaChromium() {
     const t = document.getElementById("content").textContent;
     return { elenco: /funzion[ei] spent/.test(t), voceVera: /voce di Divina/.test(t) };
   });
+  // 1b-septies · V9/B · La KB del cliente nasce dal suo sito, come PROPOSTA.
+  //   Quello che si sorveglia non è che legga un sito (qui non c'è rete): è che
+  //   ogni voce arrivi in schermo con la PAGINA e la FRASE da cui viene, e che
+  //   la finestra dica a chiare lettere che non sta salvando niente. Una scheda
+  //   cliente senza provenienza è peggio di una vuota: sembra verificata.
+  await page.evaluate(() => route("clienti"));
+  await page.waitForTimeout(600);
+  const sitoV9 = await page.evaluate(async () => {
+    const b = document.querySelector("[data-sito]");
+    if (!b) return { bottone: false };
+    b.click();
+    const box = document.getElementById("dsBox");
+    box.querySelector("#dsUrl").value = "ats.it";
+    box.querySelector("#dsGo").click();
+    await new Promise(r => setTimeout(r, 400));
+    const t = box.textContent;
+    const out = {
+      bottone: true,
+      voci: box.querySelectorAll("#dsOut .imparato-voce").length,
+      cita: box.querySelectorAll("#dsOut .imparato-cita").length,
+      url: /https:\/\/ats\.it\/servizi/.test(t),
+      nonSalvate: /non salvate/.test(t),
+      approvi: /solo se le approvi/.test(t),
+    };
+    box.querySelector("#dsNo").click();     // si chiude dalla sua porta: `.modal-back`
+    return out;                             // esiste anche per la finestra Connessione, nascosta
+  });
+
   // Squadra: accanto a chi non ha una voce sua, si vede
   await page.evaluate(() => route("agents"));
   await page.waitForTimeout(600);
@@ -555,6 +583,12 @@ function trovaChromium() {
   if (!vociV9) {
     console.error("FAIL (V9-A2): in Squadra non si vede chi parla ancora con la voce di Divina"); ko = 1;
   } else console.log("[voci] " + vociV9 + " agenti senza voce propria, dichiarati accanto al nome");
+  if (!sitoV9.bottone || !sitoV9.voci || sitoV9.cita !== sitoV9.voci || !sitoV9.url) {
+    console.error("FAIL (V9-B): le voci proposte dal sito non portano tutte la pagina e la frase da cui vengono " + JSON.stringify(sitoV9)); ko = 1;
+  }
+  if (!sitoV9.nonSalvate || !sitoV9.approvi) {
+    console.error("FAIL (V9-B3): la finestra non dichiara che le voci NON sono salvate finché non le approvi"); ko = 1;
+  }
   if (!buchiV8.spiega || !buchiV8.nonFingeVuoto) {
     console.error("FAIL (V8-B3): la pagina dei buchi spenta non DICE perché è spenta " + JSON.stringify(buchiV8)); ko = 1;
   }

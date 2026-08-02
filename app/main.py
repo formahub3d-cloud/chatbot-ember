@@ -51,7 +51,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -1137,6 +1137,30 @@ def admin_conversazione_imparato(body: ImparatoIn, authorization: str = Header(d
     return {"imparato": accodate, "proposte": len(accodate),
             "nota": ("Sono proposte, non note: diventano cervello solo se le approvi "
                      "in Miglioramenti.")}
+
+
+# ── V9/B · La KB di un cliente nasce dal suo sito, come proposta ────────────
+class SitoKbIn(BaseModel):
+    scope: str                 # la cartella cliente: forma/clienti/<scope>/
+    url: str
+
+
+@app.post("/admin/clients/kb-da-sito")
+def admin_kb_da_sito(body: SitoKbIn, authorization: str = Header(default="")):
+    """Legge il sito di un cliente e ne propone una bozza di scheda.
+
+    NON scrive niente: le voci entrano nella coda `/admin/proposals`, marcate
+    `sito`, ognuna con l'URL della pagina e la frase esatta da cui viene. Si
+    approvano una per una, come tutto il resto — anche quando sono dodici e
+    approvarle a mano è noioso. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    scope = (body.scope or "").strip().lower()
+    if not scope:
+        raise HTTPException(422, "Indica lo scope del cliente (la sua cartella).")
+    res = sitokb.proponi(scope, body.url)
+    accodate = proposals.add_sito(res["voci"], url=res["url"])
+    return {**res, "accodate": len(accodate), "gia_in_coda": len(res["voci"]) - len(accodate),
+            "degrado": degrado.per("kb-da-sito")}
 
 
 @app.get("/admin/events")
