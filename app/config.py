@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     # ovy-cervello è feature/wave-01, NON main. La produzione ha quindi
     # fotografato il branch sbagliato. Ora il ramo è esplicito e configurabile.
     vault_git_ref: str = "main"
+    # V10/A2 (02-08 sera): dopo ogni redeploy il container è NUOVO e la cartella
+    # del vault non c'è. Non è l'indice a sparire — Qdrant è fuori e sopravvive —
+    # ma la copia locale, e con lei l'unico modo di sapere a che punto è il vault:
+    # l'allarme sui commit resta cieco finché qualcuno non lancia una ingest a mano.
+    # Con questo acceso, all'avvio il motore si PROCURA il clone (git shallow, in
+    # un thread, nessuna chiamata al modello e nessuna scrittura su Qdrant), così
+    # l'allarme torna a poter confrontare da solo. Reindicizzare NON è compreso, ed
+    # è deliberato: vedi la nota lunga in main._startup_clone_vault.
+    vault_boot_clone: bool = True
     # Realtime: dopo un write-back confermato, re-indicizza SUBITO (incrementale) la
     # nota appena scritta → il cervello la riflette "man mano", senza attendere un
     # ingest completo. OFF di default (opt-in). Best-effort: un errore non blocca mai

@@ -1377,7 +1377,12 @@ const VIEWS={
       const ic=(d.ingest_commit&&d.ingest_commit.vault_commit)||null;
       const disallineato=!!(v.vault_commit&&ic&&v.vault_commit!==ic);
       const cervMeta=ic?`cervello <span class="mono" ${disallineato?'style="color:var(--orange);font-weight:700"':''}>${esc(ic)}</span> · `:'';
-      const vaultMeta=v.vault_commit?`${cervMeta}vault <span class="mono">${esc(v.vault_commit)}</span> · ${disallineato?`<span style="color:var(--orange);font-weight:700">non letto — serve una ingest</span>`:vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`:'<span style="color:var(--orange)">manca il commit del vault — l\'allarme «cervello fermo» è cieco (serve <span class="mono">ingest_meta</span> e una ingest col motore aggiornato)</span>';
+      const vaultMeta=v.vault_commit?`${cervMeta}vault <span class="mono">${esc(v.vault_commit)}</span> · ${disallineato?`<span style="color:var(--orange);font-weight:700">non letto — serve una ingest</span>`:vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`/* V10/A1: la causa NON si indovina più qui. Prima questa riga tirava a
+           indovinare («serve ingest_meta e una ingest col motore aggiornato») e
+           dal 2/08 sappiamo che nel caso più frequente è un'altra: dopo un
+           redeploy manca il CLONE. La frase la dice il registro, che ha
+           guardato. */
+        :`<span style="color:var(--orange)">l'allarme «cervello fermo» è cieco — ${esc((d.degrado&&d.degrado.perche)||'manca il commit del vault')}</span>`;
       const noteRow=n=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div><div class="small muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.path||'')}</div></div><div class="row" style="gap:8px;flex-shrink:0"><span class="scope-chip" style="background:${scopeColor(n.tenant)}22;color:${scopeColor(n.tenant)};border-color:${scopeColor(n.tenant)}44">${esc(n.tenant||'')}</span><span class="small muted" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</span></div></div>`;
       if(!vivo(giro))return; C.innerHTML=`
       <!-- R3 (scelta a): le ORBITE vivono qui, a tutta larghezza — la scelta
@@ -1562,6 +1567,13 @@ const VIEWS={
           ${su?`<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:4px">${Object.entries(byDept).map(([d,sk])=>`<div class="dept-title">${esc(d)}</div>${sk.map(s=>`<div class="skill-item" onclick="quickRun('${esc(a.id)}','${esc(s.id)}')"><span style="color:${col};font-size:14px">▸</span><div><div class="skill-role">${esc(s.role||s.id)}</div><div class="skill-desc">${esc(s.desc||'')}</div></div></div>`).join('')}`).join('')}</div>`:''}
         </div>`;};
       if(!vivo(giro))return; C.innerHTML=`
+      <!-- V10/B · Qui è dove uno viene a chiedersi «perché parlano tutti uguale?».
+           La risposta più frequente non è una variabile mancante: è che la
+           lettura ad alta voce è spenta, e finora lo diceva solo un tooltip. -->
+      <div class="card small" id="sqMuto" ${state.tts?'hidden':''} style="margin-bottom:10px;border-color:color-mix(in srgb,var(--orange) 40%,var(--border));display:flex;gap:10px;align-items:center">
+        <span style="color:var(--orange);flex:none">${icon('speakoff',16)}</span>
+        <div style="flex:1;line-height:1.6">Le voci sono impostate qui sotto, ma <b>la lettura ad alta voce è spenta</b>: le risposte arrivano solo scritte, quindi ogni agente «suona» uguale perché non suona affatto.</div>
+        <button class="btn" id="sqTts" style="flex:none">Accendila</button></div>
       <div class="card" style="margin-bottom:10px;border-color:color-mix(in srgb,var(--magenta) 35%,var(--border))"><div class="row" style="gap:12px;align-items:center">
         <div class="agent-avatar" style="background:linear-gradient(135deg,var(--magenta),var(--cyan));width:38px;height:38px">DV</div>
         <div><b style="font-size:15px">Divina</b><div class="small muted">orchestratrice e CEO — smista il lavoro alla squadra, non esegue</div></div></div></div>
@@ -1575,6 +1587,7 @@ const VIEWS={
         </div>`;}).join('')}
       </div>`:''}`;
       $$('[data-sq]').forEach(b=>b.onclick=()=>{aperti[b.dataset.sq]=!aperti[b.dataset.sq];route('agents');});
+      const sqt=$('#sqTts');if(sqt)sqt.onclick=()=>setTts(true);
     }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
@@ -2014,7 +2027,7 @@ function chatTemplate(){
         <button class="btn" id="chatImparato" hidden title="Da zero a tre cose che varrebbe la pena ricordare — proposte, non salvate" style="white-space:nowrap">${icon('brain',15)} Cosa abbiamo imparato</button>
         <span style="flex:1"></span>
         <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">${icon('mic',18)}</button>
-        <button class="icon-btn" id="chatTts" title="Lettura vocale delle risposte">${icon(state.tts?'speakon':'speakoff',18)}</button>
+        <button class="icon-btn" id="chatTts" data-tts="${state.tts?'on':'off'}" aria-pressed="${state.tts?'true':'false'}" title="${state.tts?'Lettura vocale attiva — le risposte si sentono':'Lettura vocale SPENTA — le risposte arrivano solo scritte'}">${icon(state.tts?'speakon':'speakoff',18)}</button>
       </div></div></div>`;
 }
 function wireChat(){
@@ -2923,9 +2936,32 @@ function stopVoiceOut(){
   const o=state._orb;if(o){o.out=0;o.outLive=false;o.amp=0;}
 }
 function stopVoice(){if(_vce)_vce.stop();state._dict=null;dictUiOff();stopVoiceOut();}
+/* V10/B · La lettura ad alta voce, in un posto solo.
+   Misurato il 2/08 sera: Andrea diceva «gli agenti parlano tutti con la stessa
+   voce», e la tubatura era giusta da cima a fondo — `speak()` riceveva
+   `agente:"dante"`, il server ha quattro voci diverse. Quello che mancava era
+   che NESSUNA voce partiva: `state.tts` nasce false e l'unico comando era
+   un'icona con un tooltip — invisibile su un telefono, che è dove Divina si
+   mostra. Una funzione che c'è ma non parte si scambia per una funzione rotta,
+   e sono due riparazioni diversissime.
+   Da qui in poi lo stato sta nell'attributo (`data-tts`), non solo nel disegno
+   dell'icona: il guardiano lo legge, e chi usa uno screen reader anche. */
+function setTts(on){
+  state.tts=!!on;localStorage.setItem(LS.tts,state.tts?'1':'0');
+  document.querySelectorAll('#chatTts').forEach(b=>{
+    b.innerHTML=icon(state.tts?'speakon':'speakoff',18);
+    b.setAttribute('data-tts',state.tts?'on':'off');
+    b.setAttribute('aria-pressed',state.tts?'true':'false');
+    b.title=state.tts?'Lettura vocale attiva — le risposte si sentono'
+                     :'Lettura vocale SPENTA — le risposte arrivano solo scritte';
+  });
+  if(!state.tts)stopVoice();
+  const s=$('#sqMuto');if(s)s.hidden=state.tts;
+  toast(state.tts?'Lettura vocale attiva':'Lettura vocale disattivata','info');
+}
 function initVoice(){
   const mic=$('#chatMic'),tts=$('#chatTts');if(!mic)return;
-  tts.onclick=()=>{state.tts=!state.tts;localStorage.setItem(LS.tts,state.tts?'1':'0');tts.innerHTML=icon(state.tts?'speakon':'speakoff',18);if(!state.tts)stopVoice();toast(state.tts?'Lettura vocale attiva':'Lettura vocale disattivata','info');};
+  tts.onclick=()=>setTts(!state.tts);
   mic.onclick=async()=>{
     const e=vce();
     if(!e){toast('Modulo voce non caricato (voce.js)','bad');return;}
@@ -3722,10 +3758,22 @@ async function refreshBadges(){
         }else if(vc&&ic){
           el.hidden=true;                       // commit uguali = cervello allineato
         }else{
+          /* V10/A1 · QUI stava il difetto. Senza uno dei due commit si scendeva
+             sulle ore, e le ore dopo un redeploy sono sempre poche: l'allarme si
+             spegneva DA SOLO. Il 2/08 alle 17:40 il V9 era mergiato da venti
+             minuti, il vault tornava `{}` perché il container era nuovo, e la
+             fascia era vuota — cioè diceva «va tutto bene».
+             Adesso le ore restano una riserva, ma il non-poter-confrontare si
+             dichiara: un allarme cieco lo deve dire, altrimenti è un allarme
+             finto. La frase arriva dal registro del degrado, non da qui. */
           const h=li?(Date.now()-new Date(li).getTime())/36e5:null;
+          const dg=d&&d.degrado;
           if(h!=null&&isFinite(h)&&h>24){
             el.hidden=false;
             el.innerHTML=`${icon('alert',13)} Il cervello non si aggiorna da <b>${h>48?Math.round(h/24)+' giorni':Math.round(h)+' ore'}</b> — le risposte invecchiano con lui. Lancia una ingest.`;
+          }else if(dg&&dg.stato!=='acceso'){
+            el.hidden=false;
+            el.innerHTML=`${icon(dg.stato==='non-so'?'clock':'alert',13)} <b>L'allarme «cervello fermo» non può guardare</b> — ${esc(dg.perche||'')}${dg.come?` <span class="mono" style="opacity:.75">${esc(dg.come)}</span>`:''}`;
           }else el.hidden=true;
         }
       }

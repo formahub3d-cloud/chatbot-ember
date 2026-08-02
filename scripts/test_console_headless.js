@@ -357,8 +357,85 @@ function trovaChromium() {
   await page.waitForTimeout(600);
   const vociV9 = await page.evaluate(() =>
     (document.getElementById("content").textContent.match(/voce di Divina/g) || []).length);
+  // 1b-octies · V10/B · ALLA RICHIESTA TTS ARRIVA IL NOME DELL'AGENTE GIUSTO.
+  //   Il 2/08 sera Andrea diceva «gli agenti parlano ancora tutti con la stessa
+  //   voce». Misurato prima di correggere: la tubatura era giusta da cima a
+  //   fondo — `speak()` riceveva `agente:"dante"` — ma NESSUNA voce partiva,
+  //   perché `state.tts` nasce false e l'unico comando era un tooltip su
+  //   un'icona. Ventidue secondi di attesa e zero chiamate: non un difetto di
+  //   instradamento, un difetto di interfaccia.
+  //   Qui si sorvegliano le due metà, perché è il tipo di guasto che sopravvive
+  //   a 660 test verdi: (a) lo stato della lettura è LEGGIBILE, e a lettura
+  //   spenta Squadra lo dice invece di lasciar credere a una voce rotta;
+  //   (b) il corpo che parte davvero verso /voice/tts porta il nome giusto.
+  await page.evaluate(() => route("agents"));
+  await page.waitForTimeout(600);
+  const vocev10 = await page.evaluate(async () => {
+    const out = { agenteVisto: [], corpo: null };
+    setTts(false);
+    out.mutoDetto = !document.getElementById("sqMuto").hidden;
+    out.bottoneDichiara = document.querySelector("#chatTts").getAttribute("data-tts");
+    // metà (a): la catena della console, con Dante scelto
+    pickComp("dante");
+    const e = vce();
+    const sa = e.setAgente;
+    e.setAgente = n => { out.agenteVisto.push(n); return sa.call(e, n); };
+    setTts(true);
+    out.mutoSparito = document.getElementById("sqMuto").hidden;
+    out.bottoneAcceso = document.querySelector("#chatTts").getAttribute("data-tts");
+    document.getElementById("chatMsg").value = "ciao";
+    await sendChat();
+    await new Promise(r => setTimeout(r, 500));
+    e.setAgente = sa;
+    // metà (b): il CORPO della richiesta. La console in demo usa la voce del
+    // browser, quindi qui si monta un motore con `pro` acceso e una fetch finta:
+    // si misura il contratto vero (widget/voce.js), non un'intenzione.
+    const f = window.fetch;
+    window.fetch = (u, o) => {
+      if (String(u).includes("/voice/tts")) { out.corpo = JSON.parse(o.body); return Promise.resolve(new Response(new Blob([new Uint8Array([1, 2, 3])]), { status: 200 })); }
+      return f(u, o);
+    };
+    const solo = window.DivinaVoce({ base: () => "", headers: () => ({}), pro: () => true, lang: "it-IT" });
+    solo.setAgente("dante");
+    solo.speak("prova di voce.");
+    await new Promise(r => setTimeout(r, 400));
+    window.fetch = f;
+    setTts(false);
+    return out;
+  });
+
   await page.evaluate(() => route("home"));
   await page.waitForTimeout(300);
+
+  // 1b-nonies · V10/A1 · L'ALLARME CIECO SI DICHIARA INVECE DI SPEGNERSI.
+  //   Riproduzione dello stato delle 17:40 del 2/08: container nuovo dopo un
+  //   redeploy → `vault:{}`, l'allarme sui commit ha due valori da confrontare e
+  //   gliene manca uno, scende sulle ore, e le ore dopo un redeploy sono sempre
+  //   poche → la fascia spariva. Una fascia che sparisce si legge come «va tutto
+  //   bene»: il V9 era mergiato da venti minuti e il pannello mostrava il quadro
+  //   del V8 senza una riga che lo dicesse.
+  const allarmeV10 = await page.evaluate(async () => {
+    const orig = window.demoData;
+    window.demoData = (svc, p, o) => {
+      const d = orig(svc, p, o);
+      if (svc === "engine" && p === "/admin/brain") {
+        return Object.assign({}, d, {
+          vault: {},
+          degrado: { stato: "spento", titolo: "L'allarme «il cervello è fermo»", dove: "la fascia in alto",
+                     perche: "Non si può confrontare: il cervello non ha ancora letto il vault dopo il riavvio.",
+                     come: "Lancia una ingest.", manca: ["clone del vault"] },
+        });
+      }
+      return d;
+    };
+    await refreshBadges();
+    const el = document.getElementById("brainAlert");
+    const out = { visibile: !!el && !el.hidden,
+                  dice: !!el && /non ha ancora letto il vault/.test(el.textContent) };
+    window.demoData = orig;
+    await refreshBadges();
+    return out;
+  });
 
   // 1c · R2: la barra di scrittura sta DENTRO il pannello col suo respiro —
   //      niente testo tagliato dal bordo (il difetto visto in produzione).
@@ -627,6 +704,21 @@ function trovaChromium() {
   if (!vociV9) {
     console.error("FAIL (V9-A2): in Squadra non si vede chi parla ancora con la voce di Divina"); ko = 1;
   } else console.log("[voci] " + vociV9 + " agenti senza voce propria, dichiarati accanto al nome");
+  if (vocev10.corpo === null || vocev10.corpo.agente !== "dante") {
+    console.error("FAIL (V10-B): alla richiesta /voice/tts NON arriva il nome dell'agente " + JSON.stringify(vocev10.corpo)); ko = 1;
+  }
+  if (!vocev10.agenteVisto.includes("dante")) {
+    console.error("FAIL (V10-B): la chat scritta non passa al motore vocale l'agente scelto " + JSON.stringify(vocev10.agenteVisto)); ko = 1;
+  }
+  if (vocev10.bottoneDichiara !== "off" || vocev10.bottoneAcceso !== "on") {
+    console.error("FAIL (V10-B): il comando della lettura non dichiara il proprio stato " + JSON.stringify(vocev10)); ko = 1;
+  }
+  if (!vocev10.mutoDetto || !vocev10.mutoSparito) {
+    console.error("FAIL (V10-B): a lettura spenta Squadra non lo dice — e una voce che non parte si scambia per una voce rotta"); ko = 1;
+  }
+  if (!allarmeV10.visibile || !allarmeV10.dice) {
+    console.error("FAIL (V10-A1): senza il commit del vault l'allarme si SPEGNE invece di dichiararsi cieco — è lo stato delle 17:40 del 2/08 " + JSON.stringify(allarmeV10)); ko = 1;
+  }
   if (!capV9.offerta || !capV9.chi || !capV9.bottone) {
     console.error("FAIL (V9-C): la capacità che il server suggerisce non si vede sotto la risposta " + JSON.stringify(capV9)); ko = 1;
   }

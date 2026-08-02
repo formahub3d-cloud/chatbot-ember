@@ -15,6 +15,7 @@ import io
 import logging
 import secrets
 import tempfile
+import threading
 import uuid
 from pathlib import Path
 
@@ -155,6 +156,46 @@ def _startup_dbcheck():
         log.info(dbcheck.riga_boot())
     except Exception:  # pragma: no cover
         log.warning("dbcheck all'avvio non riuscito (ignorato)", exc_info=True)
+
+
+@app.on_event("startup")
+def _startup_clone_vault():
+    """V10/A2 · Se all'avvio il clone del vault non c'è, procurarselo.
+
+    Il problema, visto due volte il 2/08: ogni redeploy fa un container nuovo, la
+    cartella del vault non esiste, `vault_info()` torna `{}` e l'allarme sui
+    commit — che di valori da confrontare ne vuole due — **si spegne da solo**.
+    Alle 17:40 il V9 era mergiato da venti minuti e il pannello mostrava ancora
+    il quadro del V8, senza una riga che lo dicesse. Quel giorno le variabili di
+    Railway sono state toccate cinque volte: cinque redeploy, cinque volte cieco.
+    Un allarme che si spegne a ogni deploy e che qualcuno deve riaccendere a mano
+    è un allarme che prima o poi non riaccende nessuno.
+
+    **Si prende il clone, NON si reindicizza**, ed è una scelta, non una scorciatoia:
+
+    1. Non è l'indice ad essere sparito. Qdrant sta fuori dal container e
+       sopravvive al redeploy: il cervello sa ancora tutto quello che sapeva.
+       L'unica cosa persa è la copia locale, cioè il metro. Una ingest completa
+       ricalcolerebbe gli embedding di ogni nota per riscrivere lo stesso indice:
+       si pagherebbe il modello per arrivare dov'eravamo.
+    2. Railway riavvia i container anche senza deploy (OOM, healthcheck che
+       sfarfalla). Legare una reindicizzazione all'avvio trasforma un ciclo di
+       riavvii in un ciclo di reindicizzazioni contro l'API degli embedding —
+       cioè un guasto piccolo in un conto grande.
+    3. Ciò che si era rotto è il CONFRONTO, e al confronto basta il clone: un
+       git shallow, qualche secondo, zero chiamate al modello, zero scritture.
+       Ripreso quello, l'allarme torna a funzionare e dice da solo «il vault è
+       avanti, lancia una ingest» — che resta una decisione di una persona,
+       visibile, invece di un lavoro che parte da sé mentre nessuno guarda.
+
+    In un thread: un clone lento non deve ritardare l'healthcheck. Se fallisce,
+    il motore parte lo stesso e `degrado.per("allarme-commit")` lo dichiara —
+    guarda il risultato, non il tentativo, quindi non c'è modo che questa
+    funzione dica «fatto» mentre il clone non c'è."""
+    if not settings.vault_boot_clone:
+        return
+    threading.Thread(target=ingest.procura_clone, name="vault-boot-clone",
+                     daemon=True).start()
 
 
 def tenant_or_401(key: str) -> dict:
@@ -789,9 +830,14 @@ def admin_brain(authorization: str = Header(default="")):
     # del giorno Y») — la spia che rende VISIBILE un cervello stantio.
     # V5b · Punto 9: anche il commit dell'ULTIMA INGEST — l'allarme confronta
     # i due commit, non le ore (il tempo è un'approssimazione della freschezza).
+    # V10/A1: l'allarme sui commit ha bisogno di DUE valori, e quando gliene
+    # manca uno finora si spegneva in silenzio. Adesso viaggia col suo degrado,
+    # così la fascia può dire «non posso confrontare, ed ecco perché» invece di
+    # sparire — una fascia che sparisce si legge come «va tutto bene».
     return {"persist": brain.enabled(), "stats": brain.stats(),
             "recent": brain.notes(limit=10), "vault": ingest.vault_info(),
-            "ingest_commit": brain.ingest_commit()}
+            "ingest_commit": brain.ingest_commit(),
+            "degrado": degrado.per("allarme-commit")}
 
 
 @app.get("/admin/brain/graph")
