@@ -233,6 +233,20 @@ function trovaChromium() {
     };
   });
 
+  // 1b-quater-bis · V9/D · «Quello che ci siamo detti»: i promemoria stanno
+  //   nella STESSA pagina delle memorie, ognuno col suo Dimentica. Se il bottone
+  //   non li raggiunge, l'art. 17 è coperto a metà — e mezza copertura, su un
+  //   obbligo di legge, è peggio di nessuna promessa.
+  const riassV9 = await page.evaluate(() => {
+    const c = document.getElementById("content"), t = c.textContent;
+    return {
+      sezione: /Quello che ci siamo detti/.test(t),
+      righe: c.querySelectorAll("[data-dimr]").length,
+      retention: /30 giorni/.test(t),
+      chiude: typeof window.chiudiConversazione === "function",
+    };
+  });
+
   // 1b-quinquies · V8/B · Le due porte del CLIENTE. Girano in demo (il
   //   guardiano non ha cookie né server): quello che si sorveglia è che
   //   esistano, che la kb elenchi con la data e il bottone «è sbagliata», e
@@ -585,6 +599,12 @@ function trovaChromium() {
   }
   if (!memV8.inUso) {
     console.error("FAIL (V8-A4): nessuna memoria è marcata «in uso adesso»: una memoria che non cambia niente è una vetrina"); ko = 1;
+  }
+  if (!riassV9.sezione || !riassV9.righe || !riassV9.retention) {
+    console.error("FAIL (V9-D): i promemoria delle conversazioni non stanno in «Cosa so di te» col loro Dimentica " + JSON.stringify(riassV9)); ko = 1;
+  }
+  if (!riassV9.chiude) {
+    console.error("FAIL (V9-D): la console non sa dire al motore che una conversazione è finita: nessun riassunto verrebbe mai scritto"); ko = 1;
   }
   if (!ckbV8.righe || !ckbV8.sappiamo || !ckbV8.nonScrive) {
     console.error("FAIL (V8-B2): il pannello del cliente non elenca la sua knowledge base " + JSON.stringify(ckbV8)); ko = 1;

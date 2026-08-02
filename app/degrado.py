@@ -65,6 +65,11 @@ FUNZIONI: dict[str, dict] = {
         "dove": "Squadra → Cosa so di te",
         "serve": [tab("tenant_memory")],
     },
+    "riassunti": {
+        "titolo": "La conversazione che dura",
+        "dove": "Squadra → Cosa so di te",
+        "serve": [tab("conversation_summary")],
+    },
     "cliente-segnala": {
         "titolo": "Le segnalazioni del cliente",
         "dove": "pannello cliente → la vostra knowledge base",

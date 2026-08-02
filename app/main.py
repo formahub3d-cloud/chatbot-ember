@@ -51,7 +51,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -530,6 +530,11 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
                 lang = nuova["valore"]        # vale già da questa risposta, non dalla prossima
             pref[nuova["chiave"]] = nuova["valore"]
     ricordi = memoria.per_prompt(tcode)
+    # V9/D · La conversazione che dura. Gli ultimi riassunti entrano come
+    # contesto su cosa ci si è detti — MAI come contenuto citabile e mai come
+    # filtro: uno scope toccato ieri non dà diritti oggi, e i grant si
+    # ricalcolano sempre dalla chiave (c'è un test che lo dimostra).
+    ricordi = ricordi + riassunti.per_prompt(tcode, escludi=conv)
     # V9/C · Le capacità raggiungibili dalla CONVERSAZIONE (audit-2026-07-31-06,
     # aperta dal 31 luglio). Il V7 aveva messo il riconoscitore nella console:
     # giusto per non duplicare il catalogo, ma nel widget di un cliente non c'è
@@ -598,6 +603,37 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
 # ── Endpoint per il connettore MCP (ovy_search / get_document / list_context /
 #    create|update_document). Stessa autenticazione e stessi filtri per grant del
 #    /chat: l'isolamento è server-side, non delegato al connettore. ──────────────
+
+class ChiudiIn(BaseModel):
+    conversazione: str
+    history: list = []
+
+
+@app.post("/chat/chiudi")
+def chat_chiudi(body: ChiudiIn, x_tenant_key: str = Header(default=""),
+                origin: str = Header(default="")):
+    """V9/D · «Questa conversazione è finita»: si comprime in un riassunto.
+
+    Lo dice il CLIENT — la console quando chiudi il pannello o ne apri una
+    nuova, il widget quando la pagina si chiude — e succede una volta sola, a
+    conversazione conclusa. È questo che lo rende compatibile con la voce: la
+    chiamata al modello avviene quando nessuno sta aspettando una risposta.
+
+    Se il client non lo chiama, la conversazione resta non compressa: un buco
+    dichiarato, non nascosto — servirebbe un lavoro schedulato, e questo motore
+    non ne ha ancora uno."""
+    tenant = tenant_or_401(x_tenant_key)
+    _reject_master_browser(tenant, origin)
+    if not security.origin_allowed(origin, tenant.get("allowed_origins")):
+        raise HTTPException(403, "Origine non autorizzata per questo tenant.")
+    tcode = _tenant_code(tenant)
+    conv = security.cap_input(body.conversazione, 80)
+    turni, _da = filo.risolvi(body.history, tcode, conv)
+    r = riassunti.comprimi(tcode, conv, turni)
+    filo.dimentica(tcode, conv)          # compresso o no, il filo lungo si chiude qui
+    return {"ok": True, "riassunto": bool(r),
+            "perche": "" if r else "Niente da ricordare di questa conversazione."}
+
 
 @app.post("/search")
 def do_search(body: SearchIn, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
@@ -944,6 +980,7 @@ class MemoriaIn(BaseModel):
 class MemoriaDimenticaIn(BaseModel):
     id: str
     by: str = ""
+    tipo: str = "memoria"      # memoria | riassunto — una porta sola per il bottone
 
 
 def _memoria_pagina(tenant_code: str, agente: str = "") -> dict:
@@ -960,6 +997,12 @@ def _memoria_pagina(tenant_code: str, agente: str = "") -> dict:
             "persist": memoria.enabled(),
             "chiavi": {k: list(v) for k, v in memoria.CHIAVI.items()},
             "usate": memoria.preferenze(tenant_code, agente),
+            # V9/D+49 · I riassunti stanno nella STESSA pagina: se il «Dimentica»
+            # non li raggiunge, l'art. 17 è coperto a metà — e mezza copertura,
+            # su un obbligo di legge, è peggio di nessuna promessa.
+            "riassunti": riassunti.elenco(tenant_code),
+            "retention_riassunti": riassunti.RETENTION_GIORNI,
+            "degrado_riassunti": degrado.per("riassunti"),
             # V9/A1 · Il 2/08 questa pagina diceva «non so ancora niente di te»
             # mentre la verità era «non posso ricordare niente, mi manca la
             # tabella». Una funzione spenta che sembra inutile non chiede di
@@ -994,9 +1037,14 @@ def admin_memoria_dimentica(body: MemoriaDimenticaIn, authorization: str = Heade
     """Il bottone DIMENTICA. Cancella il contenuto per davvero e lascia solo la
     lapide (quando, chi): l'art. 17 non si soddisfa archiviando. Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
+    tipo = (body.tipo or "memoria").strip().lower()
+    if tipo == "riassunto":
+        if not riassunti.dimentica(body.id, body.by):
+            raise HTTPException(404, "Riassunto inesistente o già dimenticato.")
+        return {"ok": True, "tipo": "riassunto"}
     if not memoria.dimentica(body.id, body.by):
         raise HTTPException(404, "Memoria inesistente o già dimenticata.")
-    return {"ok": True}
+    return {"ok": True, "tipo": "memoria"}
 
 
 class TaskPrioritaIn(BaseModel):

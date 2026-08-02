@@ -802,7 +802,11 @@ function demoData(service, path, opts){
       const usate={};mm.forEach(m=>{if(m.chiave&&!usate[m.chiave])usate[m.chiave]=m.valore;});
       return Promise.resolve({tenant:'forma',memorie:mm,totale:mm.length,persist:true,
         chiavi:{lingua:['it','en'],lunghezza:['breve','estesa']},usate,
-        degrado:{stato:'acceso',titolo:'«Cosa so di te»',dove:'',perche:'',come:'',manca:[]}});
+        degrado:{stato:'acceso',titolo:'«Cosa so di te»',dove:'',perche:'',come:'',manca:[]},
+        retention_riassunti:30,
+        degrado_riassunti:{stato:'acceso',titolo:'La conversazione che dura',dove:'',perche:'',come:'',manca:[]},
+        riassunti:[{id:'r1',conversazione:'c-demo',created_at:new Date(Date.now()-36e5*20).toISOString(),
+          testo:'(DEMO) Stavamo preparando il materiale per ATS: la scheda cliente va riscritta partendo dal loro sito.\nRimasto aperto: decidere se il caso studio lo fa FORMA su se stessa.'}]});
     }
     /* V8/B2 · Le segnalazioni dei clienti, nella coda dell'owner */
     /* V9/B · In demo si mostra la FORMA della proposta dal sito — con la pagina e
@@ -1634,6 +1638,20 @@ const VIEWS={
         </div>`).join(''):emptyBox(icon('brain',36),'Non so ancora niente di te',
           'Le preferenze dichiarate in chat («parlami in italiano», «rispondi breve») finiscono qui, con la frase da cui vengono.')}
       </div>
+      <div class="card" style="margin-top:14px"><div class="card-head"><div><h3>Quello che ci siamo detti</h3>
+        <p>Un promemoria per conversazione, scritto quando finisce — serve a riprendere il filo il giorno dopo.
+        Si cancellano da soli dopo ${d.retention_riassunti||30} giorni, e con questo bottone subito.</p></div>
+        <span class="pill">${(d.riassunti||[]).length}</span></div>
+        ${boxDegrado(d.degrado_riassunti)}
+        ${(d.riassunti||[]).length?(d.riassunti||[]).map(r=>`<div class="mem-riga">
+          <div style="min-width:0;flex:1">
+            <div class="small" style="white-space:pre-wrap;line-height:1.6">${esc(r.testo)}</div>
+            <div class="small muted" style="margin-top:4px">${r.created_at?timeAgoIso(r.created_at):'—'}</div>
+          </div>
+          <button class="btn sm ghost" data-dimr="${esc(r.id)}">Dimentica</button>
+        </div>`).join(''):vuotoOnesto(d.degrado_riassunti,'Nessuna conversazione da ricordare',
+          'Quando una conversazione finisce, qui resta un promemoria di due righe: cosa si stava facendo e cosa è rimasto aperto.')}
+      </div>
       <div class="card" style="margin-top:14px"><div class="card-head"><div><h3>Aggiungi a mano</h3><p>Un fatto stabile che vuoi che il sistema tenga presente. Niente dati personali: vengono rifiutati.</p></div></div>
         <div class="row" style="flex-wrap:wrap"><input id="memF" placeholder="Es. Fatturate a fine mese" style="flex:2;min-width:220px">
         <select id="memK" style="max-width:150px"><option value="">solo contesto</option>${Object.keys(d.chiavi||{}).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select>
@@ -1646,6 +1664,10 @@ const VIEWS={
         const fatto=$('#memF').value.trim();if(!fatto){toast('Scrivi il fatto','bad');return;}
         try{await api('engine','/admin/memoria',{method:'POST',body:{tenant:state.tenant,fatto,chiave:$('#memK').value,valore:$('#memV').value}});
           toast('Ricordato','ok');route('memoria');}catch(e){toast('✕ '+e.message,'bad');}};
+      $$('[data-dimr]').forEach(b=>b.onclick=async()=>{
+        if(!confirm('Dimenticare questa conversazione? Il promemoria viene cancellato davvero.'))return;
+        try{await api('engine','/admin/memoria/dimentica',{method:'POST',body:{id:b.dataset.dimr,tipo:'riassunto',by:'andrea'}});
+          toast('Dimenticato','info');route('memoria');}catch(e){toast('✕ '+e.message,'bad');}});
       $$('[data-dim]').forEach(b=>b.onclick=async()=>{
         if(!confirm('Dimenticare questa cosa? Il testo viene cancellato davvero: resta solo che è stata dimenticata.'))return;
         try{await api('engine','/admin/memoria/dimentica',{method:'POST',body:{id:b.dataset.dim,by:'andrea'}});
@@ -2491,8 +2513,13 @@ function renderFocusBar(){
 async function chatTurn(text,history){
   const comp=(state._compSel&&state._compSel!=='divina')?state._compSel:null;
   const fp=focusPayload();
-  const payload={message:text,history,...(comp?{agent:true,companion:comp}:{}),
-    ...(fp?{focus:fp}:{})};
+  /* V7/A1 + V9/D · L'id della conversazione. Serve a due cose e a nessun'altra:
+     la rete di sicurezza del filo lato server (opt-in: senza id non esiste) e il
+     riassunto di chiusura. Non identifica una persona — è un numero che vive
+     quanto la conversazione e muore con lei. */
+  if(!state._conv)state._conv='c-'+Math.random().toString(36).slice(2,10);
+  const payload={message:text,history,conversazione:state._conv,
+    ...(comp?{agent:true,companion:comp}:{}),...(fp?{focus:fp}:{})};
   /* V5 · «pensa» è uno stato VERO: acceso qui, per la durata del turno.
      Il grafo in home lo mostra (setThink di brain3d) e la spia della
      colonnina lo legge da state._pensa. */
@@ -3732,6 +3759,29 @@ function enterClientMode(d){
   route('chat');
   const sub=$('#pageSub');if(sub)sub.textContent=`${d.account.display_name||d.account.email} · accesso cliente`;
 }
+/* V9/D · «Questa conversazione è finita». Lo dice il client, perché è l'unico
+   che lo sa: quando si chiude il pannello, quando se ne apre una nuova, quando
+   si esce dalla pagina. Il server comprime in un promemoria di due righe — una
+   volta sola, e mentre nessuno sta aspettando una risposta: è per questo che
+   non pesa sui 55 ms di prima sillaba.
+
+   `keepalive` perché all'uscita dalla pagina una fetch normale verrebbe
+   annullata a metà: è l'unico caso in cui serve, ed è il caso più frequente. */
+function chiudiConversazione(){
+  const conv=state._conv;
+  if(!conv||state.demo||state.clientMode||!state.tenantKey||!state.engBase)return;
+  const turni=state.chat.filter(m=>m.role==='user'||m.role==='bot')
+    .map(m=>({role:m.role==='bot'?'assistant':'user',content:m.text}));
+  if(turni.length<4)return;              // sotto, non c'è una conversazione da comprimere
+  state._conv=null;
+  try{
+    fetch(state.engBase.replace(/\/$/,'')+'/chat/chiudi',{method:'POST',keepalive:true,
+      headers:{'Content-Type':'application/json','X-Tenant-Key':state.tenantKey},
+      body:JSON.stringify({conversazione:conv,history:turni})}).catch(()=>{});
+  }catch(_){}
+}
+addEventListener('pagehide',chiudiConversazione);
+
 /* ══════════ V9/B · LA KB DI UN CLIENTE NASCE DAL SUO SITO ══════════
    Le schede clienti stanno fra le 61 e le 77 righe: scheletri. Non per un
    limite tecnico — riempirle è lavoro manuale che dipende dal cliente, e per
