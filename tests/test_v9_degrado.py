@@ -160,3 +160,22 @@ def test_spente_e_solo_quelle_che_valgono_un_avviso(monkeypatch):
     monkeypatch.setattr(settings, "tavily_api_key", "t")
     nomi = {s["funzione"] for s in degrado.spente()}
     assert "memoria" in nomi and "voci-agente" not in nomi
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Lo stesso principio, sull'endpoint che l'ha reso evidente
+# ══════════════════════════════════════════════════════════════════════════
+def test_l_ingest_fallito_dice_di_che_errore_si_tratta(client, monkeypatch):
+    """Trovato collaudando il merge del V8: `reingest.yml` è fallito con «Errore
+    interno durante l'indicizzazione» e basta. Un'automazione che riceve quella
+    frase non può fare niente, e chi legge il log nemmeno.
+
+    Esce il TIPO, non il messaggio: quest'ultimo può contenere percorsi, l'URL
+    del vault o pezzi di token. È la stessa scelta già fatta in `dbcheck`."""
+    monkeypatch.setattr(main.ingest, "run",
+                        lambda: (_ for _ in ()).throw(TimeoutError("https://x:tok@vault.git")))
+    r = client.post("/ingest", headers=AUTH)
+    assert r.status_code == 500
+    d = r.json()["detail"]
+    assert "TimeoutError" in d and "log del motore" in d
+    assert "tok@" not in d and "vault.git" not in d

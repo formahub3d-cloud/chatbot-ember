@@ -443,9 +443,18 @@ def do_ingest(body: IngestIn | None = None, authorization: str = Header(default=
         return ingest.run()
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        # V9 · Il TIPO dell'errore esce, il messaggio no. Trovato collaudando il
+        # merge del V8: `reingest.yml` è fallito con «Errore interno durante
+        # l'indicizzazione» e basta — un'automazione che riceve quella frase non
+        # può fare niente, e chi la legge nemmeno. È la stessa regola di
+        # `dbcheck` («schema non leggibile: OperationalError») e la stessa
+        # famiglia del degrado dichiarato: senza dato la spia dice QUALE dato
+        # manca. Il messaggio dell'eccezione resta fuori perché può contenere
+        # percorsi, URL del vault o pezzi di token; il nome della classe no.
         log.exception("ingest failed")
-        raise HTTPException(500, "Errore interno durante l'indicizzazione.")
+        raise HTTPException(500, "Indicizzazione fallita: "
+                                 f"{type(e).__name__}. Il dettaglio è nei log del motore.")
 
 
 @app.post("/chat")
