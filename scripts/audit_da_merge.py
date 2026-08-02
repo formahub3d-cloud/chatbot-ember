@@ -67,14 +67,30 @@ def titolo_da(testo: str) -> str:
     return ""
 
 
+# Stesso default degli altri workflow (reingest, nightly-retention): la
+# variabile EMBER_URL è OPZIONALE, il dominio di produzione è il ripiego.
+BASE_DEFAULT = "https://divina.formahub.it"
+
+
+def _avviso(testo: str) -> None:
+    """Un guaio che non deve rompere il merge, ma nemmeno passare inosservato.
+
+    `::warning::` compare nel riepilogo del run e sul commit: un job verde che
+    non ha fatto niente diventa un job verde CON un avviso. È la stessa regola
+    che questo giro ha applicato al pannello — senza dato la spia lo dice — e
+    nasce dal fatto che al primo collaudo questo script è uscito verde a mani
+    vuote, che è esattamente il difetto che era stato scritto per impedire."""
+    print(f"::warning title=audit-merge inerte::{testo}")
+
+
 def main() -> int:
-    base = os.environ.get("EMBER_URL", "").strip().rstrip("/")
+    base = (os.environ.get("EMBER_URL", "").strip() or BASE_DEFAULT).rstrip("/")
     tok = os.environ.get("ADMIN_TOKEN", "").strip()
     msg = os.environ.get("MSG", "")
-    if not base or not tok:
-        # Un'automazione di contorno non tinge di rosso un merge sano: si
-        # dichiara e si esce bene. Il segnale è il log, non la pipeline rotta.
-        print("EMBER_URL/ADMIN_TOKEN non configurati: niente da fare.")
+    if not tok:
+        _avviso("ADMIN_TOKEN non configurato: le task citate NON sono state "
+                "messe «da verificare». Impostalo fra i segreti del repo (lo "
+                "stesso che usano reingest.yml e nightly-retention.yml).")
         return 0
     chiavi = chiavi_da(msg)
     if not chiavi:
@@ -90,11 +106,20 @@ def main() -> int:
         with urllib.request.urlopen(req, timeout=30) as r:
             esito = json.loads(r.read().decode())
     except urllib.error.URLError as e:
-        print(f"Motore non raggiungibile ({e}): le task restano dove sono.", file=sys.stderr)
+        _avviso(f"motore non raggiungibile su {base} ({e}): le task citate "
+                f"({', '.join(chiavi)}) restano dove sono.")
         return 0            # di nuovo: non si rompe un merge per questo
-    for e in esito.get("esiti", []):
+    esiti = esito.get("esiti", [])
+    for e in esiti:
         print(f"  {e['chiave']} · {e['esito']}{' (' + e['status'] + ')' if e.get('status') else ''}")
-    print("Il merge NON chiude le task: adesso aspettano uno sguardo.")
+    mosse = sum(1 for e in esiti if e.get("esito") == "mossa")
+    print(f"Il merge NON chiude le task: {mosse} adesso aspettano uno sguardo.")
+    # Chiavi citate ma sconosciute al motore: può essere legittimo (una PR
+    # nomina una task di un altro repo) o può voler dire che il seed non è mai
+    # girato. Nel dubbio si dice, invece di lasciarlo dedurre da un silenzio.
+    ignote = [e["chiave"] for e in esiti if e.get("esito") in ("sconosciuta", "errore")]
+    if ignote:
+        _avviso("chiavi citate che il motore non conosce: " + ", ".join(ignote))
     return 0
 
 

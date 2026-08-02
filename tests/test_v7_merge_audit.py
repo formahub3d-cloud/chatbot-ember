@@ -126,6 +126,46 @@ def test_non_confonde_una_data_con_una_chiave():
     assert m.chiavi_da("scritto il 2026-08-01 alle 23-40") == []
 
 
+# ── Il difetto del PRIMO COLLAUDO: verde, e non aveva fatto niente ──────────
+def test_senza_token_avvisa_invece_di_uscire_zitto(monkeypatch, capsys):
+    """Al merge della PR #49 questo script è uscito verde a mani vuote, perché
+    leggeva nomi di segreti sbagliati: l'automazione scritta per far vedere i
+    guasti silenziosi ne è stata il primo esempio. Non deve rompere il merge —
+    ma nemmeno passare inosservata."""
+    m = _script()
+    monkeypatch.delenv("ADMIN_TOKEN", raising=False)
+    monkeypatch.setenv("MSG", "cita audit-2026-08-01-22")
+    assert m.main() == 0                                   # il merge non si rompe
+    out = capsys.readouterr().out
+    assert "::warning" in out and "ADMIN_TOKEN" in out     # ma si vede
+
+
+def test_l_url_del_motore_e_opzionale(monkeypatch, capsys):
+    """`EMBER_URL` è una VARIABILE opzionale negli altri workflow del repo, col
+    dominio di produzione come ripiego: qui vale la stessa convenzione."""
+    m = _script()
+    monkeypatch.delenv("EMBER_URL", raising=False)
+    monkeypatch.delenv("ADMIN_TOKEN", raising=False)
+    assert m.BASE_DEFAULT.startswith("https://")
+    monkeypatch.setenv("MSG", "nessuna chiave qui")
+    assert m.main() == 0
+    # senza token l'avviso è sul token, non sull'URL: l'URL un default ce l'ha
+    assert "EMBER_URL" not in capsys.readouterr().out
+
+
+def test_i_nomi_dei_segreti_sono_quelli_degli_altri_workflow():
+    """La regressione vera da bloccare: il workflow deve usare gli STESSI nomi
+    di reingest.yml e nightly-retention.yml, che sono quelli configurati."""
+    wf = (ROOT / ".github" / "workflows" / "audit-merge.yml").read_text("utf-8")
+    # si guardano le ESPRESSIONI, non la prosa: il commento che racconta lo
+    # sbaglio nomina i nomi sbagliati apposta, e deve poterlo fare
+    espressioni = [r.split(":", 1)[1].strip() for r in wf.splitlines()
+                   if r.strip().startswith(("EMBER_URL:", "ADMIN_TOKEN:"))]
+    assert espressioni == ["${{ vars.EMBER_URL }}", "${{ secrets.ADMIN_TOKEN }}"]
+    altro = (ROOT / ".github" / "workflows" / "reingest.yml").read_text("utf-8")
+    assert "vars.EMBER_URL" in altro and "secrets.ADMIN_TOKEN" in altro
+
+
 # ── Il doppione -31 / -20 ───────────────────────────────────────────────────
 def _unifica():
     spec = importlib.util.spec_from_file_location(

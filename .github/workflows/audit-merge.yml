@@ -10,9 +10,18 @@
 # ha aperto — ed è esattamente il modo in cui erano nate le tre affermazioni
 # sbagliate corrette l'1/08.
 #
-# Nessun segreto nuovo: usa EMBER_URL ed EMBER_ADMIN_TOKEN, che la CI ha già.
-# Se mancano, il job si ferma con un messaggio e NON fallisce la pipeline:
-# un'automazione di contorno non deve tingere di rosso un merge sano.
+# Nessun segreto nuovo: le STESSE credenziali di reingest.yml e
+# nightly-retention.yml — `vars.EMBER_URL` (variabile, opzionale, default il
+# dominio di produzione) e `secrets.ADMIN_TOKEN`.
+#
+# Il primo collaudo (merge della PR #49) è andato verde SENZA fare niente:
+# leggevo `secrets.EMBER_URL` (che è una variabile, non un segreto) e
+# `secrets.EMBER_ADMIN_TOKEN` (che qui si chiama `ADMIN_TOKEN`), quindi il job
+# trovava tutto vuoto e usciva bene. Cioè l'automazione scritta per far vedere i
+# guasti silenziosi ne è stata il primo esempio. Da qui in poi, quando non può
+# fare il suo lavoro, lo dice con un ::warning:: che si vede nel riepilogo del
+# run: continua a non tingere di rosso un merge sano, ma non finge più di aver
+# funzionato.
 
 name: audit-merge
 
@@ -49,8 +58,8 @@ jobs:
 
       - name: Le task citate passano a «da verificare»
         env:
-          EMBER_URL: ${{ secrets.EMBER_URL }}
-          ADMIN_TOKEN: ${{ secrets.EMBER_ADMIN_TOKEN }}
+          EMBER_URL: ${{ vars.EMBER_URL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           MSG: ${{ steps.msg.outputs.testo }}
           SHA: ${{ github.sha }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
