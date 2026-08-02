@@ -18,7 +18,7 @@ from .config import settings
 from .providers import embed, chat, chat_stream
 from .ingest import client
 from .security import sanitize_context, redact_pii
-from . import conversa, events, filo, metrics, websearch
+from . import autodoc, conversa, events, filo, metrics, websearch
 
 log = logging.getLogger("ember.rag")
 
@@ -465,6 +465,19 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     ADDITIVA: non cambia il filtro Qdrant (scope) e il contenuto web è dato non fidato.
     """
     lang = _resolve_lang(lang, question)
+    # V11/D1 · Le domande SU DIVINA hanno una fonte, e la fonte è nel vault.
+    # Prima rispondeva da istruzioni scritte nel codice: qualcosa che nessuno
+    # può leggere, correggere o citare. Adesso cita `ovyon/divina/`, che si
+    # aggiorna senza toccare una riga di Python.
+    auto = autodoc.contesto(question)
+    if auto:
+        out = _clean_answer(chat(_system(lang, tier, memoria=memoria), 
+                                 f"CONTENUTO:\n{auto['content']}\n\nDOMANDA: {question}"))
+        metrics.bump_chat(scopes_of(grants))
+        events.record("chat", scopes_of(grants))
+        return {"answer": out, "sources": auto["sources"], "scopes": scopes_of(grants),
+                "autodoc": True}
+
     # Fase 6 + task 16 · saluti e domande SUL sistema: percorso diverso, non
     # recupero migliore. Fallback esplicito: None → retrieval normale.
     from . import systemq
@@ -648,6 +661,21 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
 
     lang = _resolve_lang(lang, question)
     scopes = scopes_of(grants)
+    auto = autodoc.contesto(question)          # V11/D1 · vedi answer()
+    if auto:
+        metrics.bump_chat(scopes)
+        events.record("chat", scopes)
+        yield sse("sources", {"sources": auto["sources"], "scopes": scopes, "autodoc": True})
+        try:
+            for delta in chat_stream(_system(lang, tier, memoria=memoria),
+                                     f"CONTENUTO:\n{auto['content']}\n\nDOMANDA: {question}"):
+                yield sse(None, {"delta": delta})
+        except Exception:  # pragma: no cover
+            yield sse("error", {"message": "Errore del provider durante la risposta."})
+            return
+        yield sse("done", {})
+        return
+
     # Fase 6 + task 16 · stesso intercettore del percorso non-stream
     from . import systemq
     sq = systemq.intercetta(question, grants)

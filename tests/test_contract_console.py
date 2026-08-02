@@ -62,3 +62,37 @@ def test_nessun_path_dinamico_non_dichiarato():
            for r in contract.check(SERVICE)
            if r["found"] is None and f"{r['method']} {r['path']}" not in exc]
     assert not dyn, "path dinamici da giudicare a mano:\n  " + "\n  ".join(dyn)
+
+
+# ── V11/A4 · Il contratto al contrario: chi chiama questa rotta? ─────────────
+def test_nessuna_rotta_senza_chiamante_dichiarato():
+    """Andrea, il 2/08 sera: «più cose aggiungiamo, più c'è vulnerabilità».
+
+    Un endpoint che nessuna schermata chiama è superficie d'attacco che nessuno
+    guarda, e che nessuno noterà quando smetterà di funzionare. Non tutti sono
+    un difetto — alcuni hanno un chiamante fuori dal repo — ma il chiamante va
+    DICHIARATO con un nome. È la differenza fra tenere una cosa e
+    dimenticarsela, ed è l'unica versione della disciplina che sopravvive a un
+    giro in cui si ha fretta."""
+    orfane = contract.orfane()
+    assert not orfane, (
+        "Rotte che non chiama nessuno e che nessuno ha dichiarato. O si "
+        "cancellano, o si aggiunge il chiamante a CHIAMANTI_FUORI in "
+        "scripts/contract_console.py — con un nome, non con un «serve»:\n  "
+        + "\n  ".join(orfane))
+
+
+def test_ogni_dichiarazione_dice_CHI_chiama():
+    """Una dichiarazione vuota o generica rimetterebbe le rotte esattamente
+    dov'erano, con in più la sensazione che qualcuno ci abbia guardato."""
+    for rotta, chi in contract.CHIAMANTI_FUORI.items():
+        assert len(chi.strip()) >= 20, f"{rotta}: dichiarazione troppo vaga"
+
+
+def test_le_dichiarazioni_non_invecchiano_in_silenzio():
+    """Una rotta cancellata deve sparire anche dall'elenco: un elenco di
+    fantasmi è la stessa malattia, spostata di un file."""
+    routes, _ = contract.backend_routes()
+    vere = {f"{me} {p}" for me, p in routes}
+    morte = [k for k in contract.CHIAMANTI_FUORI if k not in vere]
+    assert not morte, ("Dichiarate ma non più esistenti: " + ", ".join(morte))

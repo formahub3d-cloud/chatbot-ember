@@ -52,7 +52,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti
+from . import autodoc, ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -791,34 +791,6 @@ def admin_roadmap(authorization: str = Header(default="")):
     return roadmap.roadmap()
 
 
-@app.get("/admin/human")
-def admin_human(authorization: str = Header(default="")):
-    """«Human · evoluzione» (01-08): la scheda personale di Andrea, letta dal
-    DISCO del vault — MAI dall'indice. Il percorso `andrea-aloia/human/` è
-    escluso dall'ingest (SKIP_DIRS: dati sanitari = categoria speciale GDPR,
-    motore in US West): nessun retrieval può restituirne frammenti, e Divina
-    non ci risponde sopra — per costruzione, non per prompt. Solo owner
-    (Bearer ADMIN_TOKEN), mai chiavi tenant."""
-    _require_admin(authorization)
-    import os as _os
-    base = (settings.vault_path or "").strip()
-    percorso = _os.path.join(base, "andrea-aloia", "human", "human-evoluzione.md") if base else ""
-    if not percorso or not _os.path.isfile(percorso):
-        return {"exists": False, "path": "andrea-aloia/human/human-evoluzione.md",
-                "note": "La nota non c'è ancora: si crea nel vault (fuori dall'indice, per scelta)."}
-    try:
-        with open(percorso, "r", encoding="utf-8") as f:
-            testo = f.read()
-        mtime = _os.path.getmtime(percorso)
-        import time as _t
-        return {"exists": True, "path": "andrea-aloia/human/human-evoluzione.md",
-                "text": testo[:40000],
-                "updated": _t.strftime("%Y-%m-%d %H:%M", _t.localtime(mtime))}
-    except Exception:
-        log.exception("lettura human fallita")
-        raise HTTPException(500, "Nota presente ma non leggibile in questo momento.")
-
-
 @app.get("/admin/brain")
 def admin_brain(authorization: str = Header(default="")):
     """Il cervello vivo in console: KPI del vault (note, aree, ultimi 7 giorni,
@@ -1235,6 +1207,44 @@ class ImparatoIn(BaseModel):
     history: list = []           # i turni della conversazione (dal client, come /chat)
     scope: str = ""              # dove finirebbe la nota, se approvata
     conversazione: str = ""      # etichetta della conversazione (per ritrovarla)
+
+
+@app.post("/admin/conversazione/conclusioni")
+def admin_conversazione_conclusioni(body: ImparatoIn, authorization: str = Header(default="")):
+    """V11/D3 · «Cosa è emerso e cosa conviene fare», dopo una conversazione con
+    un cliente. Fratello di `/admin/conversazione/imparato` e domanda diversa:
+    quello dice cosa vale la pena RICORDARE, questo cosa conviene FARE — e la
+    seconda non si ricava dalla prima.
+
+    Stesse due cautele: ogni riga porta la citazione verificata alla lettera
+    nella conversazione, e non si scrive niente. È una proposta."""
+    _require_admin(authorization)
+    scope = (body.scope or "").strip()
+    if not scope:
+        raise HTTPException(422, "Indica il cliente di cui si sta parlando.")
+    return {"conclusioni": learned.conclusioni(body.history, scope)}
+
+
+@app.get("/admin/clients/punto")
+def admin_clients_punto(scope: str, authorization: str = Header(default="")):
+    """V11/D2 · A che punto è il lavoro con questo cliente, in una frase che si
+    può dire a voce. Il dato c'era già — le note della sua KB, le proposte in
+    coda: mancava che qualcuno lo raccontasse."""
+    _require_admin(authorization)
+    scope = (scope or "").strip()
+    if not scope:
+        raise HTTPException(422, "Indica il cliente.")
+    try:
+        note = brain.notes(limit=200) or []
+    except Exception:
+        note = []
+    mie = [n for n in note if (n.get("tenant") or "") == scope]
+    try:
+        pend = len([x for x in (proposals.generate() or [])
+                    if (x.get("scope") or "") == scope])
+    except Exception:
+        pend = 0
+    return autodoc.punto_del_lavoro(scope, mie, proposte=pend)
 
 
 @app.post("/admin/conversazione/imparato")
