@@ -183,6 +183,79 @@ function trovaChromium() {
     return out;
   });
 
+  // 1b-ter · V8/A + V8/C2 + V8/C3, resi in chat.
+  //   A  · quando il sistema registra qualcosa su di te lo dice LÌ, nella
+  //        bolla, col bottone per farglielo dimenticare (mai di nascosto);
+  //   C2 · la delega compare dentro il filo come riga di SISTEMA — non un
+  //        messaggio, non una sezione altrove;
+  //   C3 · il risultato è una scheda con un NOME, non testo che scorre via.
+  const convV8 = await page.evaluate(() => {
+    const salvo = state.chat.slice();
+    state.demo = false;
+    state.chat = [
+      { role: "user", text: "mi prepari il sollecito per ATS?" },
+      { role: "delega", agent: "dante", ruolo: "Invoice Chase", fine: false },
+      { role: "delega", agent: "dante", fine: true },
+      { role: "bot", text: "Fatto: ecco il sollecito.", sources: [],
+        ricordato: { id: "m-x", fatto: "Preferisci risposte brevi." } },
+      { role: "scheda", agent: "dante", tipo: "Invoice Chase", nome: "Sollecito fattura 214 · ATS",
+        testo: "riga\nriga\nriga\nriga\nriga", righe: 5 },
+    ];
+    renderChat();
+    const t = document.getElementById("chatInner").textContent;
+    const out = {
+      delegaVia: /affido a\s*Dante/.test(t.replace(/\s+/g, " ")),
+      delegaFine: /Dante\s*ha finito/.test(t.replace(/\s+/g, " ")),
+      righeSistema: document.querySelectorAll("#chatInner .riga-sistema").length,
+      scheda: !!document.querySelector("#chatInner .scheda-out"),
+      schedaNome: /Sollecito fattura 214/.test(t),
+      ricordo: !!document.querySelector("#chatInner .ricordato") && /Dimentica/.test(t),
+    };
+    state.chat = salvo; state.demo = true; renderChat();
+    return out;
+  });
+
+  // 1b-quater · V8/A1 · La pagina «Cosa so di te»: l'elenco, la FONTE al posto
+  //   della percentuale (in Zoey ogni memoria è al 70%: un numero costante
+  //   travestito da misura), il distintivo di quella che sta CAMBIANDO le
+  //   risposte adesso, e il bottone che cancella.
+  await page.evaluate(() => route("memoria"));
+  await page.waitForTimeout(500);
+  const memV8 = await page.evaluate(() => {
+    const c = document.getElementById("content"), t = c.textContent;
+    return {
+      righe: c.querySelectorAll(".mem-riga").length,
+      fonte: !!c.querySelector(".mem-fonte"),
+      nessunaPercentuale: !/\b\d{1,3}\s*%/.test(t),
+      inUso: !!c.querySelector(".mem-usata"),
+      dimentica: !!c.querySelector("[data-dim]"),
+      art17: /art\. 17/.test(t),
+    };
+  });
+
+  // 1b-quinquies · V8/B · Le due porte del CLIENTE. Girano in demo (il
+  //   guardiano non ha cookie né server): quello che si sorveglia è che
+  //   esistano, che la kb elenchi con la data e il bottone «è sbagliata», e
+  //   che la pagina dei buchi — spenta — DICA perché, invece di sembrare
+  //   «nessun buco».
+  await page.evaluate(() => route("ckb"));
+  await page.waitForTimeout(400);
+  const ckbV8 = await page.evaluate(() => {
+    const c = document.getElementById("content");
+    return { righe: c.querySelectorAll("[data-sbag]").length,
+             sappiamo: /sappiamo di voi/i.test(c.textContent),
+             nonScrive: /non si scrive nel cervello/i.test(c.textContent) };
+  });
+  await page.evaluate(() => route("cbuchi"));
+  await page.waitForTimeout(400);
+  const buchiV8 = await page.evaluate(() => {
+    const t = document.getElementById("content").textContent;
+    return { spiega: /utenti finali/.test(t) && /decidiamo insieme/.test(t),
+             nonFingeVuoto: !/Nessuna domanda rimasta/.test(t) };
+  });
+  await page.evaluate(() => route("home"));
+  await page.waitForTimeout(300);
+
   // 1c · R2: la barra di scrittura sta DENTRO il pannello col suo respiro —
   //      niente testo tagliato dal bordo (il difetto visto in produzione).
   const composer = await page.evaluate(() => {
@@ -405,6 +478,30 @@ function trovaChromium() {
     console.error("FAIL (V8-D1): il menu si illumina e il contenuto resta indietro — titolo «" + d1.titolo
       + "», contenuto della vista precedente=" + d1.dashboardRimasta); ko = 1;
   } else console.log("[navigazione] la vista lenta non passa più sopra a quella nuova");
+  if (!convV8.delegaVia || !convV8.delegaFine || convV8.righeSistema !== 2) {
+    console.error("FAIL (V8-C2): la delega non si vede dentro il filo " + JSON.stringify(convV8)); ko = 1;
+  }
+  if (!convV8.scheda || !convV8.schedaNome) {
+    console.error("FAIL (V8-C3): il risultato non è una scheda con un nome " + JSON.stringify(convV8)); ko = 1;
+  }
+  if (!convV8.ricordo) {
+    console.error("FAIL (V8-A): il sistema registra qualcosa su di te e non lo dice nella bolla (o manca il Dimentica)"); ko = 1;
+  }
+  if (!memV8.righe || !memV8.fonte || !memV8.dimentica || !memV8.art17) {
+    console.error("FAIL (V8-A1): la pagina «Cosa so di te» non elenca, non mostra la fonte o non ha il Dimentica " + JSON.stringify(memV8)); ko = 1;
+  }
+  if (!memV8.nessunaPercentuale) {
+    console.error("FAIL (V8-A3): è comparsa una PERCENTUALE nella memoria — è l'errore di Zoey (tutte al 70%): senza criterio si scrive la fonte"); ko = 1;
+  }
+  if (!memV8.inUso) {
+    console.error("FAIL (V8-A4): nessuna memoria è marcata «in uso adesso»: una memoria che non cambia niente è una vetrina"); ko = 1;
+  }
+  if (!ckbV8.righe || !ckbV8.sappiamo || !ckbV8.nonScrive) {
+    console.error("FAIL (V8-B2): il pannello del cliente non elenca la sua knowledge base " + JSON.stringify(ckbV8)); ko = 1;
+  }
+  if (!buchiV8.spiega || !buchiV8.nonFingeVuoto) {
+    console.error("FAIL (V8-B3): la pagina dei buchi spenta non DICE perché è spenta " + JSON.stringify(buchiV8)); ko = 1;
+  }
   if (!vox.aperto) { console.error("FAIL: il modo vocale non si è aperto"); ko = 1; }
   else if (vox.canvas && vox.px <= 200 && !vox.css) {
     console.error(`FAIL: l'orb NON disegna (canvas ${vox.w}x${vox.h}, cssW=${vox.cssW}, px=${vox.px})`); ko = 1;

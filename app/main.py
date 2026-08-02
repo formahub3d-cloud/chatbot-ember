@@ -51,7 +51,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -391,6 +391,7 @@ def config(x_tenant_key: str = Header(default="")):
 
 class TTSIn(BaseModel):
     text: str
+    agente: str = ""       # V8/C1: dante|virgilio|beatrice → la sua voce. Mai un voice_id.
 
 
 @app.post("/voice/stt")
@@ -420,7 +421,10 @@ def do_tts(body: TTSIn, x_tenant_key: str = Header(default=""), origin: str = He
         # V1: streaming — i byte partono appena il provider li produce. Gli errori
         # esplodono PRIMA del primo byte (contratto di synthesize_stream), quindi
         # il 502 → fallback voce del browser resta identico a prima.
-        stream, ctype = voice.synthesize_stream(text)
+        # V8/C1: l'agente arriva come NOME e la mappa nome→voce sta sul server.
+        # Un nome ignoto ricade sulla voce generale: una voce sbagliata è un
+        # difetto estetico, un errore a metà frase è una conversazione rotta.
+        stream, ctype = voice.synthesize_stream(text, agente=body.agente)
         return StreamingResponse(stream, media_type=ctype)
     except Exception:
         log.exception("tts failed")
@@ -461,7 +465,15 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     body.message = security.cap_input(body.message, settings.max_message_chars)
     if not body.message:
         raise HTTPException(422, "Messaggio vuoto.")
-    lang = body.lang or (tenant.get("branding") or {}).get("lang") or settings.default_lang
+    # V8/A4 · La memoria si USA, non si mostra soltanto. Il difetto di Zoey era
+    # tenere «prefers Italian» al 70% e rispondere in inglese: qui la lingua
+    # ricordata batte il default del tenant. NON batte una lingua chiesta
+    # esplicitamente nella richiesta — un'istruzione di adesso vale più di una
+    # di ieri, sempre.
+    tcode = _tenant_code(tenant)
+    pref = memoria.preferenze(tcode)
+    lang = (body.lang or pref.get("lingua")
+            or (tenant.get("branding") or {}).get("lang") or settings.default_lang)
     # Tier/archetipo OVYON (dante/virgilio/beatrice) dal branding del tenant.
     # SICUREZZA: il tier modula SOLO lo stile della risposta (vedi rag.style_directive);
     # NON entra nei grant e NON tocca il filtro Qdrant → lo scope dei dati resta identico.
@@ -502,12 +514,27 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     # fresca); la memoria server-side è la rete quando non arriva, e vive solo se
     # il client ha dato un id alla conversazione.
     conv = security.cap_input(body.conversazione, 80)
-    turni, da_dove = filo.risolvi(body.history, _tenant_code(tenant), conv)
+    turni, da_dove = filo.risolvi(body.history, tcode, conv)
+    # V8/A · Una preferenza dichiarata adesso («parlami in italiano») si
+    # registra subito e vale già da questa risposta. Non passa dalla coda delle
+    # proposte: non è conoscenza estratta dal parlato, è un'istruzione che la
+    # persona ha appena dato — e resta visibile e cancellabile con un clic
+    # (la console la mostra nella bolla, «Cosa so di te» la elenca).
+    nuova = memoria.dalla_frase(body.message)
+    if nuova:
+        salvata = memoria.ricorda(tcode, nuova["fatto"], chiave=nuova["chiave"],
+                                  valore=nuova["valore"], origine="detto",
+                                  citazione=nuova["citazione"])
+        if salvata:
+            if nuova["chiave"] == "lingua" and not body.lang:
+                lang = nuova["valore"]        # vale già da questa risposta, non dalla prossima
+            pref[nuova["chiave"]] = nuova["valore"]
+    ricordi = memoria.per_prompt(tcode)
     if body.stream:
         try:
             gen = rag.answer_stream(body.message, _grants(tenant), history=turni,
                                     lang=lang, tier=tier, web=body.web, web_enabled=web_enabled,
-                                    focus_slugs=focus_slugs, free=free)
+                                    focus_slugs=focus_slugs, free=free, memoria=ricordi)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -531,16 +558,21 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     try:
         out = rag.answer(body.message, _grants(tenant), history=turni, lang=lang,
                          tier=tier, web=body.web, web_enabled=web_enabled,
-                         focus_slugs=focus_slugs, free=free)
+                         focus_slugs=focus_slugs, free=free, memoria=ricordi)
     except HTTPException:
         raise
     except Exception:
         log.exception("chat failed")
         raise HTTPException(500, "Errore interno del chatbot.")
     # Il turno appena chiuso entra nella rete di sicurezza (solo con un id).
-    filo.aggiungi(_tenant_code(tenant), conv, turni, body.message, out.get("answer", ""))
+    filo.aggiungi(tcode, conv, turni, body.message, out.get("answer", ""))
     if isinstance(out.get("filo"), dict):
         out["filo"]["da"] = da_dove      # client | server | nessuno: la console lo dice
+    if nuova and salvata:
+        # Nella bolla, non in un menu: «me lo ricordo» + il bottone per farmelo
+        # dimenticare. Una memoria che si forma di nascosto è la cosa che rende
+        # sgradevoli questi prodotti — questa si forma davanti agli occhi.
+        out["ricordato"] = {"id": salvata["id"], "fatto": salvata["fatto"]}
     return out
 
 
@@ -879,6 +911,68 @@ def admin_libera_set(body: Liv3In, authorization: str = Header(default="")):
     if not flags.set_libera(body.tenant, body.on, body.by):
         raise HTTPException(422, "Servono tenant e il nome di chi decide (by).")
     return {"ok": True, "tenant": body.tenant.strip(), "libera": bool(body.on)}
+
+
+# ── V8/A · «Cosa so di te»: l'elenco e il bottone ────────────────────────────
+class MemoriaIn(BaseModel):
+    tenant: str
+    fatto: str
+    agente: str = "divina"
+    chiave: str = ""
+    valore: str = ""
+
+
+class MemoriaDimenticaIn(BaseModel):
+    id: str
+    by: str = ""
+
+
+def _memoria_pagina(tenant_code: str, agente: str = "") -> dict:
+    """La pagina, uguale per l'owner e per il cliente. Un posto solo perché la
+    risposta all'art. 15 non può dipendere da chi la chiede.
+
+    `confidenza` NON esiste, di proposito: in Zoey ogni memoria è al 70%, un
+    numero costante travestito da misura. Qui ci sono i due dati veri —
+    `conferme` (quante volte è stato ridetto) e `citazione` (la frase da cui
+    viene) — e la console scrive quelli. Senza criterio, la fonte batte la
+    percentuale."""
+    voci = memoria.elenco(tenant_code, agente)
+    return {"tenant": tenant_code, "memorie": voci, "totale": len(voci),
+            "persist": memoria.enabled(),
+            "chiavi": {k: list(v) for k, v in memoria.CHIAVI.items()},
+            "usate": memoria.preferenze(tenant_code, agente)}
+
+
+@app.get("/admin/memoria")
+def admin_memoria(tenant: str = "", agente: str = "", authorization: str = Header(default="")):
+    """Cosa il sistema ha imparato di un tenant. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    t = (tenant or "").strip()
+    if not t:
+        raise HTTPException(422, "Indica il tenant.")
+    return _memoria_pagina(t, (agente or "").strip().lower())
+
+
+@app.post("/admin/memoria")
+def admin_memoria_add(body: MemoriaIn, authorization: str = Header(default="")):
+    """Aggiunge a mano un fatto da ricordare (origine 'mano'). Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    m = memoria.ricorda(body.tenant, body.fatto, chiave=body.chiave,
+                        valore=body.valore, origine="mano", agente=body.agente)
+    if not m:
+        raise HTTPException(422, "Fatto vuoto, con dati personali, chiave senza "
+                                 "valore ammesso, o tetto del tenant raggiunto.")
+    return {"ok": True, "memoria": m}
+
+
+@app.post("/admin/memoria/dimentica")
+def admin_memoria_dimentica(body: MemoriaDimenticaIn, authorization: str = Header(default="")):
+    """Il bottone DIMENTICA. Cancella il contenuto per davvero e lascia solo la
+    lapide (quando, chi): l'art. 17 non si soddisfa archiviando. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    if not memoria.dimentica(body.id, body.by):
+        raise HTTPException(404, "Memoria inesistente o già dimenticata.")
+    return {"ok": True}
 
 
 class TaskPrioritaIn(BaseModel):
@@ -1553,6 +1647,112 @@ def client_me(request: Request):
     dentro c'è FORMA: la console mostra il banner di cortesia."""
     sess = _client_session_or_401(request)
     return {"account": sess["account"], "kind": sess["kind"]}
+
+
+# ── V8/B · Le tre porte del cliente ──────────────────────────────────────────
+# Tutte e tre prendono lo scope dalla SESSIONE, mai dalla richiesta: è la stessa
+# regola del filtro Qdrant, applicata a una pagina invece che a una risposta.
+
+class ClientSegnalaIn(BaseModel):
+    cosa: str
+    slug: str = ""
+    titolo: str = ""
+
+
+def _client_tenant(sess: dict) -> tuple[str, dict]:
+    """Il tenant dietro la sessione cliente: codice + record. La chiave sta sul
+    server (il browser non la conosce), quindi si risolve qui e non si espone."""
+    try:
+        key = clientauth.tenant_key_of(sess["account"]["id"])
+    except KeyError:
+        raise HTTPException(401, "Accesso cliente non più valido.")
+    t = tenants.get_tenant_by_key(key)
+    if not t:
+        raise HTTPException(401, "La chiave associata a questo accesso non è più valida.")
+    return _tenant_code(t), t
+
+
+@app.get("/client/kb")
+def client_kb(request: Request):
+    """«Ecco le cose che so di voi»: le note del cervello nelle aree del cliente."""
+    sess = _client_session_or_401(request)
+    _code, t = _client_tenant(sess)
+    return clientkb.kb(rag.scopes_of(_grants(t)))
+
+
+@app.post("/client/segnala")
+def client_segnala(body: ClientSegnalaIn, request: Request):
+    """«Questa cosa su di noi è sbagliata». È una PROPOSTA nella coda dell'owner:
+    il cliente non scrive nel vault, e non lo scriverà mai da qui."""
+    sess = _client_session_or_401(request)
+    code, _t = _client_tenant(sess)
+    r = clientkb.segnala(code, body.cosa, slug=body.slug, titolo=body.titolo,
+                         da=sess["account"].get("email", ""))
+    if not r:
+        raise HTTPException(422, "Segnalazione vuota, oppure ne hai già troppe aperte: "
+                                 "aspetta che FORMA guardi le precedenti.")
+    tenants.log_access("client:" + sess["account"].get("email", ""), "client-segnala",
+                       detail=f"tenant={code}")
+    return {"ok": True, "segnalazione": r}
+
+
+@app.get("/client/buchi")
+def client_buchi(request: Request):
+    """Le domande rimaste senza risposta sui dati del cliente — dietro la spunta
+    `buchi` sul suo record. Spenta, la pagina DICE perché: sono domande dei suoi
+    utenti finali, e mostrarle è un accordo, non un default."""
+    sess = _client_session_or_401(request)
+    code, t = _client_tenant(sess)
+    return clientkb.buchi(code, rag.scopes_of(_grants(t)), flags.buchi(code))
+
+
+# ── Il lato owner delle segnalazioni: la coda, e chi la chiude ───────────────
+class SegnalazioneChiudiIn(BaseModel):
+    id: str
+    stato: str                 # accolta | respinta
+    by: str
+    risposta: str = ""
+
+
+@app.get("/admin/segnalazioni")
+def admin_segnalazioni(stato: str = "aperta", tenant: str = "",
+                       authorization: str = Header(default="")):
+    """Le segnalazioni dei clienti. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    voci = clientkb.segnalazioni(tenant_code=(tenant or "").strip(), stato=(stato or "").strip())
+    return {"segnalazioni": voci, "totale": len(voci), "persist": clientkb.enabled()}
+
+
+@app.post("/admin/segnalazioni/chiudi")
+def admin_segnalazioni_chiudi(body: SegnalazioneChiudiIn,
+                              authorization: str = Header(default="")):
+    """Accoglie o respinge una segnalazione, col nome di chi decide. Una
+    segnalazione che sparisce senza risposta insegna a non segnalare più."""
+    _require_admin(authorization)
+    if not clientkb.chiudi(body.id, body.stato, body.by, body.risposta):
+        raise HTTPException(422, "Segnalazione inesistente/già chiusa, stato non "
+                                 "valido (accolta|respinta), o manca il nome (by).")
+    return {"ok": True}
+
+
+@app.get("/admin/buchi-cliente")
+def admin_buchi_cliente(tenant: str = "", authorization: str = Header(default="")):
+    """Lo stato della spunta «il cliente vede i buchi». Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    t = (tenant or "").strip()
+    if not t:
+        raise HTTPException(422, "Indica il tenant.")
+    return {"tenant": t, "buchi": flags.buchi(t), "persist": flags.enabled()}
+
+
+@app.post("/admin/buchi-cliente")
+def admin_buchi_cliente_set(body: Liv3In, authorization: str = Header(default="")):
+    """Accende/spegne la vista dei buchi per un cliente — decisione umana, col
+    nome. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    if not flags.set_buchi(body.tenant, body.on, body.by):
+        raise HTTPException(422, "Servono tenant e il nome di chi decide (by).")
+    return {"ok": True, "tenant": body.tenant.strip(), "buchi": bool(body.on)}
 
 
 class ClientChatIn(BaseModel):

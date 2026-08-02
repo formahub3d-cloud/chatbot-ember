@@ -169,8 +169,29 @@ _TONO_EN = (
 )
 
 
+def _memoria_block(memoria, lang: str = "it") -> str:
+    """V8/A4 · Quello che il sistema sa di chi sta parlando, davanti al modello.
+
+    Due cautele scritte nel prompt e non lasciate al buon senso del modello:
+    non è CONTENUTO (non si cita come fonte, non entra nell'elenco delle fonti)
+    e non allarga niente (una preferenza non è un permesso). Senza questa riga
+    il modello finirebbe per presentare «preferisci risposte brevi» come un
+    dato del cervello, con tanto di slug inventato."""
+    voci = [str(v).strip() for v in (memoria or []) if str(v).strip()]
+    if not voci:
+        return ""
+    elenco = " ".join(f"- {v}" for v in voci[:8])
+    if _lang(lang) == "en":
+        return (" WHAT YOU KNOW ABOUT THE PERSON SPEAKING (preferences they stated;"
+                " honour them): " + elenco + " These are NOT part of the CONTENT:"
+                " never cite them as sources and never let them widen what you may say.")
+    return (" COSA SAI DI CHI TI PARLA (preferenze che ha dichiarato: rispettale):"
+            " " + elenco + " NON fanno parte del CONTENUTO: non citarle mai come"
+            " fonti e non lasciare che allarghino ciò che puoi dire.")
+
+
 def _system(lang: str = "it", tier: str | None = None, web: bool = False,
-            free: bool = False) -> str:
+            free: bool = False, memoria=None) -> str:
     """System prompt vincolato al contenuto, nella lingua richiesta. In CODA si
     AGGIUNGONO (mai si sostituiscono) eventuali direttive: lo stile del tier e, se
     ci sono fonti web nel contesto, la nota sull'uso non fidato delle FONTI WEB. I
@@ -185,6 +206,7 @@ def _system(lang: str = "it", tier: str | None = None, web: bool = False,
         base = base + (_WEB_NOTE_EN if _lang(lang) == "en" else _WEB_NOTE_IT)
     if free:
         base = base + (_FREE_NOTE_EN if _lang(lang) == "en" else _FREE_NOTE_IT)
+    base = base + _memoria_block(memoria, lang)      # V8/A4: la memoria si usa
     return base
 
 
@@ -388,7 +410,7 @@ def _maybe_web(question: str, hits, web: bool, web_enabled: bool) -> list:
 
 def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
            tier: str | None = None, web: bool = False, web_enabled: bool = False,
-           focus_slugs=None, free: bool = False) -> dict:
+           focus_slugs=None, free: bool = False, memoria=None) -> dict:
     """Risposta vincolata al contenuto visibile ai `grants` del tenant.
 
     `grants`: lista storica (`allowed_scopes`) o dict con org/tenant/sub_tenant.
@@ -440,7 +462,8 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     context = _build_context(hits)
     user = (f"{_hist_block(turni)}CONTENUTO:\n{context}\n\n"
             f"{_build_web_context(web_results)}DOMANDA: {question}")
-    out = _clean_answer(chat(_system(lang, tier, web=bool(web_results), free=free), user))
+    out = _clean_answer(chat(_system(lang, tier, web=bool(web_results), free=free,
+                                     memoria=memoria), user))
     sources = _merge_sources(hits, web_results)
     metrics.bump_chat(scopes)
     events.record("chat", scopes)
@@ -520,7 +543,7 @@ def _retrieve(question: str, grants, k: int = 6, focus_slugs=None):
 
 def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "it",
                   tier: str | None = None, web: bool = False, web_enabled: bool = False,
-                  focus_slugs=None, free: bool = False):
+                  focus_slugs=None, free: bool = False, memoria=None):
     """Come answer(), ma genera eventi SSE (stringhe già formattate).
 
     Sequenza: `event: sources` (fonti+scope, subito dopo retrieval/web),
@@ -578,7 +601,8 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
     user = (f"{_hist_block(turni)}CONTENUTO:\n{context}\n\n"
             f"{_build_web_context(web_results)}DOMANDA: {question}")
     try:
-        for delta in chat_stream(_system(lang, tier, web=bool(web_results), free=free), user):
+        for delta in chat_stream(_system(lang, tier, web=bool(web_results), free=free,
+                                         memoria=memoria), user):
             yield sse(None, {"delta": delta})
     except Exception:  # pragma: no cover - errore del provider a stream avviato
         yield sse("error", {"message": "Errore del provider durante la risposta."})

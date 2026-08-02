@@ -32,6 +32,12 @@
  *   v.listen({autosend}) · v.stopListen() · v.cancelListen() · v.inClosing()
  *   v.listening() · v.speak(testo) · v.speakStart(t0) · v.speakFeed(delta)
  *   v.speakFlush() · v.stopSpeak() · v.think() · v.stop() · v.stats() · v.stato()
+ *   v.setAgente('dante')     // V8/C1: chi sta parlando → la sua voce
+ *
+ * V8/C1 · UNA VOCE PER AGENTE. Al server va il NOME dell'agente, mai un
+ * voice_id: la mappa nome→voce sta in app/voice.py, così un browser non può
+ * scegliere quale voce far pagare. Nome assente o ignoto = voce di Divina,
+ * cioè esattamente il comportamento di prima.
  */
 (function () {
   "use strict";
@@ -132,6 +138,7 @@
     var base    = O.base    || function(){ return ""; };
     var headers = O.headers || function(){ return {}; };
     var pro     = O.pro     || function(){ return false; };
+    var AGENTE  = "";      // V8/C1: chi sta parlando ('' = Divina). Nome, mai un voice_id.
     var LANG    = O.lang || "it-IT";
     var DEF_AUTOSEND = O.autosend !== false;
     var BARGE   = O.barge !== false;
@@ -180,7 +187,7 @@
       var t = emPulisci(f);
       if (!t) return;
       vout.frasi.push(t);
-      if (pro()){ vout.items.push({ text:t, blob:null, err:false, ctl:null, state:"coda" }); pompa(); avanti(); }
+      if (pro()){ vout.items.push({ text:t, agente:AGENTE, blob:null, err:false, ctl:null, state:"coda" }); pompa(); avanti(); }
       else fraseBrowser(t);
     }
     function pompa(){
@@ -194,7 +201,7 @@
           fetch(base() + "/voice/tts", {
             method:"POST",
             headers:(function(h){ h["Content-Type"] = "application/json"; return h; })(headers() || {}),
-            body: JSON.stringify({ text: it.text.slice(0, 2000) }),
+            body: JSON.stringify({ text: it.text.slice(0, 2000), agente: it.agente || AGENTE || "" }),
             signal: it.ctl ? it.ctl.signal : undefined,
             credentials: O.credentials || "same-origin"
           }).then(function(r){ if (!r.ok) throw new Error("tts " + r.status); return r.blob(); })
@@ -518,6 +525,8 @@
       stop: function(){ udito.cancel = true; stopListen(); stopSpeak(); setStato("fermo"); },
       stats: function(){ return STATS; },
       setBarge: function(v){ BARGE = !!v; if (!BARGE) vadIdle(); },   // C3: spegnibile a caldo
+      setAgente: function(a){ AGENTE = String(a || "").toLowerCase(); },  // V8/C1: chi parla
+      agente: function(){ return AGENTE; },
       barge: function(){ return BARGE; },
       stato: function(){ return stato; }
     };
