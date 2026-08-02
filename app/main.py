@@ -51,7 +51,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -940,7 +940,12 @@ def _memoria_pagina(tenant_code: str, agente: str = "") -> dict:
     return {"tenant": tenant_code, "memorie": voci, "totale": len(voci),
             "persist": memoria.enabled(),
             "chiavi": {k: list(v) for k, v in memoria.CHIAVI.items()},
-            "usate": memoria.preferenze(tenant_code, agente)}
+            "usate": memoria.preferenze(tenant_code, agente),
+            # V9/A1 · Il 2/08 questa pagina diceva «non so ancora niente di te»
+            # mentre la verità era «non posso ricordare niente, mi manca la
+            # tabella». Una funzione spenta che sembra inutile non chiede di
+            # essere riparata.
+            "degrado": degrado.per("memoria")}
 
 
 @app.get("/admin/memoria")
@@ -1207,6 +1212,10 @@ def admin_status(authorization: str = Header(default="")):
         # mancante dice cosa smette di funzionare: è la differenza fra scoprirlo
         # in dieci secondi e scoprirlo da un 500 due settimane dopo.
         "db_schema": dbcheck.stato(),
+        # V9/A3 · Le funzioni spente, con la frase che ogni schermata interessata
+        # mostra da sé. Qui c'è l'elenco completo — la novità è che non è più
+        # l'UNICO posto dove si vede: era il difetto del 2/08.
+        "funzioni": degrado.tutte(),
         # V7/A1 · Quanti fili di conversazione vivi in memoria. Una memoria che
         # non si vede è peggio di una che non c'è: qui si sa quanta ce n'è.
         "fili_in_memoria": filo.quante(),
@@ -1677,7 +1686,11 @@ def client_kb(request: Request):
     """«Ecco le cose che so di voi»: le note del cervello nelle aree del cliente."""
     sess = _client_session_or_401(request)
     _code, t = _client_tenant(sess)
-    return clientkb.kb(rag.scopes_of(_grants(t)))
+    # Il degrado che riguarda IL CLIENTE è quello della segnalazione: se la sua
+    # correzione andrebbe persa al prossimo riavvio, deve saperlo prima di
+    # scriverla, non dopo.
+    return {**clientkb.kb(rag.scopes_of(_grants(t))),
+            "degrado": degrado.per("cliente-segnala")}
 
 
 @app.post("/client/segnala")
@@ -1703,7 +1716,8 @@ def client_buchi(request: Request):
     utenti finali, e mostrarle è un accordo, non un default."""
     sess = _client_session_or_401(request)
     code, t = _client_tenant(sess)
-    return clientkb.buchi(code, rag.scopes_of(_grants(t)), flags.buchi(code))
+    return {**clientkb.buchi(code, rag.scopes_of(_grants(t)), flags.buchi(code)),
+            "degrado": degrado.per("cliente-buchi")}
 
 
 # ── Il lato owner delle segnalazioni: la coda, e chi la chiude ───────────────

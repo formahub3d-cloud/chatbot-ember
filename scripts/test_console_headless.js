@@ -253,6 +253,44 @@ function trovaChromium() {
     return { spiega: /utenti finali/.test(t) && /decidiamo insieme/.test(t),
              nonFingeVuoto: !/Nessuna domanda rimasta/.test(t) };
   });
+
+  // 1b-sexies · V9/A · Una funzione spenta lo dice DOVE si usa.
+  //   Il 2/08 «Cosa so di te» diceva «non so niente di te» mentre la verità era
+  //   «non posso ricordare niente, mi manca la tabella». Qui si sorveglia che
+  //   l'avviso sia UNO e uguale ovunque, che al cliente non si mostri la riga
+  //   tecnica (non è lui a dover impostare una variabile su Railway), e che lo
+  //   stato vuoto non finga di essere vuoto quando invece è spento.
+  const degradoV9 = await page.evaluate(() => {
+    const spento = { stato: "spento", titolo: "«Cosa so di te»", dove: "Squadra",
+                     perche: "si azzera a ogni redeploy", come: "applica db/tenant_memory.sql", manca: ["tenant_memory"] };
+    const nonSo = { stato: "non-so", titolo: "x", dove: "y", perche: "non è leggibile adesso", come: "", manca: [] };
+    const owner = boxDegrado(spento), cliente = boxDegrado(spento, { cliente: true });
+    return {
+      compare: /data-degrado="spento"/.test(owner),
+      spiega: /si azzera a ogni redeploy/.test(owner),
+      tecnicoOwner: /tenant_memory\.sql/.test(owner),
+      tecnicoCliente: /tenant_memory\.sql/.test(cliente),   // deve essere FALSO
+      acceso: boxDegrado({ stato: "acceso" }) === "",
+      nonSo: /data-degrado="non-so"/.test(boxDegrado(nonSo)),
+      vuotoSpento: /Non posso ricordare niente/.test(vuotoOnesto(spento, "Non so niente di te", "", "brain")),
+      vuotoNormale: /Non so niente di te/.test(vuotoOnesto({ stato: "acceso" }, "Non so niente di te", "", "brain")),
+    };
+  });
+  // e nella pagina del cliente l'avviso c'è DAVVERO, non solo la funzione che lo sa fare
+  const degradoCliente = await page.evaluate(() =>
+    !!document.querySelector("#content .degrado[data-degrado='spento']"));
+  // Diagnostica: l'elenco completo delle funzioni spente resta, ma non è più l'unico posto
+  await page.evaluate(() => { const g = document.getElementById("diagGroup"); if (g) g.hidden = false; route("system"); });
+  await page.waitForTimeout(700);
+  const diagV9 = await page.evaluate(() => {
+    const t = document.getElementById("content").textContent;
+    return { elenco: /funzion[ei] spent/.test(t), voceVera: /voce di Divina/.test(t) };
+  });
+  // Squadra: accanto a chi non ha una voce sua, si vede
+  await page.evaluate(() => route("agents"));
+  await page.waitForTimeout(600);
+  const vociV9 = await page.evaluate(() =>
+    (document.getElementById("content").textContent.match(/voce di Divina/g) || []).length);
   await page.evaluate(() => route("home"));
   await page.waitForTimeout(300);
 
@@ -499,6 +537,24 @@ function trovaChromium() {
   if (!ckbV8.righe || !ckbV8.sappiamo || !ckbV8.nonScrive) {
     console.error("FAIL (V8-B2): il pannello del cliente non elenca la sua knowledge base " + JSON.stringify(ckbV8)); ko = 1;
   }
+  if (!degradoV9.compare || !degradoV9.spiega || !degradoV9.acceso || !degradoV9.nonSo) {
+    console.error("FAIL (V9-A3): l'avviso di funzione spenta non si disegna (o compare quando è accesa) " + JSON.stringify(degradoV9)); ko = 1;
+  }
+  if (!degradoV9.tecnicoOwner || degradoV9.tecnicoCliente) {
+    console.error("FAIL (V9-A3): la riga tecnica va a chi può farci qualcosa — mai al cliente " + JSON.stringify(degradoV9)); ko = 1;
+  }
+  if (!degradoV9.vuotoSpento || !degradoV9.vuotoNormale) {
+    console.error("FAIL (V9-A1): lo stato vuoto finge di essere vuoto anche quando la funzione è SPENTA — è il difetto del 2/08"); ko = 1;
+  }
+  if (!degradoCliente) {
+    console.error("FAIL (V9-A1): la pagina del cliente non mostra l'avviso della funzione spenta"); ko = 1;
+  }
+  if (!diagV9.elenco || !diagV9.voceVera) {
+    console.error("FAIL (V9-A3): Diagnostica non elenca le funzioni spente " + JSON.stringify(diagV9)); ko = 1;
+  }
+  if (!vociV9) {
+    console.error("FAIL (V9-A2): in Squadra non si vede chi parla ancora con la voce di Divina"); ko = 1;
+  } else console.log("[voci] " + vociV9 + " agenti senza voce propria, dichiarati accanto al nome");
   if (!buchiV8.spiega || !buchiV8.nonFingeVuoto) {
     console.error("FAIL (V8-B3): la pagina dei buchi spenta non DICE perché è spenta " + JSON.stringify(buchiV8)); ko = 1;
   }

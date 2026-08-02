@@ -294,6 +294,9 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .scheda-out{padding:12px 14px;border:1px solid var(--border);background:var(--surface-2);border-radius:12px;max-width:100%}
 .scheda-nome{font-size:14px;line-height:1.35;display:block}
 /* ── V8/A · «me lo ricordo», nel momento in cui succede ── */
+/* ── V9/A · l'avviso di funzione spenta: UNO, uguale in ogni schermata ── */
+.degrado{display:flex;gap:11px;align-items:flex-start;margin-bottom:14px;padding:11px 13px;
+  border:1px solid var(--border);border-radius:12px}
 .ricordato{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:7px;padding:7px 11px;
   border:1px solid color-mix(in srgb,var(--divina) 40%,var(--border));
   background:color-mix(in srgb,var(--divina) 9%,transparent);border-radius:11px}
@@ -693,6 +696,40 @@ function _memDemo(){
      conferme:1,created_at:t(2*864e5),last_at:t(2*864e5)},
   ];
 }
+/* ══════════ V9/A · UNA FUNZIONE SPENTA LO DICE DOVE SI USA ══════════
+   Il 2/08 la pagina «Cosa so di te» diceva «Non so ancora niente di te» mentre
+   la verità era «non posso ricordare niente, mi manca la tabella». Chi apre una
+   schermata non va a leggere lo stato tecnico: legge quella frase e conclude che
+   la funzione non serve a niente — e una funzione spenta che sembra inutile non
+   chiede di essere riparata.
+
+   Da qui in poi il modo è UNO SOLO, per tutte le schermate: il server manda
+   `degrado` insieme ai dati, e questa funzione lo disegna. Tre esiti, mai due:
+   acceso (niente da mostrare) · spento (perché, e come si accende) · non-so
+   (non si è potuto guardare — che non è nessuno dei due).
+
+   `come` si mostra solo a chi può farci qualcosa: al cliente si dice cosa non
+   funziona e non quale variabile impostare su Railway. */
+function boxDegrado(d,opt){
+  if(!d||d.stato==='acceso')return '';
+  const tecnico=!(opt&&opt.cliente);
+  const nonSo=d.stato==='non-so';
+  const col=nonSo?'var(--text-3)':'var(--orange)';
+  return `<div class="degrado" data-degrado="${esc(d.stato)}" style="border-color:${col}66;background:color-mix(in srgb,${col} 9%,transparent)">
+    <span style="color:${col};flex:none">${icon(nonSo?'clock':'alert',16)}</span>
+    <div class="small" style="line-height:1.65">
+      <b>${nonSo?'Non lo so':'Spenta'}</b> — ${esc(d.perche||'')}
+      ${tecnico&&d.come?`<div class="mono" style="margin-top:5px;color:var(--text-2)">${esc(d.come)}</div>`:''}
+    </div></div>`;
+}
+/* Una funzione spenta non deve nemmeno FINGERE di essere vuota: se «Cosa so di
+   te» non può ricordare, lo stato vuoto non dice «non so niente di te». */
+function vuotoOnesto(d,titolo,sotto,ic){
+  if(d&&d.stato==='spento')return emptyBox(icon('alert',36),'Non posso ricordare niente',esc(d.perche||''));
+  if(d&&d.stato==='non-so')return emptyBox(icon('clock',36),'Non riesco a dirlo adesso',esc(d.perche||''));
+  return emptyBox(icon(ic||'brain',36),titolo,sotto);
+}
+
 /* V8/C1 · Chi ha una voce sua e chi no. Senza il dato la spia dice «—», non
    una spunta ottimista: un agente che parla con la gola di Divina è una cosa
    che si nota in demo, e va detta prima che la noti un cliente. */
@@ -758,7 +795,8 @@ function demoData(service, path, opts){
       const mm=state._demoMem||(state._demoMem=_memDemo());
       const usate={};mm.forEach(m=>{if(m.chiave&&!usate[m.chiave])usate[m.chiave]=m.valore;});
       return Promise.resolve({tenant:'forma',memorie:mm,totale:mm.length,persist:true,
-        chiavi:{lingua:['it','en'],lunghezza:['breve','estesa']},usate});
+        chiavi:{lingua:['it','en'],lunghezza:['breve','estesa']},usate,
+        degrado:{stato:'acceso',titolo:'«Cosa so di te»',dove:'',perche:'',come:'',manca:[]}});
     }
     /* V8/B2 · Le segnalazioni dei clienti, nella coda dell'owner */
     if(path.startsWith('/admin/segnalazioni/chiudi')) return Promise.resolve({ok:true});
@@ -776,7 +814,20 @@ function demoData(service, path, opts){
     const D={
       '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123',console_sha:'d3m0c0ns01ed3m0'},
       '/health':{status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
-      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,voci_agente:{divina:true,dante:true,virgilio:false,beatrice:false},analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it',
+      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,voci_agente:{divina:true,dante:true,virgilio:false,beatrice:false},
+      /* V9/A3 · In demo si mostra il caso VERO del 2/08: due funzioni spente per
+         motivi diversi (una variabile, una tabella) e la forma unica dell'avviso. */
+      funzioni:{
+        'memoria':{stato:'acceso',titolo:'«Cosa so di te»',dove:'Squadra → Cosa so di te',perche:'',come:'',manca:[]},
+        'cliente-segnala':{stato:'acceso',titolo:'Le segnalazioni del cliente',dove:'pannello cliente',perche:'',come:'',manca:[]},
+        'cliente-buchi':{stato:'spento',titolo:'I buchi visibili al cliente',dove:'pannello cliente → cosa non sappiamo',
+          perche:"Il cliente non può vedere i buchi delle sue risposte nemmeno se lo si decide (resta spento, default sicuro: sono domande dei suoi utenti finali).",
+          come:'Applica db/tenant_flags_buchi.sql.',manca:['tenant_flags.buchi']},
+        'voci-agente':{stato:'spento',titolo:'Una voce per ogni agente',dove:'Squadra → le tab degli agenti',
+          perche:'Virgilio e Beatrice parlano ancora con la voce di Divina: le variabili non sono impostate.',
+          come:'Imposta ELEVENLABS_VOICE_ID_VIRGILIO e ELEVENLABS_VOICE_ID_BEATRICE.',manca:['ELEVENLABS_VOICE_ID_VIRGILIO','ELEVENLABS_VOICE_ID_BEATRICE']},
+        'kb-da-sito':{stato:'acceso',titolo:'La knowledge base che nasce dal sito del cliente',dove:'Clienti → Proponi dal sito',perche:'',come:'',manca:[]},
+      },analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it',
       /* B1 · in demo si mostra il caso REALE di stanotte: schema quasi completo
          con UNA migrazione dimenticata — è così che si presenta il problema. */
       db_schema:{ok:false,persist:true,attese:14,presenti:13,errore:'',mancanti:[{tabella:'tenant_flags',colonna:'libera',ddl:'db/tenant_flags_libera.sql',rompe:'la conoscenza generale non si può concedere a un tenant (resta spenta, default sicuro)'}]}},
@@ -1468,6 +1519,11 @@ const VIEWS={
        struttura dichiarata, e lo si DICE. */
     if(needSvc('orch'))return; if(!vivo(giro))return; C.innerHTML=skeleton(5);
     const LAVORO={dante:'i soldi di tutti i giorni',virgilio:'costruire e tutelare',beatrice:'crescere e raccontare'};
+    /* V9/A2 · La voce di un agente si scopre solo ascoltandolo. Il motore sa
+       quali variabili sono impostate: qui si dice, accanto al nome, chi parla
+       ancora con la gola di Divina — prima che lo scopra un cliente in demo. */
+    let voci=null;
+    try{voci=(await api('engine','/admin/status')).voci_agente||null;}catch(_){}
     try{const ag=await api('orch','/agents');const agents=ag.agents||[];const SUBAG=ag.subagents||[];$('#b-agents').textContent=agents.length;
       const aperti=state._sqAperti||(state._sqAperti={});
       const riga=a=>{const col=AG_COLORS[a.id]||'var(--magenta)';const n=(a.skills||[]).length;const su=aperti[a.id];
@@ -1477,6 +1533,7 @@ const VIEWS={
           <div class="agent-avatar" style="background:${col};width:34px;height:34px;font-size:13px;flex-shrink:0">${AG_INIT[a.id]||'AG'}</div>
           <b style="font-size:15px;min-width:86px">${esc(a.name)}</b>
           <span class="small" style="flex:1;color:var(--text-2)">${esc(LAVORO[a.id]||a.tagline||'')}</span>
+          ${voci&&voci[a.id]===false?`<span class="pill" style="flex-shrink:0;border-color:var(--orange);color:var(--orange)" title="ELEVENLABS_VOICE_ID_${esc(a.id.toUpperCase())} non impostata">voce di Divina</span>`:''}
           <span class="pill" style="flex-shrink:0">${n} capacità</span></button>
           ${su?`<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:4px">${Object.entries(byDept).map(([d,sk])=>`<div class="dept-title">${esc(d)}</div>${sk.map(s=>`<div class="skill-item" onclick="quickRun('${esc(a.id)}','${esc(s.id)}')"><span style="color:${col};font-size:14px">▸</span><div><div class="skill-role">${esc(s.role||s.id)}</div><div class="skill-desc">${esc(s.desc||'')}</div></div></div>`).join('')}`).join('')}</div>`:''}
         </div>`;};
@@ -1590,6 +1647,7 @@ const VIEWS={
         le uniche a cui il vostro assistente attinge quando risponde. Se qualcosa è sbagliato, segnalatelo:
         arriva a FORMA, che corregge. <b>Da qui non si scrive nel cervello</b>, e non è una limitazione tecnica:
         è il motivo per cui potete fidarvi di quello che c'è dentro.</div></div>
+      ${boxDegrado(d.degrado,{cliente:true})}
       <div class="card"><div class="card-head"><div><h3>La vostra knowledge base</h3>
         <p>${(d.scopes||[]).map(s=>esc(s)).join(' · ')||'—'}</p></div><span class="pill">${n.length}</span></div>
         ${n.length?`<div class="tbl-wrap"><table><thead><tr><th>Nota</th><th>Aggiornata</th><th></th></tr></thead><tbody>
@@ -1607,7 +1665,7 @@ const VIEWS={
     if(!vivo(giro))return; C.innerHTML=skeleton(3);
     try{
       const d=state.demo?demoClient('buchi'):await(await fetch('/client/buchi',{credentials:'include'})).json();
-      if(!vivo(giro))return; C.innerHTML=!d.consentito
+      if(!vivo(giro))return; C.innerHTML=boxDegrado(d.degrado,{cliente:true})+(!d.consentito
         ? `<div class="card"><div class="empty"><span class="ic">${icon('lock',36)}</span>
             <h4>Questa pagina è spenta, e non perché manchi un dato</h4>
             <p style="max-width:560px;margin:0 auto">${esc(d.perche||'')}</p></div></div>`
@@ -1618,7 +1676,7 @@ const VIEWS={
               <div style="font-size:13.5px">«${esc(g.q||'')}»</div>
               <div class="small muted" style="margin-top:3px">${timeAgoTs(g.at)}</div></div>`).join('')
             :emptyBox(icon('check',36),'Nessuna domanda rimasta senza risposta','Per ora il vostro cervello ha coperto tutto quello che gli è stato chiesto.')}
-          </div>`;
+          </div>`);
     }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
@@ -1664,7 +1722,8 @@ const VIEWS={
       <div class="card"><div class="card-head"><div><h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--cyan)">◆</span> Motore (chat + cervello)</h3><p>Il motore Divina</p></div>${state.engOk?'<span class="tag pos">connesso</span>':'<span class="tag mut">n/d</span>'}</div>
         <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ev.name||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${eh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ev.version||'—')}</td></tr><tr><td class="muted">LLM / embed</td><td class="num"><span class="pill">${esc(eh.llm||'—')}</span> <span class="pill">${esc(eh.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(est.grants_backend||'—')}</span></td></tr><tr><td class="muted">Console servita</td><td class="num mono">${ev.console_sha?esc(String(ev.console_sha).slice(0,12)):'<span class="muted">—</span>'}</td></tr></tbody></table>
         <div class="row" style="margin-top:14px"><a class="btn sm" href="${(state.engBase||'')}/metrics" target="_blank" rel="noopener">Metriche</a><a class="btn sm" href="${(state.engBase||'')}/admin/access-logs.csv" target="_blank" rel="noopener">Audit CSV</a></div>
-        ${schemaBox(est.db_schema)}</div>
+        ${schemaBox(est.db_schema)}
+        ${funzioniBox(est.funzioni)}</div>
       <div class="card"><div class="card-head"><div><h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--magenta)">${icon('sparks',16)}</span> Orchestratore (agenti)</h3><p>Servizio Divina</p></div>${state.orchOk?'<span class="tag pos">connesso</span>':'<span class="tag mut">n/d</span>'}</div>
         <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ov.name||oh.service||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${oh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Database (RLS)</td><td class="num">${state.orchOk?(ordy.db?'<span class="tag pos">ok</span>':'<span class="tag neg">giù</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ov.version||'—')}</td></tr><tr><td class="muted">Worker azioni</td><td class="num">${state.orchOk?(oh.worker?`<span class="tag pos">${oh.worker} thread</span>`:'<span class="tag mut">spento</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Executor Composio</td><td class="num">${state.orchOk?(oh.composio?'<span class="tag pos">attivo</span>':'<span class="tag neg">SPENTO — chiave non vista: redeploy</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Console servita</td><td class="num mono">${ov.console_sha?esc(String(ov.console_sha).slice(0,12)):'<span class="muted">—</span>'}</td></tr><tr><td class="muted">Tenant</td><td class="num"><span class="tag acc">${esc(state.tenant)}</span></td></tr></tbody></table>
         <div style="margin-top:14px;font-size:12px;color:var(--text-2);line-height:1.9"><div>✓ RLS per tenant · ✓ contraddizioni mai auto-risolte</div><div>✓ nessun DELETE (archivio) · ✓ ogni azione → audit</div></div></div>
@@ -1758,6 +1817,22 @@ function paritaConsole(ev,ov){
    nessuno, «manca ingest_meta: l'allarme sui commit è cieco» sì.
    Tre esiti distinti, mai confusi fra loro: nessun database (configurazione, non
    guasto) · schema non leggibile (non ho potuto guardare) · elenco dei buchi. */
+/* V9/A3 · L'elenco COMPLETO delle funzioni spente, in un posto solo. Non è più
+   l'unico posto dove si vede — quello era il difetto del 2/08 — ma resta quello
+   dove si guarda quando si vuole sapere cosa manca a tutto il sistema insieme.
+   Sono le stesse frasi che ogni schermata mostra da sé: una sorgente, non due. */
+function funzioniBox(f){
+  if(!f||typeof f!=='object')return '';
+  const spente=Object.entries(f).filter(([,v])=>v&&v.stato!=='acceso');
+  if(!spente.length)return `<div class="small muted" style="margin-top:12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--green) 35%,var(--border));border-radius:10px">✓ Nessuna funzione spenta: tutto quello che serve è configurato.</div>`;
+  return `<div class="small" style="margin-top:12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--orange) 45%,var(--border));border-radius:10px">
+    <div style="color:var(--orange);font-weight:700">${icon('alert',12)} ${spente.length} funzion${spente.length===1?'e spenta':'i spente'}</div>
+    <div class="muted" style="margin-top:3px">Ognuna lo dichiara anche nella schermata dove si usa — qui c'è l'insieme.</div>
+    ${spente.map(([k,v])=>`<div style="padding:6px 0;border-top:1px solid var(--border)">
+      <b>${esc(v.titolo||k)}</b> <span class="muted">· ${esc(v.dove||'')}</span>
+      <div style="margin-top:2px">${esc(v.perche||'')}</div>
+      ${v.come?`<div class="small muted mono" style="margin-top:2px">${esc(v.come)}</div>`:''}</div>`).join('')}</div>`;
+}
 function schemaBox(sc){
   if(!sc)return '';
   if(!sc.persist)return `<div class="small muted" style="margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">${icon('layers',12)} <b>Nessun database collegato.</b> Coda «Miglioramenti», grafo e permessi per-tenant girano in memoria e si azzerano a ogni redeploy. Non è un guasto: è come è configurato adesso.</div>`;
@@ -3702,10 +3777,14 @@ function formSegnala(nota){
    file://, senza cookie né server) e a far vedere il pannello a chi non ha
    ancora un accesso cliente. */
 function demoClient(che){
-  if(che==='kb')return {totale:2,scopes:['ats'],persist:true,vuota_perche:'',note:[
+  if(che==='kb')return {totale:2,scopes:['ats'],persist:true,vuota_perche:'',
+    degrado:{stato:'acceso',titolo:'Le segnalazioni del cliente',dove:'',perche:'',come:'',manca:[]},note:[
     {slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',updated_at:new Date(Date.now()-36e5*30).toISOString()},
     {slug:'menu-ats',title:'Menu e orari ATS',path:'forma/clienti/ats/menu.md',updated_at:new Date(Date.now()-36e5*90).toISOString()}]};
   return {consentito:false,buchi:[],totale:0,
+    degrado:{stato:'spento',titolo:'I buchi visibili al cliente',dove:'',manca:['tenant_flags.buchi'],
+      perche:"Il cliente non può vedere i buchi delle sue risposte nemmeno se lo si decide (resta spento, default sicuro: sono domande dei suoi utenti finali).",
+      come:'Applica db/tenant_flags_buchi.sql.'},
     perche:"Le domande rimaste senza risposta le hanno scritte i vostri utenti finali: mostrarle qui è una cosa che decidiamo insieme, non un'impostazione predefinita. Chiedetelo a FORMA e si accende."};
 }
 function clientLogout(){fetch('/client/logout',{method:'POST',credentials:'include'}).finally(()=>{location.hash='';location.reload();});}

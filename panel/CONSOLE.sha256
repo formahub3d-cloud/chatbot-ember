@@ -1,7 +1,7 @@
 # Parità della console fra i due repo (V7/B3) — generato da
 # scripts/console_parita.py --scrivi. NON modificare a mano:
 # se questo file e i tre file sotto non combaciano, la CI è rossa.
-c89c155b29292777307379cf7831c930c37b3f5f04e3960b5505e8984d90b6d4  panel/index.html
+4a0697d56d18906dc905f20d2a45cb595fb9e1c8114c4d141904a890909c90ae  panel/index.html
 a308b7438b2fea8d0ff659de8e3a71b7649229d0eeb23499984c0e5ad1fec323  panel/brain3d.js
 f9b24c1b15836f304c65b42bcc7836a5ea9f6a7c15abd530b8eb368495ce5cf4  panel/voce.js
-9c95c384fc6d13f78721a31a38232132acd3582a4bb58b60814f9ce9394c470f  console
+8e08ae0b9cf63dec6712c9e4d647bcbd655a1c6915a533af01c82b294ee4a8d0  console
