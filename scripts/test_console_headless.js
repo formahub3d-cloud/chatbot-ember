@@ -87,6 +87,33 @@ function trovaChromium() {
     await page.waitForTimeout(350);
   }
 
+  // 1-bis · V8/D1 · «Il menu si illumina e non cambia pagina».
+  //   Riproduzione del difetto visto in produzione il 2/08, con la rete
+  //   rallentata a mano: la vista A è lenta, la B veloce, si clicca A e subito
+  //   B. Prima della correzione la A arrivava DOPO e passava sopra alla B —
+  //   barra e titolo sulla B, contenuto della A, esattamente il sintomo.
+  //   (Il sospetto nel prompt era il grafo che occupa il thread: non era quello.)
+  const d1 = await page.evaluate(async () => {
+    const vero = window.api;
+    window.api = (svc, p, o) => new Promise(res => {
+      const lenta = p.startsWith("/admin/analytics") || p.startsWith("/admin/brain");
+      setTimeout(() => Promise.resolve(vero(svc, p, o)).then(res), lenta ? 400 : 30);
+    });
+    route("dashboard");
+    await new Promise(r => setTimeout(r, 40));
+    route("events");
+    await new Promise(r => setTimeout(r, 900));
+    window.api = vero;
+    const c = document.getElementById("content").textContent;
+    return {
+      titolo: document.getElementById("pageTitle").textContent,
+      eventi: /Eventi conversazione/.test(c),
+      dashboardRimasta: /Richieste oggi|Note nel cervello/.test(c),
+    };
+  });
+  await page.evaluate(() => route("home"));
+  await page.waitForTimeout(300);
+
   // 1a-bis · Human: la figura disegna (SVG a strati) e la scheda ha le sezioni
   await page.evaluate(() => route("human"));
   await page.waitForTimeout(600);
@@ -374,6 +401,10 @@ function trovaChromium() {
   else console.log("[numero unico] home=" + nHome + " · cervello=" + nBrain);
   if (!diag.migrazioni || !diag.cosaRompe || !diag.ddl) { console.error("FAIL (V7-B1): Diagnostica non dichiara le migrazioni mancanti (o non dice cosa rompono) " + JSON.stringify(diag)); ko = 1; }
   if (!diag.parita) { console.error("FAIL (V7-B3): Diagnostica non confronta le due console"); ko = 1; }
+  if (!d1.eventi || d1.dashboardRimasta) {
+    console.error("FAIL (V8-D1): il menu si illumina e il contenuto resta indietro — titolo «" + d1.titolo
+      + "», contenuto della vista precedente=" + d1.dashboardRimasta); ko = 1;
+  } else console.log("[navigazione] la vista lenta non passa più sopra a quella nuova");
   if (!vox.aperto) { console.error("FAIL: il modo vocale non si è aperto"); ko = 1; }
   else if (vox.canvas && vox.px <= 200 && !vox.css) {
     console.error(`FAIL: l'orb NON disegna (canvas ${vox.w}x${vox.h}, cssW=${vox.cssW}, px=${vox.px})`); ko = 1;

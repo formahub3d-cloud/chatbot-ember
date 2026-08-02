@@ -7,3 +7,7 @@ venv/
 
 # Backup locali (PII possibile) — mai su Git
 backup/
+
+# Playwright installato a mano per il guardiano headless — mai nel repo
+node_modules/
+package-lock.json
