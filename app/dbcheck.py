@@ -77,6 +77,9 @@ ATTESE: tuple[tuple[str, str | None, str, str], ...] = (
     ("tenant_memory", None, "db/tenant_memory.sql",
      "«Cosa so di te» si azzera a ogni redeploy: le preferenze si perdono e il DIMENTICA "
      "cancella una cosa che sarebbe sparita da sola (art. 15/17 non coperti davvero)"),
+    ("conversation_summary", None, "db/conversation_summary.sql",
+     "la conversazione non dura oltre la sessione: i riassunti si perdono al redeploy e "
+     "il «Dimentica» cancella una cosa che sarebbe sparita da sola"),
     ("client_report", None, "db/client_report.sql",
      "il cliente non può segnalare un errore sulla propria scheda: la segnalazione "
      "vive in memoria e si perde al redeploy invece di arrivare nella coda"),

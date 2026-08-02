@@ -294,6 +294,9 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .scheda-out{padding:12px 14px;border:1px solid var(--border);background:var(--surface-2);border-radius:12px;max-width:100%}
 .scheda-nome{font-size:14px;line-height:1.35;display:block}
 /* ── V8/A · «me lo ricordo», nel momento in cui succede ── */
+/* ── V9/A · l'avviso di funzione spenta: UNO, uguale in ogni schermata ── */
+.degrado{display:flex;gap:11px;align-items:flex-start;margin-bottom:14px;padding:11px 13px;
+  border:1px solid var(--border);border-radius:12px}
 .ricordato{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:7px;padding:7px 11px;
   border:1px solid color-mix(in srgb,var(--divina) 40%,var(--border));
   background:color-mix(in srgb,var(--divina) 9%,transparent);border-radius:11px}
@@ -693,6 +696,40 @@ function _memDemo(){
      conferme:1,created_at:t(2*864e5),last_at:t(2*864e5)},
   ];
 }
+/* ══════════ V9/A · UNA FUNZIONE SPENTA LO DICE DOVE SI USA ══════════
+   Il 2/08 la pagina «Cosa so di te» diceva «Non so ancora niente di te» mentre
+   la verità era «non posso ricordare niente, mi manca la tabella». Chi apre una
+   schermata non va a leggere lo stato tecnico: legge quella frase e conclude che
+   la funzione non serve a niente — e una funzione spenta che sembra inutile non
+   chiede di essere riparata.
+
+   Da qui in poi il modo è UNO SOLO, per tutte le schermate: il server manda
+   `degrado` insieme ai dati, e questa funzione lo disegna. Tre esiti, mai due:
+   acceso (niente da mostrare) · spento (perché, e come si accende) · non-so
+   (non si è potuto guardare — che non è nessuno dei due).
+
+   `come` si mostra solo a chi può farci qualcosa: al cliente si dice cosa non
+   funziona e non quale variabile impostare su Railway. */
+function boxDegrado(d,opt){
+  if(!d||d.stato==='acceso')return '';
+  const tecnico=!(opt&&opt.cliente);
+  const nonSo=d.stato==='non-so';
+  const col=nonSo?'var(--text-3)':'var(--orange)';
+  return `<div class="degrado" data-degrado="${esc(d.stato)}" style="border-color:${col}66;background:color-mix(in srgb,${col} 9%,transparent)">
+    <span style="color:${col};flex:none">${icon(nonSo?'clock':'alert',16)}</span>
+    <div class="small" style="line-height:1.65">
+      <b>${nonSo?'Non lo so':'Spenta'}</b> — ${esc(d.perche||'')}
+      ${tecnico&&d.come?`<div class="mono" style="margin-top:5px;color:var(--text-2)">${esc(d.come)}</div>`:''}
+    </div></div>`;
+}
+/* Una funzione spenta non deve nemmeno FINGERE di essere vuota: se «Cosa so di
+   te» non può ricordare, lo stato vuoto non dice «non so niente di te». */
+function vuotoOnesto(d,titolo,sotto,ic){
+  if(d&&d.stato==='spento')return emptyBox(icon('alert',36),'Non posso ricordare niente',esc(d.perche||''));
+  if(d&&d.stato==='non-so')return emptyBox(icon('clock',36),'Non riesco a dirlo adesso',esc(d.perche||''));
+  return emptyBox(icon(ic||'brain',36),titolo,sotto);
+}
+
 /* V8/C1 · Chi ha una voce sua e chi no. Senza il dato la spia dice «—», non
    una spunta ottimista: un agente che parla con la gola di Divina è una cosa
    che si nota in demo, e va detta prima che la noti un cliente. */
@@ -716,7 +753,13 @@ function demoData(service, path, opts){
       if(msg.includes('orari')||msg.includes('apert')) a='(DEMO) La sede di Benevento è aperta lun–ven 9:00–18:00. Il servizio a domicilio ATS copre anche il weekend su prenotazione.';
       if(msg.includes('prezzo')||msg.includes('costo')||msg.includes('stampa')) a='(DEMO) La stampa 3D FDM parte da €15/pezzo; la SLA è su preventivo in base a volume e finitura. Vuoi una stima per un modello specifico?';
       if(msg.includes('business')||msg.includes('mercato')) a='(DEMO) Dal cervello: ATS opera nella ristorazione con servizio a domicilio. ⟦fuori⟧Nel mercato italiano della ristorazione il canale delivery vale in media il 10-15% del fatturato dei locali medio-piccoli: può essere una leva di crescita da verificare con dati reali del cliente.⟦/fuori⟧ Vuoi che salviamo questa pista sulla scheda ATS?';
-      return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats'],free:msg.includes('business')||msg.includes('mercato')});
+      /* V9/C · In demo la capacità arriva dal server come in produzione: qui la
+         si simula sui messaggi che somigliano a un compito, per far vedere la
+         FORMA dell'offerta — «questo lo sa fare X», con il bottone. */
+      const capD=/cerc|trov|client|mercat|concorren|fattur|sollecit|margin|contratt|post|social/.test(msg)
+        ?{agente:/fattur|sollecit|margin/.test(msg)?'dante':(/contratt/.test(msg)?'virgilio':'beatrice'),
+          skill:'customer-research',role:'Customer Research',desc:'(DEMO) trova e qualifica potenziali clienti, con la ricerca di mercato attorno'}:null;
+      return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats'],free:msg.includes('business')||msg.includes('mercato'),capacita:capD});
     }
     if(path.startsWith('/admin/tasks/close')||path.startsWith('/admin/tasks/transition')) return Promise.resolve({ok:true});
     if(path.startsWith('/admin/tasks?')&&path.includes('status=fatta')) return Promise.resolve({persist:true,tasks:[
@@ -758,9 +801,26 @@ function demoData(service, path, opts){
       const mm=state._demoMem||(state._demoMem=_memDemo());
       const usate={};mm.forEach(m=>{if(m.chiave&&!usate[m.chiave])usate[m.chiave]=m.valore;});
       return Promise.resolve({tenant:'forma',memorie:mm,totale:mm.length,persist:true,
-        chiavi:{lingua:['it','en'],lunghezza:['breve','estesa']},usate});
+        chiavi:{lingua:['it','en'],lunghezza:['breve','estesa']},usate,
+        degrado:{stato:'acceso',titolo:'«Cosa so di te»',dove:'',perche:'',come:'',manca:[]},
+        retention_riassunti:30,
+        degrado_riassunti:{stato:'acceso',titolo:'La conversazione che dura',dove:'',perche:'',come:'',manca:[]},
+        riassunti:[{id:'r1',conversazione:'c-demo',created_at:new Date(Date.now()-36e5*20).toISOString(),
+          testo:'(DEMO) Stavamo preparando il materiale per ATS: la scheda cliente va riscritta partendo dal loro sito.\nRimasto aperto: decidere se il caso studio lo fa FORMA su se stessa.'}]});
     }
     /* V8/B2 · Le segnalazioni dei clienti, nella coda dell'owner */
+    /* V9/B · In demo si mostra la FORMA della proposta dal sito — con la pagina e
+       la frase — senza fingere di aver letto un sito che qui non si può leggere. */
+    if(path.startsWith('/admin/clients/kb-da-sito')){
+      const u=(opts.body&&opts.body.url)||'esempio.it';
+      const b='https://'+String(u).replace(/^https?:\/\//,'').replace(/\/$/,'');
+      return Promise.resolve({url:b,pagine:[b,b+'/servizi',b+'/contatti'],accodate:3,gia_in_coda:0,perche:'',
+        degrado:{stato:'acceso',titolo:'La knowledge base che nasce dal sito del cliente',dove:'',perche:'',come:'',manca:[]},
+        voci:[
+          {sezione:'identita',titolo:'Chi sono',contenuto:'(DEMO) Azienda di ristorazione con servizio a domicilio, attiva a Benevento dal 2018.',citazione:'dal 2018 portiamo la nostra cucina a casa vostra',url:b},
+          {sezione:'servizi',titolo:'Consegna a domicilio in giornata',contenuto:'(DEMO) Gli ordini entro le 11 arrivano lo stesso giorno nel comune di Benevento.',citazione:'gli ordini ricevuti entro le 11 vengono consegnati in giornata',url:b+'/servizi'},
+          {sezione:'contatti',titolo:'Come ci si mette in contatto',contenuto:'(DEMO) Recapito aziendale e indirizzo della sede.',citazione:'scrivici a info@esempio.it oppure passa in via Roma 12',url:b+'/contatti'}]});
+    }
     if(path.startsWith('/admin/segnalazioni/chiudi')) return Promise.resolve({ok:true});
     if(path.startsWith('/admin/segnalazioni')) return Promise.resolve({persist:true,totale:1,segnalazioni:[
       {id:'sg-demo',tenant:'ats',slug:'menu-ats',titolo:'Menu e orari ATS',stato:'aperta',da:'anna@ats.it',
@@ -776,14 +836,27 @@ function demoData(service, path, opts){
     const D={
       '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123',console_sha:'d3m0c0ns01ed3m0'},
       '/health':{status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
-      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,voci_agente:{divina:true,dante:true,virgilio:false,beatrice:false},analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it',
+      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,voci_agente:{divina:true,dante:true,virgilio:false,beatrice:false},
+      /* V9/A3 · In demo si mostra il caso VERO del 2/08: due funzioni spente per
+         motivi diversi (una variabile, una tabella) e la forma unica dell'avviso. */
+      funzioni:{
+        'memoria':{stato:'acceso',titolo:'«Cosa so di te»',dove:'Squadra → Cosa so di te',perche:'',come:'',manca:[]},
+        'cliente-segnala':{stato:'acceso',titolo:'Le segnalazioni del cliente',dove:'pannello cliente',perche:'',come:'',manca:[]},
+        'cliente-buchi':{stato:'spento',titolo:'I buchi visibili al cliente',dove:'pannello cliente → cosa non sappiamo',
+          perche:"Il cliente non può vedere i buchi delle sue risposte nemmeno se lo si decide (resta spento, default sicuro: sono domande dei suoi utenti finali).",
+          come:'Applica db/tenant_flags_buchi.sql.',manca:['tenant_flags.buchi']},
+        'voci-agente':{stato:'spento',titolo:'Una voce per ogni agente',dove:'Squadra → le tab degli agenti',
+          perche:'Virgilio e Beatrice parlano ancora con la voce di Divina: le variabili non sono impostate.',
+          come:'Imposta ELEVENLABS_VOICE_ID_VIRGILIO e ELEVENLABS_VOICE_ID_BEATRICE.',manca:['ELEVENLABS_VOICE_ID_VIRGILIO','ELEVENLABS_VOICE_ID_BEATRICE']},
+        'kb-da-sito':{stato:'acceso',titolo:'La knowledge base che nasce dal sito del cliente',dove:'Clienti → Proponi dal sito',perche:'',come:'',manca:[]},
+      },analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it',
       /* B1 · in demo si mostra il caso REALE di stanotte: schema quasi completo
          con UNA migrazione dimenticata — è così che si presenta il problema. */
       db_schema:{ok:false,persist:true,attese:14,presenti:13,errore:'',mancanti:[{tabella:'tenant_flags',colonna:'libera',ddl:'db/tenant_flags_libera.sql',rompe:'la conoscenza generale non si può concedere a un tenant (resta spenta, default sicuro)'}]}},
       '/admin/analytics':{uptime_s:186420,totals:{chat:1284,gap:73,feedback_up:311,feedback_down:24},per_scope:{'ats':{chat:642,gap:41,feedback_up:150,feedback_down:12},'forma-core':{chat:398,gap:18,feedback_up:112,feedback_down:6},'andrea':{chat:154,gap:9,feedback_up:33,feedback_down:4},'ovyon':{chat:90,gap:5,feedback_up:16,feedback_down:2}}},
       '/admin/insights':{gaps:[{scope:'ats',q:'Orari del servizio a domicilio nel weekend?',at:now-620},{scope:'forma-core',q:'Costo SLA per pezzi sotto i 5cm?',at:now-2400},{scope:'ats',q:'Come attivo il rimborso su un ordine annullato?',at:now-8600}],negative_feedback:[{scope:'ats',q:'La risposta sul reso non era chiara',at:now-1200},{scope:'forma-core',q:'Prezzo diverso dal sito',at:now-9000}]},
       '/admin/learning':{generated_at:new Date().toISOString(),tasks:[{kind:'gap',scope:'ats',question:'orari servizio a domicilio weekend',count:5,last_at:now-620,suggestion:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.'},{kind:'gap',scope:'forma-core',question:'costo SLA pezzi piccoli',count:3,last_at:now-2400,suggestion:'Arricchisci la nota prezzi con il costo SLA per pezzi piccoli.'},{kind:'feedback',scope:'ats',question:'procedura di reso poco chiara',count:2,last_at:now-1200,suggestion:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.'}]},
-      '/admin/proposals':{proposals:[{id:'p0',source:'conversazione',scope:'ats',title:'Impara dalla conversazione: «Il ritiro a domicilio copre solo il centro»',detail:'(DEMO) Il servizio di ritiro a domicilio è limitato al centro città; fuori si passa dal punto di raccolta.',citazione:'no, fuori dal centro il ritiro non lo facciamo, si passa dal punto di raccolta',conversazione:'chat console · 2026-08-01 23:40',count:1,last_at:now-300},{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
+      '/admin/proposals':{proposals:[{id:'ps',source:'sito',scope:'ats',title:'Dal sito di ats: «Consegna a domicilio in giornata»',detail:'(DEMO) Le consegne partite entro le 11 arrivano nella stessa giornata nel comune di Benevento.',citazione:'gli ordini ricevuti entro le 11 vengono consegnati in giornata',url:'https://ats.it/servizi',sezione:'servizi',count:1,last_at:now-120},{id:'p0',source:'conversazione',scope:'ats',title:'Impara dalla conversazione: «Il ritiro a domicilio copre solo il centro»',detail:'(DEMO) Il servizio di ritiro a domicilio è limitato al centro città; fuori si passa dal punto di raccolta.',citazione:'no, fuori dal centro il ritiro non lo facciamo, si passa dal punto di raccolta',conversazione:'chat console · 2026-08-01 23:40',count:1,last_at:now-300},{id:'p1',source:'gap',scope:'ats',title:'Colma il gap: «orari servizio a domicilio weekend»',detail:'Aggiungi una nota nello scope "ats" con gli orari del weekend, poi rilancia l\'ingest.',count:5,last_at:now-620},{id:'p2',source:'feedback',scope:'ats',title:'Rivedi la risposta: «procedura di reso poco chiara»',detail:'Risposta negativa: rivedi la nota resi e chiarisci i passaggi.',count:2,last_at:now-1200},{id:'p3',source:'sistema',scope:'',title:'Attiva lo storico eventi (ANALYTICS_PERSIST)',detail:'Senza persistenza analytics niente trend e insight duraturi.',count:1,last_at:0}]},
       '/admin/brain':{persist:true,vault:{vault_commit:'1f73289abc12',vault_commit_date:nowIso(840e3)},ingest_commit:{vault_commit:'1f73289abc12',at:nowIso(3600e3)},stats:{notes:100,areas:4,recent_7d:12,last_ingest:nowIso(3600e3),by_tenant:{'forma-core':52,'ats':21,'andrea':15,'ovyon':12}},recent:[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']}]},
       '/admin/tasks':{persist:true,tasks:[/* V7/C · una task messa «da verificare» dal merge: il codice c'è, nessuno l'ha ancora guardata — e da lì si esce solo con un nome. */{id:'tv1',kind:'audit',scope:'',title:'Il muro diventa una porta',note:'Merge PR #48 · V6 · L\'orbita che si guarda — DA VERIFICARE: il merge non chiude, guarda e conferma.',status:'da-verificare',priorita:'alta',created_at:nowIso(9*3600e3),idempotency_key:'audit-2026-08-01-22'},{id:'t0',kind:'azione',scope:'ats',title:'Invia 3 solleciti email ai clienti ATS in ritardo',note:'Preparati da Dante · invoice-chase — testi pronti, NESSUN invio senza il tuo ok',status:'in-approvazione',priorita:'alta',created_at:nowIso(600e3)},{id:'t1',kind:'gap',scope:'ats',title:'Aggiungi nota orari weekend ATS',note:'Da 5 gap ricorrenti',status:'aperta',priorita:'alta',created_at:nowIso(3600e3)},{id:'t2',kind:'manuale',scope:'forma-core',title:'Rivedi listino SLA pezzi piccoli',note:'',status:'aperta',priorita:'media',created_at:nowIso(26*3600e3)},{id:'t3',kind:'feedback',scope:'ats',title:'Chiarisci procedura di reso',note:'Risposta negativa ricorrente',status:'aperta',priorita:'bassa',created_at:nowIso(50*3600e3)}]},
       '/admin/roadmap':{benchmark:{name:'Zoey OS',url:'https://zoeyos.com/what-is-zoey-os/',summary:'Companion AI persistenti, memoria che si accumula, voce continua, skill che eseguono interi workflow, 1.000+ integrazioni.'},strengths:['RAG su cervello proprietario con fonti citate','Scope server-side: il permesso è un filtro Qdrant, non un prompt','Multi-tenancy con RLS e audit su ogni azione'],counts:{totale:3,aperte:2,parziali:1,fatte:0},tasks:[{id:'memoria-persistente',area:'memoria',priority:'alta',status:'parziale',effort:'M',repo:'entrambi',title:'Memoria che si accumula (per tenant)',description:'Ogni conversazione costruisce sulla precedente: riassunti episodici per tenant richiamati nel contesto della chat.',zoey_ref:'«Every conversation builds on the last».',divina_note:'Estendere agent_memory (db/003) al motore e richiamare i ricordi in rag.py.'},{id:'companion-personalizzati',area:'companions',priority:'alta',status:'da-fare',effort:'L',repo:'orchestratore',title:'Companion personalizzati per tenant',description:'Definire nuovi agenti con ruolo, personalità, skill e strumenti consentiti.',zoey_ref:'«You define their role, their personality, their skills, and the tools».',divina_note:'Le tabelle agents/skills esistono già: servono CRUD + editor nel pannello.'},{id:'coda-task-persistente',area:'automazioni',priority:'alta',status:'da-fare',effort:'M',repo:'entrambi',title:'Coda task persistente del cervello',description:'Tabella tasks con stato, origine e assegnatario: oggi le task sono in-memory.',zoey_ref:'«Every task, companion, and action in one place».',divina_note:'Migrazione additiva sul modello di contradictions + GET/POST /admin/tasks.'}]},
@@ -1018,8 +1091,8 @@ const VIEWS={
        qui: è la schermata in cui si decide, ed è lì che la provenienza serve.
        Senza, sarebbe una nota senza fonte — cioè una voce di corridoio. */
     ((pp&&pp.proposals)||[]).forEach(t=>items.push({
-      titolo:t.title,nota:(t.detail||'')+(t.citazione?`\n« ${t.citazione} »`:''),
-      origine:t.source==='conversazione'?'conversazione':'proposta',
+      titolo:t.title,nota:(t.detail||'')+(t.citazione?`\n« ${t.citazione} »`:'')+(t.url?`\n${t.url}`:''),
+      origine:['conversazione','sito'].includes(t.source)?t.source:'proposta',
       peso:t.count?t.count+'×':'',stato:'dafare',quando:'',k:'pr-'+t.id,pid:t.id}));
     /* V8/B2 · Le segnalazioni dei CLIENTI entrano nella stessa coda di tutto
        il resto, marcate per origine. Una coda separata è una coda che nessuno
@@ -1050,12 +1123,14 @@ const VIEWS={
     const righe=Object.values(cli).sort((a2,b2)=>b2.n-a2.n);
     if(!vivo(giro))return; C.innerHTML=`
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>I tuoi clienti</h3><p>Divina di FORMA vede tutto; ogni cliente vede SOLO la propria sfera — il confine è un filtro sul database, non una preferenza</p></div><button class="btn primary sm" id="cliAdd">+ Aggiungi cliente</button></div>
-    ${righe.length?`<div class="grid g-2">${righe.map(c=>`<div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div><h3 style="font-size:15px">${esc(c.label)}</h3><p class="mono small">forma/clienti/${esc(c.id)}/</p></div><span class="pill" title="note nel cervello — il numero che conta, in vista">${c.n} not${c.n===1?'a':'e'}</span></div><div class="small ${c.n<3?'':'muted'}" ${c.n<3?'style="color:var(--orange)"':''}>${c.n<3?'scheda quasi vuota — il valore del cervello si costruisce qui':'scheda viva'}${c.ultimo?' · aggiornata '+timeAgoIso(c.ultimo):''}</div></div>`).join('')}</div>`
+    ${righe.length?`<div class="grid g-2">${righe.map(c=>`<div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div><h3 style="font-size:15px">${esc(c.label)}</h3><p class="mono small">forma/clienti/${esc(c.id)}/</p></div><span class="pill" title="note nel cervello — il numero che conta, in vista">${c.n} not${c.n===1?'a':'e'}</span></div><div class="small ${c.n<3?'':'muted'}" ${c.n<3?'style="color:var(--orange)"':''}>${c.n<3?'scheda quasi vuota — il valore del cervello si costruisce qui':'scheda viva'}${c.ultimo?' · aggiornata '+timeAgoIso(c.ultimo):''}</div>
+      <div class="row" style="margin-top:9px"><button class="btn sm" data-sito="${esc(c.id)}">${icon('link',12)} Proponi dal sito</button></div></div>`).join('')}</div>`
     :emptyBox(icon('key',36),'Nessuna cartella cliente nel cervello','Le schede vivono in forma/clienti/&lt;nome&gt;/ — aggiungi il primo cliente qui sopra, o lancia una ingest se il vault le ha già.')}
     </div>
     <div class="card"><div class="card-head"><div><h3>Accessi cliente</h3><p>Email + codice a 6 cifre, gestiti da FORMA</p></div><button class="btn sm" onclick="route('tenants')">Chiavi tenant →</button></div>
     ${acc.length?`<div class="tbl-wrap"><table><thead><tr><th>Email</th><th>Nome</th><th>Stato</th><th>Ultimo accesso</th></tr></thead><tbody>${acc.map(a2=>`<tr><td>${esc(a2.email)}</td><td>${esc(a2.display_name||'')}</td><td><span class="tag ${a2.locked?'mut':'pos'}">${a2.locked?'bloccato':esc(a2.status||'attivo')}</span></td><td class="small muted">${a2.last_login_at?timeAgoIso(a2.last_login_at):'mai entrato'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="small muted">Nessun accesso cliente ancora creato.</div>'}</div>`;
     $('#cliAdd').onclick=cliAggiungi;
+    $$('[data-sito]').forEach(b=>b.onclick=()=>formDalSito(b.dataset.sito));
   },
 
   /* ---------- INTEGRAZIONI (Fase 10.3/10.4: catalogo ASTRATTO + consenso) ---------- */
@@ -1468,6 +1543,11 @@ const VIEWS={
        struttura dichiarata, e lo si DICE. */
     if(needSvc('orch'))return; if(!vivo(giro))return; C.innerHTML=skeleton(5);
     const LAVORO={dante:'i soldi di tutti i giorni',virgilio:'costruire e tutelare',beatrice:'crescere e raccontare'};
+    /* V9/A2 · La voce di un agente si scopre solo ascoltandolo. Il motore sa
+       quali variabili sono impostate: qui si dice, accanto al nome, chi parla
+       ancora con la gola di Divina — prima che lo scopra un cliente in demo. */
+    let voci=null;
+    try{voci=(await api('engine','/admin/status')).voci_agente||null;}catch(_){}
     try{const ag=await api('orch','/agents');const agents=ag.agents||[];const SUBAG=ag.subagents||[];$('#b-agents').textContent=agents.length;
       const aperti=state._sqAperti||(state._sqAperti={});
       const riga=a=>{const col=AG_COLORS[a.id]||'var(--magenta)';const n=(a.skills||[]).length;const su=aperti[a.id];
@@ -1477,6 +1557,7 @@ const VIEWS={
           <div class="agent-avatar" style="background:${col};width:34px;height:34px;font-size:13px;flex-shrink:0">${AG_INIT[a.id]||'AG'}</div>
           <b style="font-size:15px;min-width:86px">${esc(a.name)}</b>
           <span class="small" style="flex:1;color:var(--text-2)">${esc(LAVORO[a.id]||a.tagline||'')}</span>
+          ${voci&&voci[a.id]===false?`<span class="pill" style="flex-shrink:0;border-color:var(--orange);color:var(--orange)" title="ELEVENLABS_VOICE_ID_${esc(a.id.toUpperCase())} non impostata">voce di Divina</span>`:''}
           <span class="pill" style="flex-shrink:0">${n} capacità</span></button>
           ${su?`<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:4px">${Object.entries(byDept).map(([d,sk])=>`<div class="dept-title">${esc(d)}</div>${sk.map(s=>`<div class="skill-item" onclick="quickRun('${esc(a.id)}','${esc(s.id)}')"><span style="color:${col};font-size:14px">▸</span><div><div class="skill-role">${esc(s.role||s.id)}</div><div class="skill-desc">${esc(s.desc||'')}</div></div></div>`).join('')}`).join('')}</div>`:''}
         </div>`;};
@@ -1557,6 +1638,20 @@ const VIEWS={
         </div>`).join(''):emptyBox(icon('brain',36),'Non so ancora niente di te',
           'Le preferenze dichiarate in chat («parlami in italiano», «rispondi breve») finiscono qui, con la frase da cui vengono.')}
       </div>
+      <div class="card" style="margin-top:14px"><div class="card-head"><div><h3>Quello che ci siamo detti</h3>
+        <p>Un promemoria per conversazione, scritto quando finisce — serve a riprendere il filo il giorno dopo.
+        Si cancellano da soli dopo ${d.retention_riassunti||30} giorni, e con questo bottone subito.</p></div>
+        <span class="pill">${(d.riassunti||[]).length}</span></div>
+        ${boxDegrado(d.degrado_riassunti)}
+        ${(d.riassunti||[]).length?(d.riassunti||[]).map(r=>`<div class="mem-riga">
+          <div style="min-width:0;flex:1">
+            <div class="small" style="white-space:pre-wrap;line-height:1.6">${esc(r.testo)}</div>
+            <div class="small muted" style="margin-top:4px">${r.created_at?timeAgoIso(r.created_at):'—'}</div>
+          </div>
+          <button class="btn sm ghost" data-dimr="${esc(r.id)}">Dimentica</button>
+        </div>`).join(''):vuotoOnesto(d.degrado_riassunti,'Nessuna conversazione da ricordare',
+          'Quando una conversazione finisce, qui resta un promemoria di due righe: cosa si stava facendo e cosa è rimasto aperto.')}
+      </div>
       <div class="card" style="margin-top:14px"><div class="card-head"><div><h3>Aggiungi a mano</h3><p>Un fatto stabile che vuoi che il sistema tenga presente. Niente dati personali: vengono rifiutati.</p></div></div>
         <div class="row" style="flex-wrap:wrap"><input id="memF" placeholder="Es. Fatturate a fine mese" style="flex:2;min-width:220px">
         <select id="memK" style="max-width:150px"><option value="">solo contesto</option>${Object.keys(d.chiavi||{}).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select>
@@ -1569,6 +1664,10 @@ const VIEWS={
         const fatto=$('#memF').value.trim();if(!fatto){toast('Scrivi il fatto','bad');return;}
         try{await api('engine','/admin/memoria',{method:'POST',body:{tenant:state.tenant,fatto,chiave:$('#memK').value,valore:$('#memV').value}});
           toast('Ricordato','ok');route('memoria');}catch(e){toast('✕ '+e.message,'bad');}};
+      $$('[data-dimr]').forEach(b=>b.onclick=async()=>{
+        if(!confirm('Dimenticare questa conversazione? Il promemoria viene cancellato davvero.'))return;
+        try{await api('engine','/admin/memoria/dimentica',{method:'POST',body:{id:b.dataset.dimr,tipo:'riassunto',by:'andrea'}});
+          toast('Dimenticato','info');route('memoria');}catch(e){toast('✕ '+e.message,'bad');}});
       $$('[data-dim]').forEach(b=>b.onclick=async()=>{
         if(!confirm('Dimenticare questa cosa? Il testo viene cancellato davvero: resta solo che è stata dimenticata.'))return;
         try{await api('engine','/admin/memoria/dimentica',{method:'POST',body:{id:b.dataset.dim,by:'andrea'}});
@@ -1590,6 +1689,7 @@ const VIEWS={
         le uniche a cui il vostro assistente attinge quando risponde. Se qualcosa è sbagliato, segnalatelo:
         arriva a FORMA, che corregge. <b>Da qui non si scrive nel cervello</b>, e non è una limitazione tecnica:
         è il motivo per cui potete fidarvi di quello che c'è dentro.</div></div>
+      ${boxDegrado(d.degrado,{cliente:true})}
       <div class="card"><div class="card-head"><div><h3>La vostra knowledge base</h3>
         <p>${(d.scopes||[]).map(s=>esc(s)).join(' · ')||'—'}</p></div><span class="pill">${n.length}</span></div>
         ${n.length?`<div class="tbl-wrap"><table><thead><tr><th>Nota</th><th>Aggiornata</th><th></th></tr></thead><tbody>
@@ -1607,7 +1707,7 @@ const VIEWS={
     if(!vivo(giro))return; C.innerHTML=skeleton(3);
     try{
       const d=state.demo?demoClient('buchi'):await(await fetch('/client/buchi',{credentials:'include'})).json();
-      if(!vivo(giro))return; C.innerHTML=!d.consentito
+      if(!vivo(giro))return; C.innerHTML=boxDegrado(d.degrado,{cliente:true})+(!d.consentito
         ? `<div class="card"><div class="empty"><span class="ic">${icon('lock',36)}</span>
             <h4>Questa pagina è spenta, e non perché manchi un dato</h4>
             <p style="max-width:560px;margin:0 auto">${esc(d.perche||'')}</p></div></div>`
@@ -1618,7 +1718,7 @@ const VIEWS={
               <div style="font-size:13.5px">«${esc(g.q||'')}»</div>
               <div class="small muted" style="margin-top:3px">${timeAgoTs(g.at)}</div></div>`).join('')
             :emptyBox(icon('check',36),'Nessuna domanda rimasta senza risposta','Per ora il vostro cervello ha coperto tutto quello che gli è stato chiesto.')}
-          </div>`;
+          </div>`);
     }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
@@ -1664,7 +1764,8 @@ const VIEWS={
       <div class="card"><div class="card-head"><div><h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--cyan)">◆</span> Motore (chat + cervello)</h3><p>Il motore Divina</p></div>${state.engOk?'<span class="tag pos">connesso</span>':'<span class="tag mut">n/d</span>'}</div>
         <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ev.name||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${eh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ev.version||'—')}</td></tr><tr><td class="muted">LLM / embed</td><td class="num"><span class="pill">${esc(eh.llm||'—')}</span> <span class="pill">${esc(eh.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(est.grants_backend||'—')}</span></td></tr><tr><td class="muted">Console servita</td><td class="num mono">${ev.console_sha?esc(String(ev.console_sha).slice(0,12)):'<span class="muted">—</span>'}</td></tr></tbody></table>
         <div class="row" style="margin-top:14px"><a class="btn sm" href="${(state.engBase||'')}/metrics" target="_blank" rel="noopener">Metriche</a><a class="btn sm" href="${(state.engBase||'')}/admin/access-logs.csv" target="_blank" rel="noopener">Audit CSV</a></div>
-        ${schemaBox(est.db_schema)}</div>
+        ${schemaBox(est.db_schema)}
+        ${funzioniBox(est.funzioni)}</div>
       <div class="card"><div class="card-head"><div><h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--magenta)">${icon('sparks',16)}</span> Orchestratore (agenti)</h3><p>Servizio Divina</p></div>${state.orchOk?'<span class="tag pos">connesso</span>':'<span class="tag mut">n/d</span>'}</div>
         <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ov.name||oh.service||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${oh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Database (RLS)</td><td class="num">${state.orchOk?(ordy.db?'<span class="tag pos">ok</span>':'<span class="tag neg">giù</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ov.version||'—')}</td></tr><tr><td class="muted">Worker azioni</td><td class="num">${state.orchOk?(oh.worker?`<span class="tag pos">${oh.worker} thread</span>`:'<span class="tag mut">spento</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Executor Composio</td><td class="num">${state.orchOk?(oh.composio?'<span class="tag pos">attivo</span>':'<span class="tag neg">SPENTO — chiave non vista: redeploy</span>'):'<span class="tag mut">n/d</span>'}</td></tr><tr><td class="muted">Console servita</td><td class="num mono">${ov.console_sha?esc(String(ov.console_sha).slice(0,12)):'<span class="muted">—</span>'}</td></tr><tr><td class="muted">Tenant</td><td class="num"><span class="tag acc">${esc(state.tenant)}</span></td></tr></tbody></table>
         <div style="margin-top:14px;font-size:12px;color:var(--text-2);line-height:1.9"><div>✓ RLS per tenant · ✓ contraddizioni mai auto-risolte</div><div>✓ nessun DELETE (archivio) · ✓ ogni azione → audit</div></div></div>
@@ -1687,45 +1788,16 @@ const VIEWS={
    cervello resta, e sotto compare «questo lo sa fare Dante». Affidare il lavoro
    resta un clic dell'utente — e da lì in poi valgono i freni di sempre (una
    bozza, `in-approvazione`, livello 3 spento = non si accoda nemmeno). */
-const CAP_STOP=new Set(['il','lo','la','i','gli','le','un','una','uno','del','della','dei','delle','degli','di','a','da','in','con','su','per','tra','fra','e','o','che','chi','cosa','come','quando','dove','perche','mi','ti','ci','vi','si','me','te','se','non','piu','molto','tutto','tutti','puoi','potresti','vorrei','volevo','serve','bisogno','fare','fammi','dammi','sono','essere','avere','questo','questa','quello','quella','adesso','subito','favore','cortesia','grazie','ciao']);
-function capParole(t){
-  return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .split(/[^a-z0-9]+/).filter(w=>w.length>3&&!CAP_STOP.has(w));
-}
-async function capCatalogo(){
-  if(state._capacita)return state._capacita;
-  let ag=null;
-  try{ag=await api('orch','/agents');}catch(_){return null;}   // orchestratore giù: nessun suggerimento, mai un errore in chat
-  const out=[];
-  const aggiungi=(agente,nome,skills)=>(skills||[]).forEach(sk=>out.push({
-    agente,nome,id:sk.id,role:sk.role||sk.id,desc:sk.desc||'',dip:sk.department||'',
-    parole:capParole([sk.id,sk.role,sk.desc,sk.department].join(' '))}));
-  (ag.agents||[]).forEach(a=>aggiungi(a.id,a.name||a.id,a.skills));
-  (ag.subagents||[]).forEach(a=>aggiungi(a.sotto||a.id,a.name||a.id,a.skills));
-  state._capacita=out;
-  return out;
-}
-/* Punteggio grezzo per sovrapposizione di parole. Volutamente semplice e
-   volutamente SEVERO nella soglia: un suggerimento sbagliato sotto ogni
-   risposta diventa rumore, e il rumore si impara a ignorare. */
-function capTrova(testo,cat){
-  const p=capParole(testo);
-  if(!p.length||!cat||!cat.length)return null;
-  let best=null;
-  for(const c of cat){
-    let n=0;
-    for(const w of p){if(c.parole.some(x=>x===w||(w.length>5&&x.startsWith(w.slice(0,5)))))n++;}
-    if(n&&(!best||n>best.n))best={c,n};
-  }
-  return best&&best.n>=2?best.c:null;    // due parole in comune: sotto è caso
-}
-async function suggerisciCapacita(i,testo){
-  const m=state.chat[i];if(!m||m.role!=='bot')return;
-  const cat=await capCatalogo();
-  const c=capTrova(testo,cat);
-  if(!c)return;
-  m.cap=c;renderChat();
-}
+/* V9/C · Il riconoscimento è passato al SERVER, e questo blocco è sparito.
+   Il V7 lo aveva messo qui — giusto, per non duplicare il catalogo — ma esisteva
+   solo nella console: nel widget sul sito di un cliente non c'era, e **a voce
+   non c'era affatto**, perché un chip non si clicca mentre si parla. Adesso è
+   `agents_bridge.trova()` a riconoscerlo, la capacità entra nella FRASE della
+   risposta, e `/chat` la restituisce anche come dato (`capacita`) perché qui si
+   possa disegnare il bottone. Un riconoscitore solo, per tutte le superfici.
+
+   Il catalogo continua a non essere duplicato da nessuna parte: il server lo
+   legge da `/agents` e lo tiene in RAM dieci minuti. */
 function affidaCapacita(i){
   const m=state.chat[i];if(!m||!m.cap)return;
   const testo=(state.chat[i-1]&&state.chat[i-1].role==='user')?state.chat[i-1].text:'';
@@ -1758,6 +1830,22 @@ function paritaConsole(ev,ov){
    nessuno, «manca ingest_meta: l'allarme sui commit è cieco» sì.
    Tre esiti distinti, mai confusi fra loro: nessun database (configurazione, non
    guasto) · schema non leggibile (non ho potuto guardare) · elenco dei buchi. */
+/* V9/A3 · L'elenco COMPLETO delle funzioni spente, in un posto solo. Non è più
+   l'unico posto dove si vede — quello era il difetto del 2/08 — ma resta quello
+   dove si guarda quando si vuole sapere cosa manca a tutto il sistema insieme.
+   Sono le stesse frasi che ogni schermata mostra da sé: una sorgente, non due. */
+function funzioniBox(f){
+  if(!f||typeof f!=='object')return '';
+  const spente=Object.entries(f).filter(([,v])=>v&&v.stato!=='acceso');
+  if(!spente.length)return `<div class="small muted" style="margin-top:12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--green) 35%,var(--border));border-radius:10px">✓ Nessuna funzione spenta: tutto quello che serve è configurato.</div>`;
+  return `<div class="small" style="margin-top:12px;padding:10px 12px;border:1px solid color-mix(in srgb,var(--orange) 45%,var(--border));border-radius:10px">
+    <div style="color:var(--orange);font-weight:700">${icon('alert',12)} ${spente.length} funzion${spente.length===1?'e spenta':'i spente'}</div>
+    <div class="muted" style="margin-top:3px">Ognuna lo dichiara anche nella schermata dove si usa — qui c'è l'insieme.</div>
+    ${spente.map(([k,v])=>`<div style="padding:6px 0;border-top:1px solid var(--border)">
+      <b>${esc(v.titolo||k)}</b> <span class="muted">· ${esc(v.dove||'')}</span>
+      <div style="margin-top:2px">${esc(v.perche||'')}</div>
+      ${v.come?`<div class="small muted mono" style="margin-top:2px">${esc(v.come)}</div>`:''}</div>`).join('')}</div>`;
+}
 function schemaBox(sc){
   if(!sc)return '';
   if(!sc.persist)return `<div class="small muted" style="margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">${icon('layers',12)} <b>Nessun database collegato.</b> Coda «Miglioramenti», grafo e permessi per-tenant girano in memoria e si azzerano a ogni redeploy. Non è un guasto: è come è configurato adesso.</div>`;
@@ -2156,7 +2244,8 @@ async function sendChat(){
     if(r.free)trace.push('ragionamento fuori dal cervello, marcato');
     if(ag)chiudiDelega(ag.agent);          // V8/C2: «✓ … ha finito», nel filo
     state.chat.push({role:'bot',text:r.answer,sources:r.sources,trace,gap:r.gap||null,
-                     ricordato:r.ricordato||null});   // V8/A: «me lo ricordo» + Dimentica
+                     ricordato:r.ricordato||null,      // V8/A: «me lo ricordo» + Dimentica
+                     cap:(!ag&&!state.clientMode)?(r.capacita||null):null});   // V9/C: dal server
     if(ag){
       agFinisce(ag.agent,{output:r.answer,trace,brief:text});
       schedaRisultato(ag,r.answer,text);   // V8/C3: il risultato diventa un oggetto
@@ -2165,7 +2254,6 @@ async function sendChat(){
     speak(r.answer,false,(ag&&ag.agent)||comp||'');   // V8/C1: la voce di chi ha risposto
     /* A2 · Se ha risposto il cervello ma esiste un agente che quel lavoro lo FA,
        lo si dice sotto la risposta. Non si dirotta niente: la risposta resta. */
-    if(!ag&&!state.clientMode)suggerisciCapacita(state.chat.length-1,text);
   }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'✕ '+e.message,sources:[]});setOrb('idle');}
   if(brainTimer)clearInterval(brainTimer);
   renderChat();
@@ -2425,8 +2513,13 @@ function renderFocusBar(){
 async function chatTurn(text,history){
   const comp=(state._compSel&&state._compSel!=='divina')?state._compSel:null;
   const fp=focusPayload();
-  const payload={message:text,history,...(comp?{agent:true,companion:comp}:{}),
-    ...(fp?{focus:fp}:{})};
+  /* V7/A1 + V9/D · L'id della conversazione. Serve a due cose e a nessun'altra:
+     la rete di sicurezza del filo lato server (opt-in: senza id non esiste) e il
+     riassunto di chiusura. Non identifica una persona — è un numero che vive
+     quanto la conversazione e muore con lei. */
+  if(!state._conv)state._conv='c-'+Math.random().toString(36).slice(2,10);
+  const payload={message:text,history,conversazione:state._conv,
+    ...(comp?{agent:true,companion:comp}:{}),...(fp?{focus:fp}:{})};
   /* V5 · «pensa» è uno stato VERO: acceso qui, per la durata del turno.
      Il grafo in home lo mostra (setThink di brain3d) e la spia della
      colonnina lo legge da state._pensa. */
@@ -2865,7 +2958,7 @@ async function chatApprove(tid,to){
 /* ── M1 · resa della coda unica: gruppi visibili (IN CORSO in cima), filtri
    in testa (origine + salto di stato), righe con titolo · origine · peso ·
    data di chiusura. Nessuna sotto-scheda da scegliere prima di capire. ── */
-const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)'],conversazione:['Da conversazione','var(--divina)'],cliente:['Dal cliente','var(--dante)']};
+const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)'],conversazione:['Da conversazione','var(--divina)'],cliente:['Dal cliente','var(--dante)'],sito:['Dal sito','#38bdf8']};
 /* ── H2 · La figura umana: SVG A STRATI (scelta a, motivata) — silhouette
    vettoriale con tre livelli semitrasparenti (corpo · asse interno · punti
    vivi) e una leggera parallasse al mouse. La sensazione di volume viene da
@@ -3666,6 +3759,82 @@ function enterClientMode(d){
   route('chat');
   const sub=$('#pageSub');if(sub)sub.textContent=`${d.account.display_name||d.account.email} · accesso cliente`;
 }
+/* V9/D · «Questa conversazione è finita». Lo dice il client, perché è l'unico
+   che lo sa: quando si chiude il pannello, quando se ne apre una nuova, quando
+   si esce dalla pagina. Il server comprime in un promemoria di due righe — una
+   volta sola, e mentre nessuno sta aspettando una risposta: è per questo che
+   non pesa sui 55 ms di prima sillaba.
+
+   `keepalive` perché all'uscita dalla pagina una fetch normale verrebbe
+   annullata a metà: è l'unico caso in cui serve, ed è il caso più frequente. */
+function chiudiConversazione(){
+  const conv=state._conv;
+  if(!conv||state.demo||state.clientMode||!state.tenantKey||!state.engBase)return;
+  const turni=state.chat.filter(m=>m.role==='user'||m.role==='bot')
+    .map(m=>({role:m.role==='bot'?'assistant':'user',content:m.text}));
+  if(turni.length<4)return;              // sotto, non c'è una conversazione da comprimere
+  state._conv=null;
+  try{
+    fetch(state.engBase.replace(/\/$/,'')+'/chat/chiudi',{method:'POST',keepalive:true,
+      headers:{'Content-Type':'application/json','X-Tenant-Key':state.tenantKey},
+      body:JSON.stringify({conversazione:conv,history:turni})}).catch(()=>{});
+  }catch(_){}
+}
+addEventListener('pagehide',chiudiConversazione);
+
+/* ══════════ V9/B · LA KB DI UN CLIENTE NASCE DAL SUO SITO ══════════
+   Le schede clienti stanno fra le 61 e le 77 righe: scheletri. Non per un
+   limite tecnico — riempirle è lavoro manuale che dipende dal cliente, e per
+   chiederglielo bisognerebbe prima chiedergli un favore, cioè prima di avergli
+   mostrato il valore.
+
+   Il ribaltamento: si prende l'indirizzo del sito, se ne ricava una bozza, e
+   poi gli si apre il pannello e gli si chiede «cosa è sbagliato qui?».
+   Correggere è cento volte più facile che compilare.
+
+   Qui NON si scrive niente: ogni voce entra in coda con l'URL della pagina e la
+   frase da cui viene, e si approva una per una — anche quando sono dodici. */
+async function formDalSito(scope){
+  const back=document.createElement('div');back.className='modal-back open';
+  back.innerHTML=`<div class="modal" style="max-width:640px" id="dsBox">
+    <div class="card-head"><div><h3>Proponi la scheda dal sito</h3>
+      <p class="small muted">cliente <b>${esc(scope)}</b></p></div></div>
+    <div class="small muted" style="line-height:1.7;margin-bottom:10px">
+      Divina legge il sito e propone quello che un assistente dovrebbe sapere per rispondere
+      a chi scrive a quest'azienda. <b>Non scrive niente nel cervello</b>: ogni voce va in coda
+      con la pagina e la frase da cui viene, e la approvi tu. Le frasi che non si ritrovano nel
+      sito e quelle con dentro dati di persone vengono scartate — non corrette.</div>
+    <label class="fld"><span class="lt">Indirizzo del sito</span><input id="dsUrl" placeholder="es. ats.it"></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="dsNo">Annulla</button><button class="btn primary" id="dsGo">Leggi il sito</button></div>
+    <div id="dsOut" style="margin-top:14px"></div></div>`;
+  document.body.appendChild(back);
+  const via=()=>back.remove();
+  back.onclick=e=>{if(e.target===back)via();};
+  back.querySelector('#dsNo').onclick=via;
+  const url=back.querySelector('#dsUrl');
+  back.querySelector('#dsGo').onclick=async()=>{
+    const u=url.value.trim();const out=back.querySelector('#dsOut');
+    if(!u){out.innerHTML='<div class="small" style="color:var(--neg)">Scrivi l\'indirizzo del sito.</div>';return;}
+    out.innerHTML=skeleton(2);
+    try{
+      const r=await api('engine','/admin/clients/kb-da-sito',{method:'POST',body:{scope,url:u}});
+      const v=r.voci||[];
+      out.innerHTML=`${boxDegrado(r.degrado)}
+        ${v.length?`<div class="small" style="margin-bottom:8px"><b>${v.length} voc${v.length===1?'e':'i'} propost${v.length===1?'a':'e'}</b>
+            da ${(r.pagine||[]).length} pagin${(r.pagine||[]).length===1?'a':'e'} — ${icon('lock',11)} in coda, <b>non salvate</b>:
+            diventano cervello solo se le approvi in Miglioramenti.</div>
+          ${v.map(x=>`<div class="imparato-voce"><span class="pill">${esc(x.sezione)}</span>
+            <b class="small" style="margin-left:6px">${esc(x.titolo)}</b>
+            <div class="small muted" style="margin-top:3px">${esc(x.contenuto)}</div>
+            <div class="imparato-cita">«${esc(x.citazione)}»</div>
+            <div class="small muted mono" style="margin-top:3px">${esc(x.url)}</div></div>`).join('')}
+          <div class="row" style="margin-top:12px"><button class="btn sm" onclick="route('improve')">Vai a Miglioramenti</button></div>`
+        :`<div class="small muted" style="line-height:1.7">${esc(r.perche||'Nessuna voce proposta.')}</div>`}`;
+    }catch(e){out.innerHTML=errBox(e);}
+  };
+  url.focus();
+}
+
 /* V8/B2 · «Questa cosa è sbagliata» — una PROPOSTA, non una modifica.
    Il cliente non scrive nel vault e non lo scriverà mai da qui: la segnalazione
    arriva nella coda di FORMA, che corregge col suo nome. È la stessa governance
@@ -3702,10 +3871,14 @@ function formSegnala(nota){
    file://, senza cookie né server) e a far vedere il pannello a chi non ha
    ancora un accesso cliente. */
 function demoClient(che){
-  if(che==='kb')return {totale:2,scopes:['ats'],persist:true,vuota_perche:'',note:[
+  if(che==='kb')return {totale:2,scopes:['ats'],persist:true,vuota_perche:'',
+    degrado:{stato:'acceso',titolo:'Le segnalazioni del cliente',dove:'',perche:'',come:'',manca:[]},note:[
     {slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',updated_at:new Date(Date.now()-36e5*30).toISOString()},
     {slug:'menu-ats',title:'Menu e orari ATS',path:'forma/clienti/ats/menu.md',updated_at:new Date(Date.now()-36e5*90).toISOString()}]};
   return {consentito:false,buchi:[],totale:0,
+    degrado:{stato:'spento',titolo:'I buchi visibili al cliente',dove:'',manca:['tenant_flags.buchi'],
+      perche:"Il cliente non può vedere i buchi delle sue risposte nemmeno se lo si decide (resta spento, default sicuro: sono domande dei suoi utenti finali).",
+      come:'Applica db/tenant_flags_buchi.sql.'},
     perche:"Le domande rimaste senza risposta le hanno scritte i vostri utenti finali: mostrarle qui è una cosa che decidiamo insieme, non un'impostazione predefinita. Chiedetelo a FORMA e si accende."};
 }
 function clientLogout(){fetch('/client/logout',{method:'POST',credentials:'include'}).finally(()=>{location.hash='';location.reload();});}

@@ -233,6 +233,20 @@ function trovaChromium() {
     };
   });
 
+  // 1b-quater-bis · V9/D · «Quello che ci siamo detti»: i promemoria stanno
+  //   nella STESSA pagina delle memorie, ognuno col suo Dimentica. Se il bottone
+  //   non li raggiunge, l'art. 17 è coperto a metà — e mezza copertura, su un
+  //   obbligo di legge, è peggio di nessuna promessa.
+  const riassV9 = await page.evaluate(() => {
+    const c = document.getElementById("content"), t = c.textContent;
+    return {
+      sezione: /Quello che ci siamo detti/.test(t),
+      righe: c.querySelectorAll("[data-dimr]").length,
+      retention: /30 giorni/.test(t),
+      chiude: typeof window.chiudiConversazione === "function",
+    };
+  });
+
   // 1b-quinquies · V8/B · Le due porte del CLIENTE. Girano in demo (il
   //   guardiano non ha cookie né server): quello che si sorveglia è che
   //   esistano, che la kb elenchi con la data e il bottone «è sbagliata», e
@@ -253,6 +267,96 @@ function trovaChromium() {
     return { spiega: /utenti finali/.test(t) && /decidiamo insieme/.test(t),
              nonFingeVuoto: !/Nessuna domanda rimasta/.test(t) };
   });
+
+  // 1b-quinquies-bis · V9/C · La capacità arriva DAL SERVER e si vede sotto la
+  //   risposta, con il bottone per affidarla. Il riconoscitore nella console non
+  //   esiste più: era l'unico posto dove funzionava, e a voce non serviva a
+  //   niente. Qui si verifica che la console disegni il dato che riceve.
+  const capV9 = await page.evaluate(() => {
+    const salvo = state.chat.slice();
+    state.demo = false;
+    state.chat = [{ role: "user", text: "cerca chi vende stampa 3D a Benevento" },
+                  { role: "bot", text: "Nel cervello non c'è.", sources: [],
+                    cap: { agente: "beatrice", skill: "customer-research",
+                           role: "Customer Research", desc: "trova e qualifica potenziali clienti" } }];
+    renderChat();
+    const t = document.getElementById("chatInner").textContent.replace(/\s+/g, " ");
+    const out = {
+      offerta: /Questo lo sa fare/.test(t),
+      chi: /Beatrice/.test(t),
+      bottone: /Affida a/.test(t),
+      // il riconoscitore lessicale del V7 non deve più esistere nella console
+      niente: typeof window.capTrova === "undefined" && typeof window.capCatalogo === "undefined",
+    };
+    state.chat = salvo; state.demo = true; renderChat();
+    return out;
+  });
+
+  // 1b-sexies · V9/A · Una funzione spenta lo dice DOVE si usa.
+  //   Il 2/08 «Cosa so di te» diceva «non so niente di te» mentre la verità era
+  //   «non posso ricordare niente, mi manca la tabella». Qui si sorveglia che
+  //   l'avviso sia UNO e uguale ovunque, che al cliente non si mostri la riga
+  //   tecnica (non è lui a dover impostare una variabile su Railway), e che lo
+  //   stato vuoto non finga di essere vuoto quando invece è spento.
+  const degradoV9 = await page.evaluate(() => {
+    const spento = { stato: "spento", titolo: "«Cosa so di te»", dove: "Squadra",
+                     perche: "si azzera a ogni redeploy", come: "applica db/tenant_memory.sql", manca: ["tenant_memory"] };
+    const nonSo = { stato: "non-so", titolo: "x", dove: "y", perche: "non è leggibile adesso", come: "", manca: [] };
+    const owner = boxDegrado(spento), cliente = boxDegrado(spento, { cliente: true });
+    return {
+      compare: /data-degrado="spento"/.test(owner),
+      spiega: /si azzera a ogni redeploy/.test(owner),
+      tecnicoOwner: /tenant_memory\.sql/.test(owner),
+      tecnicoCliente: /tenant_memory\.sql/.test(cliente),   // deve essere FALSO
+      acceso: boxDegrado({ stato: "acceso" }) === "",
+      nonSo: /data-degrado="non-so"/.test(boxDegrado(nonSo)),
+      vuotoSpento: /Non posso ricordare niente/.test(vuotoOnesto(spento, "Non so niente di te", "", "brain")),
+      vuotoNormale: /Non so niente di te/.test(vuotoOnesto({ stato: "acceso" }, "Non so niente di te", "", "brain")),
+    };
+  });
+  // e nella pagina del cliente l'avviso c'è DAVVERO, non solo la funzione che lo sa fare
+  const degradoCliente = await page.evaluate(() =>
+    !!document.querySelector("#content .degrado[data-degrado='spento']"));
+  // Diagnostica: l'elenco completo delle funzioni spente resta, ma non è più l'unico posto
+  await page.evaluate(() => { const g = document.getElementById("diagGroup"); if (g) g.hidden = false; route("system"); });
+  await page.waitForTimeout(700);
+  const diagV9 = await page.evaluate(() => {
+    const t = document.getElementById("content").textContent;
+    return { elenco: /funzion[ei] spent/.test(t), voceVera: /voce di Divina/.test(t) };
+  });
+  // 1b-septies · V9/B · La KB del cliente nasce dal suo sito, come PROPOSTA.
+  //   Quello che si sorveglia non è che legga un sito (qui non c'è rete): è che
+  //   ogni voce arrivi in schermo con la PAGINA e la FRASE da cui viene, e che
+  //   la finestra dica a chiare lettere che non sta salvando niente. Una scheda
+  //   cliente senza provenienza è peggio di una vuota: sembra verificata.
+  await page.evaluate(() => route("clienti"));
+  await page.waitForTimeout(600);
+  const sitoV9 = await page.evaluate(async () => {
+    const b = document.querySelector("[data-sito]");
+    if (!b) return { bottone: false };
+    b.click();
+    const box = document.getElementById("dsBox");
+    box.querySelector("#dsUrl").value = "ats.it";
+    box.querySelector("#dsGo").click();
+    await new Promise(r => setTimeout(r, 400));
+    const t = box.textContent;
+    const out = {
+      bottone: true,
+      voci: box.querySelectorAll("#dsOut .imparato-voce").length,
+      cita: box.querySelectorAll("#dsOut .imparato-cita").length,
+      url: /https:\/\/ats\.it\/servizi/.test(t),
+      nonSalvate: /non salvate/.test(t),
+      approvi: /solo se le approvi/.test(t),
+    };
+    box.querySelector("#dsNo").click();     // si chiude dalla sua porta: `.modal-back`
+    return out;                             // esiste anche per la finestra Connessione, nascosta
+  });
+
+  // Squadra: accanto a chi non ha una voce sua, si vede
+  await page.evaluate(() => route("agents"));
+  await page.waitForTimeout(600);
+  const vociV9 = await page.evaluate(() =>
+    (document.getElementById("content").textContent.match(/voce di Divina/g) || []).length);
   await page.evaluate(() => route("home"));
   await page.waitForTimeout(300);
 
@@ -496,8 +600,44 @@ function trovaChromium() {
   if (!memV8.inUso) {
     console.error("FAIL (V8-A4): nessuna memoria è marcata «in uso adesso»: una memoria che non cambia niente è una vetrina"); ko = 1;
   }
+  if (!riassV9.sezione || !riassV9.righe || !riassV9.retention) {
+    console.error("FAIL (V9-D): i promemoria delle conversazioni non stanno in «Cosa so di te» col loro Dimentica " + JSON.stringify(riassV9)); ko = 1;
+  }
+  if (!riassV9.chiude) {
+    console.error("FAIL (V9-D): la console non sa dire al motore che una conversazione è finita: nessun riassunto verrebbe mai scritto"); ko = 1;
+  }
   if (!ckbV8.righe || !ckbV8.sappiamo || !ckbV8.nonScrive) {
     console.error("FAIL (V8-B2): il pannello del cliente non elenca la sua knowledge base " + JSON.stringify(ckbV8)); ko = 1;
+  }
+  if (!degradoV9.compare || !degradoV9.spiega || !degradoV9.acceso || !degradoV9.nonSo) {
+    console.error("FAIL (V9-A3): l'avviso di funzione spenta non si disegna (o compare quando è accesa) " + JSON.stringify(degradoV9)); ko = 1;
+  }
+  if (!degradoV9.tecnicoOwner || degradoV9.tecnicoCliente) {
+    console.error("FAIL (V9-A3): la riga tecnica va a chi può farci qualcosa — mai al cliente " + JSON.stringify(degradoV9)); ko = 1;
+  }
+  if (!degradoV9.vuotoSpento || !degradoV9.vuotoNormale) {
+    console.error("FAIL (V9-A1): lo stato vuoto finge di essere vuoto anche quando la funzione è SPENTA — è il difetto del 2/08"); ko = 1;
+  }
+  if (!degradoCliente) {
+    console.error("FAIL (V9-A1): la pagina del cliente non mostra l'avviso della funzione spenta"); ko = 1;
+  }
+  if (!diagV9.elenco || !diagV9.voceVera) {
+    console.error("FAIL (V9-A3): Diagnostica non elenca le funzioni spente " + JSON.stringify(diagV9)); ko = 1;
+  }
+  if (!vociV9) {
+    console.error("FAIL (V9-A2): in Squadra non si vede chi parla ancora con la voce di Divina"); ko = 1;
+  } else console.log("[voci] " + vociV9 + " agenti senza voce propria, dichiarati accanto al nome");
+  if (!capV9.offerta || !capV9.chi || !capV9.bottone) {
+    console.error("FAIL (V9-C): la capacità che il server suggerisce non si vede sotto la risposta " + JSON.stringify(capV9)); ko = 1;
+  }
+  if (!capV9.niente) {
+    console.error("FAIL (V9-C): il riconoscitore lessicale è rimasto nella console — due matcher divergono, e quello sbagliato è sempre quello che vede l'utente"); ko = 1;
+  }
+  if (!sitoV9.bottone || !sitoV9.voci || sitoV9.cita !== sitoV9.voci || !sitoV9.url) {
+    console.error("FAIL (V9-B): le voci proposte dal sito non portano tutte la pagina e la frase da cui vengono " + JSON.stringify(sitoV9)); ko = 1;
+  }
+  if (!sitoV9.nonSalvate || !sitoV9.approvi) {
+    console.error("FAIL (V9-B3): la finestra non dichiara che le voci NON sono salvate finché non le approvi"); ko = 1;
   }
   if (!buchiV8.spiega || !buchiV8.nonFingeVuoto) {
     console.error("FAIL (V8-B3): la pagina dei buchi spenta non DICE perché è spenta " + JSON.stringify(buchiV8)); ko = 1;

@@ -51,7 +51,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb
+from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -443,9 +443,18 @@ def do_ingest(body: IngestIn | None = None, authorization: str = Header(default=
         return ingest.run()
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        # V9 · Il TIPO dell'errore esce, il messaggio no. Trovato collaudando il
+        # merge del V8: `reingest.yml` è fallito con «Errore interno durante
+        # l'indicizzazione» e basta — un'automazione che riceve quella frase non
+        # può fare niente, e chi la legge nemmeno. È la stessa regola di
+        # `dbcheck` («schema non leggibile: OperationalError») e la stessa
+        # famiglia del degrado dichiarato: senza dato la spia dice QUALE dato
+        # manca. Il messaggio dell'eccezione resta fuori perché può contenere
+        # percorsi, URL del vault o pezzi di token; il nome della classe no.
         log.exception("ingest failed")
-        raise HTTPException(500, "Errore interno durante l'indicizzazione.")
+        raise HTTPException(500, "Indicizzazione fallita: "
+                                 f"{type(e).__name__}. Il dettaglio è nei log del motore.")
 
 
 @app.post("/chat")
@@ -530,11 +539,30 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
                 lang = nuova["valore"]        # vale già da questa risposta, non dalla prossima
             pref[nuova["chiave"]] = nuova["valore"]
     ricordi = memoria.per_prompt(tcode)
+    # V9/D · La conversazione che dura. Gli ultimi riassunti entrano come
+    # contesto su cosa ci si è detti — MAI come contenuto citabile e mai come
+    # filtro: uno scope toccato ieri non dà diritti oggi, e i grant si
+    # ricalcolano sempre dalla chiave (c'è un test che lo dimostra).
+    ricordi = ricordi + riassunti.per_prompt(tcode, escludi=conv)
+    # V9/C · Le capacità raggiungibili dalla CONVERSAZIONE (audit-2026-07-31-06,
+    # aperta dal 31 luglio). Il V7 aveva messo il riconoscitore nella console:
+    # giusto per non duplicare il catalogo, ma nel widget di un cliente non c'è
+    # e **a voce non c'è affatto** — un chip non si clicca mentre si parla.
+    # Adesso lo fa il server, e la capacità entra nella FRASE.
+    #
+    # Il vettore della domanda si calcola UNA volta e serve a due cose: il
+    # retrieval e il riconoscimento. Senza, «cerca chi vende stampa 3D» non
+    # arriverebbe mai a `customer-research` — non hanno una parola in comune, e
+    # contare le parole vorrebbe dire chiedere all'utente di indovinare il nome
+    # della skill scritto peggio.
+    qvec = rag.vettore(body.message) if agents_bridge.enabled() else None
+    cap = agents_bridge.trova(body.message, qvec=qvec) if agents_bridge.enabled() else None
     if body.stream:
         try:
             gen = rag.answer_stream(body.message, _grants(tenant), history=turni,
                                     lang=lang, tier=tier, web=body.web, web_enabled=web_enabled,
-                                    focus_slugs=focus_slugs, free=free, memoria=ricordi)
+                                    focus_slugs=focus_slugs, free=free, memoria=ricordi,
+                                    capacita=cap)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -558,7 +586,8 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     try:
         out = rag.answer(body.message, _grants(tenant), history=turni, lang=lang,
                          tier=tier, web=body.web, web_enabled=web_enabled,
-                         focus_slugs=focus_slugs, free=free, memoria=ricordi)
+                         focus_slugs=focus_slugs, free=free, memoria=ricordi,
+                         capacita=cap)
     except HTTPException:
         raise
     except Exception:
@@ -568,6 +597,10 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     filo.aggiungi(tcode, conv, turni, body.message, out.get("answer", ""))
     if isinstance(out.get("filo"), dict):
         out["filo"]["da"] = da_dove      # client | server | nessuno: la console lo dice
+    if cap:
+        # La stessa forma che la console già disegna dal V7 (`m.cap`): un posto
+        # solo dove renderla, e adesso la riceve anche il widget.
+        out["capacita"] = {k: cap[k] for k in ("agente", "skill", "role", "desc")}
     if nuova and salvata:
         # Nella bolla, non in un menu: «me lo ricordo» + il bottone per farmelo
         # dimenticare. Una memoria che si forma di nascosto è la cosa che rende
@@ -579,6 +612,37 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
 # ── Endpoint per il connettore MCP (ovy_search / get_document / list_context /
 #    create|update_document). Stessa autenticazione e stessi filtri per grant del
 #    /chat: l'isolamento è server-side, non delegato al connettore. ──────────────
+
+class ChiudiIn(BaseModel):
+    conversazione: str
+    history: list = []
+
+
+@app.post("/chat/chiudi")
+def chat_chiudi(body: ChiudiIn, x_tenant_key: str = Header(default=""),
+                origin: str = Header(default="")):
+    """V9/D · «Questa conversazione è finita»: si comprime in un riassunto.
+
+    Lo dice il CLIENT — la console quando chiudi il pannello o ne apri una
+    nuova, il widget quando la pagina si chiude — e succede una volta sola, a
+    conversazione conclusa. È questo che lo rende compatibile con la voce: la
+    chiamata al modello avviene quando nessuno sta aspettando una risposta.
+
+    Se il client non lo chiama, la conversazione resta non compressa: un buco
+    dichiarato, non nascosto — servirebbe un lavoro schedulato, e questo motore
+    non ne ha ancora uno."""
+    tenant = tenant_or_401(x_tenant_key)
+    _reject_master_browser(tenant, origin)
+    if not security.origin_allowed(origin, tenant.get("allowed_origins")):
+        raise HTTPException(403, "Origine non autorizzata per questo tenant.")
+    tcode = _tenant_code(tenant)
+    conv = security.cap_input(body.conversazione, 80)
+    turni, _da = filo.risolvi(body.history, tcode, conv)
+    r = riassunti.comprimi(tcode, conv, turni)
+    filo.dimentica(tcode, conv)          # compresso o no, il filo lungo si chiude qui
+    return {"ok": True, "riassunto": bool(r),
+            "perche": "" if r else "Niente da ricordare di questa conversazione."}
+
 
 @app.post("/search")
 def do_search(body: SearchIn, x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
@@ -925,6 +989,7 @@ class MemoriaIn(BaseModel):
 class MemoriaDimenticaIn(BaseModel):
     id: str
     by: str = ""
+    tipo: str = "memoria"      # memoria | riassunto — una porta sola per il bottone
 
 
 def _memoria_pagina(tenant_code: str, agente: str = "") -> dict:
@@ -940,7 +1005,18 @@ def _memoria_pagina(tenant_code: str, agente: str = "") -> dict:
     return {"tenant": tenant_code, "memorie": voci, "totale": len(voci),
             "persist": memoria.enabled(),
             "chiavi": {k: list(v) for k, v in memoria.CHIAVI.items()},
-            "usate": memoria.preferenze(tenant_code, agente)}
+            "usate": memoria.preferenze(tenant_code, agente),
+            # V9/D+49 · I riassunti stanno nella STESSA pagina: se il «Dimentica»
+            # non li raggiunge, l'art. 17 è coperto a metà — e mezza copertura,
+            # su un obbligo di legge, è peggio di nessuna promessa.
+            "riassunti": riassunti.elenco(tenant_code),
+            "retention_riassunti": riassunti.RETENTION_GIORNI,
+            "degrado_riassunti": degrado.per("riassunti"),
+            # V9/A1 · Il 2/08 questa pagina diceva «non so ancora niente di te»
+            # mentre la verità era «non posso ricordare niente, mi manca la
+            # tabella». Una funzione spenta che sembra inutile non chiede di
+            # essere riparata.
+            "degrado": degrado.per("memoria")}
 
 
 @app.get("/admin/memoria")
@@ -970,9 +1046,14 @@ def admin_memoria_dimentica(body: MemoriaDimenticaIn, authorization: str = Heade
     """Il bottone DIMENTICA. Cancella il contenuto per davvero e lascia solo la
     lapide (quando, chi): l'art. 17 non si soddisfa archiviando. Bearer ADMIN_TOKEN."""
     _require_admin(authorization)
+    tipo = (body.tipo or "memoria").strip().lower()
+    if tipo == "riassunto":
+        if not riassunti.dimentica(body.id, body.by):
+            raise HTTPException(404, "Riassunto inesistente o già dimenticato.")
+        return {"ok": True, "tipo": "riassunto"}
     if not memoria.dimentica(body.id, body.by):
         raise HTTPException(404, "Memoria inesistente o già dimenticata.")
-    return {"ok": True}
+    return {"ok": True, "tipo": "memoria"}
 
 
 class TaskPrioritaIn(BaseModel):
@@ -1134,6 +1215,30 @@ def admin_conversazione_imparato(body: ImparatoIn, authorization: str = Header(d
                      "in Miglioramenti.")}
 
 
+# ── V9/B · La KB di un cliente nasce dal suo sito, come proposta ────────────
+class SitoKbIn(BaseModel):
+    scope: str                 # la cartella cliente: forma/clienti/<scope>/
+    url: str
+
+
+@app.post("/admin/clients/kb-da-sito")
+def admin_kb_da_sito(body: SitoKbIn, authorization: str = Header(default="")):
+    """Legge il sito di un cliente e ne propone una bozza di scheda.
+
+    NON scrive niente: le voci entrano nella coda `/admin/proposals`, marcate
+    `sito`, ognuna con l'URL della pagina e la frase esatta da cui viene. Si
+    approvano una per una, come tutto il resto — anche quando sono dodici e
+    approvarle a mano è noioso. Bearer ADMIN_TOKEN."""
+    _require_admin(authorization)
+    scope = (body.scope or "").strip().lower()
+    if not scope:
+        raise HTTPException(422, "Indica lo scope del cliente (la sua cartella).")
+    res = sitokb.proponi(scope, body.url)
+    accodate = proposals.add_sito(res["voci"], url=res["url"])
+    return {**res, "accodate": len(accodate), "gia_in_coda": len(res["voci"]) - len(accodate),
+            "degrado": degrado.per("kb-da-sito")}
+
+
 @app.get("/admin/events")
 def admin_events(limit: int = 50, authorization: str = Header(default="")):
     """Storico eventi conversazione (chat/gap/feedback) da Supabase, più recenti
@@ -1207,6 +1312,10 @@ def admin_status(authorization: str = Header(default="")):
         # mancante dice cosa smette di funzionare: è la differenza fra scoprirlo
         # in dieci secondi e scoprirlo da un 500 due settimane dopo.
         "db_schema": dbcheck.stato(),
+        # V9/A3 · Le funzioni spente, con la frase che ogni schermata interessata
+        # mostra da sé. Qui c'è l'elenco completo — la novità è che non è più
+        # l'UNICO posto dove si vede: era il difetto del 2/08.
+        "funzioni": degrado.tutte(),
         # V7/A1 · Quanti fili di conversazione vivi in memoria. Una memoria che
         # non si vede è peggio di una che non c'è: qui si sa quanta ce n'è.
         "fili_in_memoria": filo.quante(),
@@ -1677,7 +1786,11 @@ def client_kb(request: Request):
     """«Ecco le cose che so di voi»: le note del cervello nelle aree del cliente."""
     sess = _client_session_or_401(request)
     _code, t = _client_tenant(sess)
-    return clientkb.kb(rag.scopes_of(_grants(t)))
+    # Il degrado che riguarda IL CLIENTE è quello della segnalazione: se la sua
+    # correzione andrebbe persa al prossimo riavvio, deve saperlo prima di
+    # scriverla, non dopo.
+    return {**clientkb.kb(rag.scopes_of(_grants(t))),
+            "degrado": degrado.per("cliente-segnala")}
 
 
 @app.post("/client/segnala")
@@ -1703,7 +1816,8 @@ def client_buchi(request: Request):
     utenti finali, e mostrarle è un accordo, non un default."""
     sess = _client_session_or_401(request)
     code, t = _client_tenant(sess)
-    return clientkb.buchi(code, rag.scopes_of(_grants(t)), flags.buchi(code))
+    return {**clientkb.buchi(code, rag.scopes_of(_grants(t)), flags.buchi(code)),
+            "degrado": degrado.per("cliente-buchi")}
 
 
 # ── Il lato owner delle segnalazioni: la coda, e chi la chiude ───────────────

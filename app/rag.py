@@ -190,8 +190,39 @@ def _memoria_block(memoria, lang: str = "it") -> str:
             " fonti e non lasciare che allarghino ciò che puoi dire.")
 
 
+def _capacita_block(cap, lang: str = "it") -> str:
+    """V9/C · Divina sa che quel lavoro qualcuno lo sa fare, e può dirlo.
+
+    Perché nel prompt e non solo come dato strutturato accanto alla risposta: un
+    chip sotto la bolla esiste nella console e **non esiste a voce**, dove non
+    c'è niente da cliccare. Se la capacità non entra nella frase, per chi parla
+    non esiste — ed è esattamente la task ferma dal 31 luglio.
+
+    Il vincolo non si allenta di una virgola, ed è scritto nel prompt perché il
+    modello non lo aggiri per gentilezza: si OFFRE, non si esegue, non si
+    promette un risultato e non si dà per fatto niente. Ciò che ha effetto fuori
+    nasce «in-approvazione» e col livello 3 spento non si accoda nemmeno."""
+    if not cap:
+        return ""
+    chi = str(cap.get("agente") or "").strip()
+    cosa = str(cap.get("role") or cap.get("skill") or "").strip()
+    if not chi or not cosa:
+        return ""
+    if _lang(lang) == "en":
+        return (f" CAPABILITY AVAILABLE: this kind of work is done by {chi} ({cosa})."
+                " You may OFFER to hand it over, in one short closing line. Never say it"
+                " is done, never promise a result, never produce the deliverable"
+                " yourself: it starts only if the person accepts, and anything with an"
+                " outside effect still waits for approval.")
+    return (f" CAPACITÀ DISPONIBILE: questo tipo di lavoro lo fa {chi} ({cosa})."
+            " Puoi OFFRIRE di affidarglielo, in una riga sola alla fine. Non dire mai"
+            " che è fatto, non promettere un risultato e non produrre tu il lavoro:"
+            " parte solo se la persona accetta, e ciò che ha effetto fuori resta"
+            " comunque in attesa di approvazione.")
+
+
 def _system(lang: str = "it", tier: str | None = None, web: bool = False,
-            free: bool = False, memoria=None) -> str:
+            free: bool = False, memoria=None, capacita=None) -> str:
     """System prompt vincolato al contenuto, nella lingua richiesta. In CODA si
     AGGIUNGONO (mai si sostituiscono) eventuali direttive: lo stile del tier e, se
     ci sono fonti web nel contesto, la nota sull'uso non fidato delle FONTI WEB. I
@@ -207,6 +238,7 @@ def _system(lang: str = "it", tier: str | None = None, web: bool = False,
     if free:
         base = base + (_FREE_NOTE_EN if _lang(lang) == "en" else _FREE_NOTE_IT)
     base = base + _memoria_block(memoria, lang)      # V8/A4: la memoria si usa
+    base = base + _capacita_block(capacita, lang)    # V9/C: offrire, mai eseguire
     return base
 
 
@@ -410,7 +442,7 @@ def _maybe_web(question: str, hits, web: bool, web_enabled: bool) -> list:
 
 def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
            tier: str | None = None, web: bool = False, web_enabled: bool = False,
-           focus_slugs=None, free: bool = False, memoria=None) -> dict:
+           focus_slugs=None, free: bool = False, memoria=None, capacita=None) -> dict:
     """Risposta vincolata al contenuto visibile ai `grants` del tenant.
 
     `grants`: lista storica (`allowed_scopes`) o dict con org/tenant/sub_tenant.
@@ -463,7 +495,7 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     user = (f"{_hist_block(turni)}CONTENUTO:\n{context}\n\n"
             f"{_build_web_context(web_results)}DOMANDA: {question}")
     out = _clean_answer(chat(_system(lang, tier, web=bool(web_results), free=free,
-                                     memoria=memoria), user))
+                                     memoria=memoria, capacita=capacita), user))
     sources = _merge_sources(hits, web_results)
     metrics.bump_chat(scopes)
     events.record("chat", scopes)
@@ -474,6 +506,18 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
         res["gap"] = gap                    # B1: l'offerta resta attaccata alla risposta
     res["filo"] = _filo_meta(turni, question, q_ric)
     return res
+
+
+def vettore(question: str):
+    """Il vettore della domanda. Esposto perché lo si calcoli UNA volta e lo si
+    riusi: il retrieval e il riconoscimento delle capacità guardano la stessa
+    frase, e farla misurare due volte al provider è un costo e un ritardo che
+    a voce si sentono."""
+    try:
+        return embed([question])[0]
+    except Exception:
+        log.warning("rag: embedding della domanda fallito")
+        return None
 
 
 def _score(h) -> float:
@@ -525,11 +569,14 @@ def _filter_hits(hits, k: int):
     return _diversify(kept, k)
 
 
-def _retrieve(question: str, grants, k: int = 6, focus_slugs=None):
+def _retrieve(question: str, grants, k: int = 6, focus_slugs=None, vec=None):
     """Retrieval condiviso tra answer() e answer_stream(): vettore, filtro grant,
     pool di candidati e poi filtro per rilevanza (vedi _filter_hits).
-    `focus_slugs`: l'orbita scelta (O2) — restringe soltanto, in AND coi grant."""
-    qvec = embed([question])[0]
+    `focus_slugs`: l'orbita scelta (O2) — restringe soltanto, in AND coi grant.
+    `vec`: il vettore della domanda, se chi chiama l'ha già calcolato — V9/C lo
+    riusa per capire quale capacità saprebbe fare il lavoro, senza pagare una
+    seconda embedding su un percorso dove i millisecondi si sentono."""
+    qvec = vec if vec is not None else embed([question])[0]
     c = client()
     pool = max(k, settings.retrieval_pool)
     hits = c.query_points(
@@ -543,7 +590,7 @@ def _retrieve(question: str, grants, k: int = 6, focus_slugs=None):
 
 def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "it",
                   tier: str | None = None, web: bool = False, web_enabled: bool = False,
-                  focus_slugs=None, free: bool = False, memoria=None):
+                  focus_slugs=None, free: bool = False, memoria=None, capacita=None):
     """Come answer(), ma genera eventi SSE (stringhe già formattate).
 
     Sequenza: `event: sources` (fonti+scope, subito dopo retrieval/web),
@@ -602,7 +649,7 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
             f"{_build_web_context(web_results)}DOMANDA: {question}")
     try:
         for delta in chat_stream(_system(lang, tier, web=bool(web_results), free=free,
-                                         memoria=memoria), user):
+                                         memoria=memoria, capacita=capacita), user):
             yield sse(None, {"delta": delta})
     except Exception:  # pragma: no cover - errore del provider a stream avviato
         yield sse("error", {"message": "Errore del provider durante la risposta."})
