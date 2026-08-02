@@ -13,6 +13,14 @@ ATTENZIONE (voce italiana): se ELEVENLABS_VOICE_ID è vuoto si ripiega su una
 voce di libreria dal timbro INGLESE (il modello è multilingua ma l'accento
 resta straniero). La configurazione mancante è visibile in /admin/status
 (voice_id_set) e nei log a ogni sintesi: va impostata una voce italiana.
+
+V8/C1 · UNA VOCE PER AGENTE. Dante, Virgilio e Beatrice hanno colori e forme
+diversi in tutta la console e parlavano tutti con la stessa gola: la prima cosa
+che si nota in una demo, e la più facile da chiudere — è un parametro
+(ELEVENLABS_VOICE_ID_DANTE e compagni), non un progetto. Ogni variabile vuota
+ricade sulla voce generale, quindi chi non le imposta non vede nessun cambio.
+La chiave resta sul server: l'agente arriva come nome, non come voice_id — un
+browser non deve poter scegliere quale voce pagare.
 """
 import itertools
 import logging
@@ -66,6 +74,9 @@ def status() -> dict:
         out["voice_similarity"] = settings.elevenlabs_similarity
         out["voice_style"] = settings.elevenlabs_style
         out["voice_speaker_boost"] = settings.elevenlabs_speaker_boost
+        # V8/C1: quali agenti hanno una voce loro. Senza il dato la console
+        # scrive «stessa voce di Divina», non una spunta verde ottimista.
+        out["voci_agente"] = voci_per_agente()
     elif p == "deepgram":
         out["voice_id_set"] = True   # la voce è nel nome del modello TTS
         out["voice_tts_model"] = settings.deepgram_tts_model
@@ -101,13 +112,47 @@ def transcribe(audio: bytes, mime: str = "audio/webm") -> str:
     raise RuntimeError("VOICE_PROVIDER non configurato per STT")
 
 
-def _el_voice() -> str:
-    vid = _clean(settings.elevenlabs_voice_id)
+# Il NOME dell'agente arriva dal client; il voice_id no. La mappa sta qui, e un
+# nome sconosciuto ricade sulla voce generale invece di dare errore: una voce
+# sbagliata è un difetto estetico, un 500 a metà frase è una conversazione rotta.
+_VOCI_AGENTE = {
+    "dante": "elevenlabs_voice_id_dante",
+    "virgilio": "elevenlabs_voice_id_virgilio",
+    "beatrice": "elevenlabs_voice_id_beatrice",
+}
+
+
+def agente_valido(agente: str) -> str:
+    """Normalizza il nome agente: '' per Divina o per qualunque cosa ignota."""
+    a = (agente or "").strip().lower()
+    return a if a in _VOCI_AGENTE else ""
+
+
+def _el_voice(agente: str = "") -> str:
+    vid = ""
+    campo = _VOCI_AGENTE.get(agente_valido(agente))
+    if campo:
+        vid = _clean(getattr(settings, campo, ""))
+    if not vid:
+        vid = _clean(settings.elevenlabs_voice_id)
     if not vid:
         vid = _EL_FALLBACK_VOICE
         log.warning("ELEVENLABS_VOICE_ID vuoto: uso la voce di riserva %s "
                     "(timbro INGLESE). Imposta una voce italiana su Railway.", vid)
     return vid
+
+
+def voci_per_agente() -> dict:
+    """Quali agenti hanno una voce PROPRIA, per /admin/status e per la console.
+
+    Mai i voice_id: un id è un identificatore di fatturazione. Solo il vero/falso,
+    e la regola di sempre — senza dato la spia dice «—», non un valore plausibile."""
+    if settings.voice_provider != "elevenlabs":
+        return {}
+    out = {"divina": bool(_clean(settings.elevenlabs_voice_id))}
+    for nome, campo in _VOCI_AGENTE.items():
+        out[nome] = bool(_clean(getattr(settings, campo, "")))
+    return out
 
 
 def _el_tts_body(text: str) -> dict:
@@ -132,12 +177,13 @@ def _el_tts_body(text: str) -> dict:
     return body
 
 
-def synthesize(text: str) -> tuple[bytes, str]:
-    """Testo → (audio, content_type). Solleva RuntimeError se non configurato."""
+def synthesize(text: str, agente: str = "") -> tuple[bytes, str]:
+    """Testo → (audio, content_type). Solleva RuntimeError se non configurato.
+    `agente`: dante|virgilio|beatrice → la sua voce, se configurata."""
     p = settings.voice_provider
     if p == "elevenlabs":
         r = httpx.post(
-            f"https://api.elevenlabs.io/v1/text-to-speech/{_el_voice()}",
+            f"https://api.elevenlabs.io/v1/text-to-speech/{_el_voice(agente)}",
             params={"output_format": "mp3_44100_128"},
             headers={"xi-api-key": _el_key(), "accept": "audio/mpeg"},
             json=_el_tts_body(text), timeout=60,
@@ -157,7 +203,7 @@ def synthesize(text: str) -> tuple[bytes, str]:
     raise RuntimeError("VOICE_PROVIDER non configurato per TTS")
 
 
-def synthesize_stream(text: str):
+def synthesize_stream(text: str, agente: str = ""):
     """Testo → (iteratore di byte, content_type), coi byte che partono appena il
     provider li produce (endpoint /stream di ElevenLabs) invece di aspettare
     l'mp3 completo: con la sintesi per frase toglie altri ms al primo suono.
@@ -168,13 +214,13 @@ def synthesize_stream(text: str):
     502 e il widget ripiegare sulla voce del browser, identico a prima."""
     p = settings.voice_provider
     if p != "elevenlabs":
-        audio, ctype = synthesize(text)       # deepgram/altro: nessuno /stream, un blocco unico
+        audio, ctype = synthesize(text, agente)   # deepgram/altro: nessuno /stream, un blocco unico
         return iter([audio]), ctype
 
     def _gen():
         with httpx.stream(
             "POST",
-            f"https://api.elevenlabs.io/v1/text-to-speech/{_el_voice()}/stream",
+            f"https://api.elevenlabs.io/v1/text-to-speech/{_el_voice(agente)}/stream",
             params={"output_format": "mp3_44100_128"},
             headers={"xi-api-key": _el_key(), "accept": "audio/mpeg"},
             json=_el_tts_body(text), timeout=60,

@@ -71,6 +71,15 @@ ATTESE: tuple[tuple[str, str | None, str, str], ...] = (
      "il livello 3 non si può accendere per nessun tenant (resta spento, che è il default sicuro)"),
     ("tenant_flags", "libera", "db/tenant_flags_libera.sql",
      "la conoscenza generale non si può concedere a un tenant (resta spenta, default sicuro)"),
+    ("tenant_flags", "buchi", "db/tenant_flags_buchi.sql",
+     "il cliente non può vedere i buchi delle sue risposte nemmeno se lo si decide "
+     "(resta spento, default sicuro: sono domande dei suoi utenti finali)"),
+    ("tenant_memory", None, "db/tenant_memory.sql",
+     "«Cosa so di te» si azzera a ogni redeploy: le preferenze si perdono e il DIMENTICA "
+     "cancella una cosa che sarebbe sparita da sola (art. 15/17 non coperti davvero)"),
+    ("client_report", None, "db/client_report.sql",
+     "il cliente non può segnalare un errore sulla propria scheda: la segnalazione "
+     "vive in memoria e si perde al redeploy invece di arrivare nella coda"),
 )
 
 

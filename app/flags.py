@@ -11,6 +11,10 @@ Due inquilini, stessa famiglia:
     conversazione vale per tutti; il CONTENUTO fuori dal cervello no: il
     widget sul sito di un cliente non può inventare sul cliente. Perciò è
     una spunta sul record del tenant, mai una scelta nella richiesta.
+  - `buchi`  — «il cliente vede le domande rimaste senza risposta» (V8/B3).
+    Quelle domande le hanno fatte i SUOI utenti finali: sono dati dei clienti
+    del cliente, e il motore gira ancora in US West. Mostrarle è una cosa che
+    si decide con lui, non un default — quindi spento, come gli altri.
 
 Persistenza best-effort su Supabase (db/tenant_flags.sql + tenant_flags_libera.sql)
 con fallback in-memory (dev/test), stesso stampo di braintasks.
@@ -32,7 +36,7 @@ def enabled() -> bool:
             and bool(settings.database_url.strip()))
 
 
-_COLS = ("liv3", "libera")      # whitelist: il nome colonna non arriva mai da fuori
+_COLS = ("liv3", "libera", "buchi")      # whitelist: il nome colonna non arriva mai da fuori
 
 
 def _get(tenant_code: str, col: str) -> bool:
@@ -105,6 +109,19 @@ def libera(tenant_code: str) -> bool:
 def set_libera(tenant_code: str, on: bool, by: str) -> bool:
     """Accende/spegne la conoscenza generale per un tenant. `by` obbligatorio."""
     return _set(tenant_code, "libera", on, by)
+
+
+def buchi(tenant_code: str) -> bool:
+    """V8/B3 · Il cliente può vedere le domande a cui il bot non ha saputo
+    rispondere sui suoi dati. Assente = SPENTO, e non per prudenza generica:
+    quelle domande le hanno scritte i suoi utenti finali. Mostrargliele è un
+    accordo, e un accordo si prende — non si eredita da un default."""
+    return _get(tenant_code, "buchi")
+
+
+def set_buchi(tenant_code: str, on: bool, by: str) -> bool:
+    """Accende/spegne la vista dei buchi per un tenant. `by` obbligatorio."""
+    return _set(tenant_code, "buchi", on, by)
 
 
 def reset() -> None:

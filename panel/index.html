@@ -285,6 +285,24 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .imparato-voce{padding:9px 0;border-top:1px solid var(--border)}
 .imparato-voce:first-of-type{border-top:0}
 .imparato-cita{border-left:3px solid var(--text-3);padding:2px 0 2px 9px;margin-top:5px;color:var(--text-2);font-size:12px;font-style:italic}
+/* ── V8/C2 · la delega, dentro il filo: righe di SISTEMA, non messaggi.
+      Niente avatar e niente bolla è deliberato — devono leggersi come
+      annotazioni del sistema, altrimenti sembrano un altro interlocutore. ── */
+.riga-sistema{display:flex;align-items:center;gap:8px;margin:6px 0 6px 44px;padding:5px 11px;
+  border:1px dashed var(--border);border-radius:999px;font-size:12px;color:var(--text-2);width:fit-content;max-width:100%}
+/* ── V8/C3 · il risultato è un oggetto con un nome ── */
+.scheda-out{padding:12px 14px;border:1px solid var(--border);background:var(--surface-2);border-radius:12px;max-width:100%}
+.scheda-nome{font-size:14px;line-height:1.35;display:block}
+/* ── V8/A · «me lo ricordo», nel momento in cui succede ── */
+.ricordato{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:7px;padding:7px 11px;
+  border:1px solid color-mix(in srgb,var(--divina) 40%,var(--border));
+  background:color-mix(in srgb,var(--divina) 9%,transparent);border-radius:11px}
+/* ── V8/A1 · la pagina «Cosa so di te» ── */
+.mem-riga{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;
+  padding:12px 0;border-top:1px solid var(--border)}
+.mem-riga:first-of-type{border-top:0}
+.mem-fonte{border-left:3px solid var(--text-3);padding:2px 0 2px 9px;margin-top:5px;color:var(--text-2);font-size:12px;font-style:italic}
+.mem-usata{border-color:var(--green);color:var(--green)}
 /* ── O1 · il rientro: la home È il cervello ── */
 /* V5 · home: titolo FUORI dal grafo (in testa), il cervello prende tutta la scena.
    V6/A1 · L'ORBITA È LA HOME. Grande, centrale, con aria intorno: chi entra non
@@ -660,6 +678,31 @@ const scopeColor=s=>SCOPE_COLORS[s]||'var(--text-2)';
    il colore dell'agente avrebbe cambiato anche i warning. */
 const AG_COLORS={dante:'var(--dante)',virgilio:'var(--virgilio)',beatrice:'var(--beatrice)',divina:'var(--divina)'};
 const AG_INIT={dante:'DA',virgilio:'VI',beatrice:'BE'};
+/* V8/A · Le memorie della demo. Due righe che mostrano le due specie: una
+   PREFERENZA (che il motore applica davvero, e si vede dal distintivo «in uso
+   adesso») e un fatto di contesto. Entrambe con la frase da cui vengono —
+   perché è quella, non una percentuale, la cosa che rende la pagina credibile. */
+function _memDemo(){
+  const t=n=>new Date(Date.now()-n).toISOString();
+  return [
+    {id:'m-lingua',fatto:'Preferisci che ti parli in italiano.',chiave:'lingua',valore:'it',
+     origine:'detto',citazione:"d'ora in poi parlami in italiano",conferme:3,
+     created_at:t(4*864e5),last_at:t(36e5)},
+    {id:'m-fatt',fatto:'Le riunioni con i clienti le fissi di martedì mattina.',chiave:'',valore:'',
+     origine:'detto',citazione:'i clienti li vedo il martedì mattina, il resto della settimana costruisco',
+     conferme:1,created_at:t(2*864e5),last_at:t(2*864e5)},
+  ];
+}
+/* V8/C1 · Chi ha una voce sua e chi no. Senza il dato la spia dice «—», non
+   una spunta ottimista: un agente che parla con la gola di Divina è una cosa
+   che si nota in demo, e va detta prima che la noti un cliente. */
+function vociAgente(v){
+  if(!v||typeof v!=='object')return '<span class="pill">—</span>';
+  const sue=Object.keys(v).filter(k=>k!=='divina'&&v[k]);
+  const senza=Object.keys(v).filter(k=>k!=='divina'&&!v[k]);
+  if(!senza.length)return '<span class="tag pos">tutti e tre</span>';
+  return `<span class="tag ${sue.length?'warn':'mut'}" title="${esc(senza.join(', '))} parlano con la voce di Divina">${sue.length}/3 · ${esc(senza.join(', '))} come Divina</span>`;
+}
 function demoData(service, path, opts){
   const now=Math.floor(Date.now()/1000), nowIso=n=>new Date(Date.now()-n).toISOString();
   if(service==='engine'){
@@ -699,6 +742,33 @@ function demoData(service, path, opts){
        nota_titolo:'Il ritiro a domicilio copre solo il centro',detail:'(DEMO) Il servizio di ritiro a domicilio è limitato al centro città; fuori si passa dal punto di raccolta.',
        citazione:'no, fuori dal centro il ritiro non lo facciamo, si passa dal punto di raccolta',conversazione:'chat console'}],
       nota:'Sono proposte, non note: diventano cervello solo se le approvi in Miglioramenti.'});
+    /* V8/A · «Cosa so di te» in demo: due righe VERE per forma, con la fonte e
+       il conteggio — e nessuna percentuale, che è il punto della pagina. */
+    if(path.startsWith('/admin/memoria/dimentica')){
+      state._demoMem=(state._demoMem||_memDemo()).filter(m=>m.id!==(opts.body&&opts.body.id));
+      return Promise.resolve({ok:true});
+    }
+    if(path.startsWith('/admin/memoria')){
+      if((opts.method||'GET')==='POST'){
+        const b=opts.body||{};
+        state._demoMem=(state._demoMem||_memDemo()).concat([{id:'m'+Date.now(),fatto:b.fatto,chiave:b.chiave||'',valore:b.valore||'',
+          origine:'mano',citazione:'',conferme:1,created_at:new Date().toISOString(),last_at:new Date().toISOString()}]);
+        return Promise.resolve({ok:true,memoria:{id:'m-demo',origine:'mano'}});
+      }
+      const mm=state._demoMem||(state._demoMem=_memDemo());
+      const usate={};mm.forEach(m=>{if(m.chiave&&!usate[m.chiave])usate[m.chiave]=m.valore;});
+      return Promise.resolve({tenant:'forma',memorie:mm,totale:mm.length,persist:true,
+        chiavi:{lingua:['it','en'],lunghezza:['breve','estesa']},usate});
+    }
+    /* V8/B2 · Le segnalazioni dei clienti, nella coda dell'owner */
+    if(path.startsWith('/admin/segnalazioni/chiudi')) return Promise.resolve({ok:true});
+    if(path.startsWith('/admin/segnalazioni')) return Promise.resolve({persist:true,totale:1,segnalazioni:[
+      {id:'sg-demo',tenant:'ats',slug:'menu-ats',titolo:'Menu e orari ATS',stato:'aperta',da:'anna@ats.it',
+       cosa:'gli orari del sabato sono cambiati: adesso chiudiamo alle 13',created_at:new Date(Date.now()-2*36e5).toISOString()}]});
+    if(path.startsWith('/admin/buchi-cliente')){
+      if((opts.method||'GET')==='POST'){state._demoBuchi=!!(opts.body&&opts.body.on);return Promise.resolve({ok:true,buchi:state._demoBuchi});}
+      return Promise.resolve({tenant:'ats',buchi:!!state._demoBuchi,persist:false});
+    }
     if(path.startsWith('/admin/liv3')){
       if((opts.method||'GET')==='POST'){state._demoLiv3=!!(opts.body&&opts.body.on);return Promise.resolve({ok:true,tenant:(opts.body&&opts.body.tenant)||'',liv3:state._demoLiv3,by:(opts.body&&opts.body.by)||'',persist:false});}
       return Promise.resolve({tenant:new URLSearchParams(path.split('?')[1]||'').get('tenant')||'',liv3:!!state._demoLiv3,persist:false});
@@ -706,7 +776,7 @@ function demoData(service, path, opts){
     const D={
       '/version':{name:'Divina',version:'0.4.0',commit:'demo00abc123',console_sha:'d3m0c0ns01ed3m0'},
       '/health':{status:'ok',llm:'claude',embed:'mistral',voice:'browser'},
-      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it',
+      '/admin/status':{grants_backend:'supabase',supabase:true,mongo:false,redis:true,sentry:true,stripe:true,voice_provider:'elevenlabs',voice_id_set:true,voice_tts_model:'eleven_flash_v2_5',voice_stability:0.45,voice_similarity:0.8,voice_style:0.25,voice_speaker_boost:true,voci_agente:{divina:true,dante:true,virgilio:false,beatrice:false},analytics_persist:true,retention_days:180,content_encryption:true,default_lang:'it',
       /* B1 · in demo si mostra il caso REALE di stanotte: schema quasi completo
          con UNA migrazione dimenticata — è così che si presenta il problema. */
       db_schema:{ok:false,persist:true,attese:14,presenti:13,errore:'',mancanti:[{tabella:'tenant_flags',colonna:'libera',ddl:'db/tenant_flags_libera.sql',rompe:'la conoscenza generale non si può concedere a un tenant (resta spenta, default sicuro)'}]}},
@@ -805,11 +875,33 @@ function needSvc(svc){
   return true;
 }
 
+/* V8/D1 · Il menu si illuminava e il contenuto restava indietro.
+ *
+ * Il difetto, riproducibile in produzione il 2/08: clicchi una voce, la voce si
+ * accende, l'intestazione cambia, e sotto resta la pagina di prima; al secondo o
+ * terzo clic si sistema. Il sospetto nel prompt era il disegno del grafo che
+ * tiene occupato il thread. NON è quello — misurato, non dedotto.
+ *
+ * Ogni vista è `async`: scrive lo scheletro, aspetta la rete, poi RISCRIVE
+ * `#content`. La barra e il titolo invece cambiano SUBITO, dentro route(). Se la
+ * vista A è lenta e la B veloce, l'ordine di arrivo è B poi A: la B disegna, la A
+ * arriva dopo e le passa sopra. Risultato esatto del difetto — barra e titolo
+ * sulla B, contenuto della A. Al secondo clic le risposte sono in cache e la
+ * corsa non si vede più: ecco perché «servono due o tre clic».
+ *
+ * La regola, adesso: **solo il giro di navigazione corrente può dipingere.**
+ * route() incrementa `_giro` e lo passa alla vista; ogni vista, prima di
+ * scrivere, controlla di essere ancora quella richiesta — e se non lo è si
+ * FERMA lì (return), senza scrivere e senza agganciare i suoi gestori a una
+ * pagina che non è più la sua. */
+let _giro=0;
+function vivo(giro){return giro===undefined||giro===_giro;}
+
 /* ══════════ VIEWS ══════════ */
 const VIEWS={
 
   /* ---------- HOME · IL TUO MONDO (stile AI OS, brand FORMA) ---------- */
-  async home(){
+  async home(giro){
     /* O1+V5 · Il rientro: entri e il CERVELLO prende tutta la scena. Il titolo
        esce dal grafo e va in testa (fuori, non sovrapposto), un solo invito,
        e a destra la colonnina degli STATI VERI del motore:
@@ -825,7 +917,7 @@ const VIEWS={
        dato la riga dice «—» e l'orbita resta grigia — un'orbita che finge di
        lavorare è peggio di una ferma. */
     const connected=state.engOk||state.orchOk;
-    C.innerHTML=`
+    if(!vivo(giro))return; C.innerHTML=`
     <div class="home-testa">
       <h1 style="margin:0 0 4px"><span class="grad">Il tuo mondo. La tua AI.</span></h1>
       <div class="sub" id="homeSub">il cervello si sta accendendo…</div>
@@ -849,6 +941,7 @@ const VIEWS={
        con l'età, non con un numero diverso. */
     let g=null,stats=null;
     try{const d=await api('engine','/admin/brain');stats=(d&&d.stats)||null;}catch(_){}
+    if(!vivo(giro))return;   /* V8/D1: la home è lenta — se intanto si è usciti, non si accende niente */
     /* V6/A · I NEURONI si contano in un posto solo, e da oggi quel posto è la
        riga sotto l'orbita (dove sta lo stato): il sottotitolo racconta invece
        la FORMA del cervello — quante sinapsi e quanto è fresca la fotografia.
@@ -857,6 +950,7 @@ const VIEWS={
     state._neuroni=(stats&&stats.notes)!=null?stats.notes:null;
     statoAggiorna(stats&&stats.last_ingest);       // V5 · «aggiorna» = dato vero
     try{g=await api('engine','/admin/brain/graph');}catch(_){}
+    if(!vivo(giro))return;   /* il grafo è il pezzo più lento: qui la corsa si vedeva davvero */
     if(g&&(g.nodes||[]).length){
       if(state._neuroni==null)state._neuroni=g.nodes.length;
       startBrainCanvas(g.nodes,g.links,'homeBrain');
@@ -864,6 +958,7 @@ const VIEWS={
     }else{
       try{
         const r=await api('engine','/admin/brain/notes?'+q({limit:220}));
+        if(!vivo(giro))return;
         if(state._neuroni==null)state._neuroni=(r.notes||[]).length;
         startBrainCanvas(r.notes||[],null,'homeBrain');
         if(sub)sub.textContent='le sinapsi arrivano con la prossima ingest';
@@ -881,17 +976,18 @@ const VIEWS={
      tabella (persistente, con idempotency_key): roadmap e proposte si MOSTRANO
      qui, marcate per origine — nessuna tabella nuova. Criterio: entrando si
      capisce in dieci secondi cosa è in corso ADESSO (gruppo in cima). ---------- */
-  async improve(){
-    C.innerHTML=skeleton(5);
+  async improve(giro){
+    if(!vivo(giro))return; C.innerHTML=skeleton(5);
     /* Le CHIUSE si chiedono apposta (il default dell'endpoint è: solo attive,
        documentato): una lista dove chiudere una cosa la fa sparire racconta
        metà della storia — quanto resta, mai quanto è stato fatto. Tetto 30:
        fra sei mesi saranno centinaia. 'archiviata' NON è 'fatta': esclusa. */
-    const [tk,ft,rm,pp]=await Promise.all([
+    const [tk,ft,rm,pp,sg]=await Promise.all([
       api('engine','/admin/tasks').catch(()=>null),
       api('engine','/admin/tasks?status=fatta&limit=30').catch(()=>null),
       api('engine','/admin/roadmap').catch(()=>null),
-      api('engine','/admin/proposals').catch(()=>null)]);
+      api('engine','/admin/proposals').catch(()=>null),
+      api('engine','/admin/segnalazioni').catch(()=>null)]);
     const items=[];
     const origineDi=t=>t.kind==='audit'?'audit':(['gap','feedback'].includes(t.kind)?'gap':'cervello');
     ((tk&&tk.tasks)||[]).forEach(t=>{
@@ -925,14 +1021,25 @@ const VIEWS={
       titolo:t.title,nota:(t.detail||'')+(t.citazione?`\n« ${t.citazione} »`:''),
       origine:t.source==='conversazione'?'conversazione':'proposta',
       peso:t.count?t.count+'×':'',stato:'dafare',quando:'',k:'pr-'+t.id,pid:t.id}));
+    /* V8/B2 · Le segnalazioni dei CLIENTI entrano nella stessa coda di tutto
+       il resto, marcate per origine. Una coda separata è una coda che nessuno
+       guarda — e una segnalazione che sparisce senza risposta insegna al
+       cliente a non segnalare più, cioè spegne l'unica funzione che fa
+       crescere le sue note. */
+    ((sg&&sg.segnalazioni)||[]).forEach(x=>items.push({
+      titolo:`${x.tenant}: «${x.cosa}»`,
+      nota:x.titolo?('sulla nota: '+x.titolo):'',
+      origine:'cliente',prio:'alta',peso:'',stato:'dafare',
+      quando:x.created_at||'',k:'sg-'+x.id,sid:x.id}));
     state._impItems=items;
     state._impPersist=!!(tk&&tk.persist);
+    state._sgPersist=!!(sg&&sg.persist);
     renderImprove();
   },
 
   /* ---------- CLIENTI (Fase 8: le schede coi numeri in vista) ---------- */
-  async clienti(){
-    C.innerHTML=skeleton(4);
+  async clienti(giro){
+    if(!vivo(giro))return; C.innerHTML=skeleton(4);
     let notes=[];try{const r=await api('engine','/admin/brain/notes?'+q({limit:500}));notes=r.notes||[];}catch(_){}
     let acc=[];try{const r=await api('engine','/admin/clients');acc=r.clients||[];}catch(_){}
     const cli={};
@@ -941,7 +1048,7 @@ const VIEWS={
       c.n++;if((n.updated_at||'')>c.ultimo)c.ultimo=n.updated_at||'';
       if(n.slug==='cliente-'+m[1])c.label=(n.title||m[1]).replace(/^Cliente\s*[—–-]?\s*/i,'');});
     const righe=Object.values(cli).sort((a2,b2)=>b2.n-a2.n);
-    C.innerHTML=`
+    if(!vivo(giro))return; C.innerHTML=`
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>I tuoi clienti</h3><p>Divina di FORMA vede tutto; ogni cliente vede SOLO la propria sfera — il confine è un filtro sul database, non una preferenza</p></div><button class="btn primary sm" id="cliAdd">+ Aggiungi cliente</button></div>
     ${righe.length?`<div class="grid g-2">${righe.map(c=>`<div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div><h3 style="font-size:15px">${esc(c.label)}</h3><p class="mono small">forma/clienti/${esc(c.id)}/</p></div><span class="pill" title="note nel cervello — il numero che conta, in vista">${c.n} not${c.n===1?'a':'e'}</span></div><div class="small ${c.n<3?'':'muted'}" ${c.n<3?'style="color:var(--orange)"':''}>${c.n<3?'scheda quasi vuota — il valore del cervello si costruisce qui':'scheda viva'}${c.ultimo?' · aggiornata '+timeAgoIso(c.ultimo):''}</div></div>`).join('')}</div>`
     :emptyBox(icon('key',36),'Nessuna cartella cliente nel cervello','Le schede vivono in forma/clienti/&lt;nome&gt;/ — aggiungi il primo cliente qui sopra, o lancia una ingest se il vault le ha già.')}
@@ -952,7 +1059,7 @@ const VIEWS={
   },
 
   /* ---------- INTEGRAZIONI (Fase 10.3/10.4: catalogo ASTRATTO + consenso) ---------- */
-  async integrazioni(){
+  async integrazioni(giro){
     /* V5 (01-08) · Base loghi VERIFICATA contro il catalogo Composio
        (logos.composio.dev/api/{slug} — confermata sull'issue tracker
        ComposioHQ #3175, dove i loghi rotti vengono corretti proprio in
@@ -990,7 +1097,7 @@ const VIEWS={
         :emptyBox(icon('plug',36),'Niente qui','Cambia ricerca o scheda.');
       box.querySelectorAll('[data-int]').forEach(b=>b.onclick=()=>CONNETTORE.collega(CAT.find(i=>i.id===b.dataset.int)));
     };
-    C.innerHTML=`
+    if(!vivo(giro))return; C.innerHTML=`
     <div class="card"><div class="card-head"><div><h3>Integrazioni</h3><p>Fornitore scelto: <b>Composio</b>. Ogni collegamento passa PRIMA dal nostro consenso (permessi · agente · scopo · revoca) — e non si accende per i clienti esterni finché DPA e kit non dichiarano il sub-processor USA</p></div></div>
     <div class="row" style="margin-bottom:12px;flex-wrap:wrap"><input id="intQ" placeholder="Cerca uno strumento…" style="max-width:260px"><span style="flex:1"></span>
       <button class="orbit-tab ${filtro.tab==='tutte'?'active':''}" data-itab="tutte">Tutte</button>
@@ -1002,7 +1109,7 @@ const VIEWS={
   },
 
   /* ---------- IMPOSTAZIONI (Fase 7: i tre livelli + le due frasi in prima fila) ---------- */
-  async impostazioni(){
+  async impostazioni(giro){
     /* V5 · Il livello 3 abita sul SERVER (tenant_flags, come il flag owner):
        la spunta qui è la VISTA di quello stato, non lo stato. Prima viveva
        in localStorage — il permesso più delicato del sistema nel browser,
@@ -1021,7 +1128,14 @@ const VIEWS={
     try{const r=await api('engine','/admin/libera?tenant='+encodeURIComponent(state.tenant));lb=!!r.libera;}
     catch(e){lbErr=e.message||'motore non raggiungibile';}
     const libera=lb===true;
-    C.innerHTML=`
+    /* V8/B3 · «Il cliente vede i buchi». Terzo inquilino della stessa famiglia,
+       e il più delicato: quelle domande le hanno scritte i suoi utenti finali.
+       Spento di default non per prudenza generica ma perché è un ACCORDO. */
+    let bu=null,buErr='';
+    try{const r=await api('engine','/admin/buchi-cliente?tenant='+encodeURIComponent(state.tenant));bu=!!r.buchi;}
+    catch(e){buErr=e.message||'motore non raggiungibile';}
+    const vbuchi=bu===true;
+    if(!vivo(giro))return; C.innerHTML=`
     <div class="card" style="margin-bottom:14px;border-color:color-mix(in srgb,var(--cyan) 40%,var(--border))"><div style="font-size:16px;font-weight:800;line-height:1.6">${icon('lock',16)} Ogni azione con effetto esterno passa dalla <span style="color:var(--cyan)">tua approvazione</span>.<br>${icon('brain',16)} Ogni risposta <span style="color:var(--magenta)">cita le fonti</span> da cui viene.</div><div class="small muted" style="margin-top:6px">Sono i due motivi per cui Divina si può usare per lavoro vero. Quello che ci distingue va mostrato, non confessato.</div></div>
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Cosa può fare Divina</h3><p>Tre livelli, in ordine di rischio. Non serve sapere cosa sia uno «scope»: leggere · costruire · toccare il mondo fuori.</p></div></div>
       <div class="perm-row"><div><b>1 · Azioni base</b><div class="small muted">leggere e cercare nel cervello, preparare note (con la tua conferma), assegnare compiti agli agenti</div></div><span class="tag pos">sempre attivo</span></div>
@@ -1034,6 +1148,10 @@ const VIEWS={
       <div class="perm-row"><div><b>Conoscenza generale fuori dal cervello</b><div class="small muted">rispondere anche con quello che il modello sa in generale, <b>sempre marcato</b> «fuori dal cervello · non verificato». Da spento il tenant resta vincolato al suo materiale: è la promessa che si vende a un cliente — il bot sul suo sito non inventa sul suo conto</div></div>${lb===null?`<span class="tag warn" title="${esc(lbErr)}">stato non leggibile</span>`:`<button class="btn sm ${libera?'':'primary'}" id="libBtn">${libera?'Accesa — spegni':'Spenta (consigliato) — accendi'}</button>`}</div>
       <div id="libConferma" hidden class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap;align-items:center"><span class="small">Anche questa si firma — chi decide?</span><input id="libChi" placeholder="nome e cognome" style="max-width:200px"><button class="btn sm primary" id="libVai">${libera?'Confermo: spegni':'Confermo: accendi'}</button></div>
       <div class="small muted" style="margin-top:8px">L'owner FORMA ce l'ha sempre, per costruzione (flag <span class="mono">owner</span> sul record). Per gli altri tenant è questa spunta, sul server: mai una scelta dentro la richiesta.</div></div>
+    <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Cosa vede il cliente nel suo pannello</h3><p>La sua knowledge base e il bottone «è sbagliata» sono sempre attivi. Una terza pagina no, e c'è un motivo.</p></div></div>
+      <div class="perm-row"><div><b>Le domande rimaste senza risposta</b><div class="small muted">è l'elenco di cosa gli conviene aggiungere, e viene dai gap che già raccogliamo. Ma quelle domande <b>le hanno scritte i suoi utenti finali</b>: sono dati dei clienti del cliente, e il motore gira ancora in US West. Da spento la pagina esiste e dice perché è spenta — non finge che non ci siano buchi</div></div>${bu===null?`<span class="tag warn" title="${esc(buErr)}">stato non leggibile</span>`:`<button class="btn sm ${vbuchi?'':'primary'}" id="buBtn">${vbuchi?'Accesa — spegni':'Spenta (consigliato) — accendi'}</button>`}</div>
+      <div id="buConferma" hidden class="row" style="margin-top:8px;gap:8px;flex-wrap:wrap;align-items:center"><span class="small">Chi lo ha concordato col cliente?</span><input id="buChi" placeholder="nome e cognome" style="max-width:200px"><button class="btn sm primary" id="buVai">${vbuchi?'Confermo: spegni':'Confermo: accendi'}</button></div>
+      <div class="small muted" style="margin-top:8px">Tenant corrente: <b>${esc(state.tenant)}</b>. Le domande sono già redatte a monte, ma la redazione non è il consenso.</div></div>
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Connessione e aspetto</h3><p>URL, token e chiave tenant restano nel tuo browser</p></div></div>
       <div class="row" style="flex-wrap:wrap"><button class="btn sm" onclick="openConn()">${icon('plug',14)} Connessione…</button><button class="btn sm" onclick="setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark')">Tema chiaro/scuro</button><button class="btn sm" onclick="route('usage')">Uso &amp; costi →</button><button class="btn sm" onclick="route('system')">Stato &amp; audit →</button></div></div>
     <div class="card"><div class="card-head"><div><h3>Divina sul telefono</h3><p>La console si installa come app: niente store, niente attese</p></div></div>
@@ -1043,6 +1161,18 @@ const VIEWS={
     if(b)b.onclick=()=>{const box=$('#liv3Conferma');box.hidden=!box.hidden;if(!box.hidden)$('#liv3Chi').focus();};
     const lbb=$('#libBtn');
     if(lbb)lbb.onclick=()=>{const box=$('#libConferma');box.hidden=!box.hidden;if(!box.hidden)$('#libChi').focus();};
+    const bub=$('#buBtn');
+    if(bub)bub.onclick=()=>{const box=$('#buConferma');box.hidden=!box.hidden;if(!box.hidden)$('#buChi').focus();};
+    const buVai=$('#buVai');
+    if(buVai)buVai.onclick=async()=>{
+      const by=($('#buChi').value||'').trim();
+      if(!by){toast("Serve il nome di chi l'ha concordato col cliente",'bad');return;}
+      try{
+        await api('engine','/admin/buchi-cliente',{method:'POST',body:{tenant:state.tenant,on:!vbuchi,by}});
+        toast(!vbuchi?'Acceso: il cliente vede i suoi buchi':'Spento','info');
+        route('impostazioni');
+      }catch(e){toast('✕ '+e.message,'bad');}
+    };
     const libVai=$('#libVai');
     if(libVai)libVai.onclick=async()=>{
       const by=($('#libChi').value||'').trim();
@@ -1073,14 +1203,14 @@ const VIEWS={
      e Divina non ci risponde sopra — per costruzione, non per prompt.
      Qui NIENTE collegamenti a dispositivi o app di salute, NIENTE consigli,
      NIENTE «valori normali» o punteggi: è uno specchio, non un medico. */
-  async human(){
-    C.innerHTML=skeleton(4);
+  async human(giro){
+    if(!vivo(giro))return; C.innerHTML=skeleton(4);
     let d=null;try{d=await api('engine','/admin/human');}catch(_){}
     const fig=localStorage.getItem('dv_human_fig')||'uomo';
     const scheda=(d&&d.exists)?humanScheda(d.text,d.updated)
       :`<div class="card" style="margin:0"><div class="card-head"><div><h3>La scheda</h3><p>ancora vuota — e lo dice</p></div></div>
         <div class="small" style="line-height:1.8">La scheda si crea nel vault, in <span class="mono">andrea-aloia/human/human-evoluzione.md</span> — un percorso <b>escluso dall'indice per scelta</b>: i dati sulla salute sono una categoria speciale nel GDPR e non entrano in Qdrant finché il calcolo non è in Europa. Struttura proposta: <b>Salute</b> (peso · attività · sonno · note, con la data) · <b>Punti di forza</b> · <b>Da migliorare</b> · <b>Hobby</b> · <b>Interessi</b> · <b>Obiettivi</b> (con la data in cui li scrivi: senza date questa schermata diventa un poster).</div></div>`;
-    C.innerHTML=`
+    if(!vivo(giro))return; C.innerHTML=`
     <div class="grid" style="grid-template-columns:minmax(260px,2fr) 3fr;gap:14px;align-items:start" id="humanGrid">
       <div class="card" style="margin:0">
         <div class="card-head" style="margin-bottom:4px"><div><h3>La figura</h3><p>trasparente per scelta: si guarda, non si giudica</p></div>
@@ -1095,13 +1225,13 @@ const VIEWS={
   },
 
   /* ---------- CHAT ---------- */
-  async chat(){
+  async chat(giro){
     /* V2 · Fase 5: 'chat' non è più una vista — è il pannello SEMPRE presente.
        La rotta resta valida (nessun link si rompe): route() la intercetta e
        apre il pannello. Qui si arriva solo in MODALITÀ CLIENTE, dove la chat
        resta l'unica cosa e occupa il contenuto, come prima. */
     C.classList.add('chatmode');
-    C.innerHTML=chatTemplate();
+    if(!vivo(giro))return; C.innerHTML=chatTemplate();
     wireChat();
   },
 
@@ -1109,7 +1239,7 @@ const VIEWS={
      SOLO i dati marcati REALE nel cruscotto originale (snapshot giu 2026):
      la parte DEMO (ARR stimato, classifica finanziaria) NON è migrata — regola
      FORMA «niente contenuti inventati». I numeri vivi arriveranno dal CRM. */
-  async cruscotto(){
+  async cruscotto(giro){
     const K=[
       {l:'Preventivi generati',v:'500+',c:'var(--cyan)',m:'+136% · era 212+ a maggio 2026'},
       {l:'Clienti (sito)',v:'200+',c:'var(--green)',m:'4 nominati nel canon interno'},
@@ -1122,7 +1252,7 @@ const VIEWS={
       ['O3 — Brand & contenuto',[['Case study pubblicati','0 / 1',0],['Gap brand P1 chiusi','0 / 6',0]]],
       ['O4 — Sostenibilità B2B',[['1° report CO₂ B2B','No → Sì',0],['Carbon calculator B2B','in sviluppo',30],['Piantumazione automatizzata','da definire',0]]]];
     const PARTNER=['Stripe ✓','Treedom','Bambu Lab','Creality','Kickstarter','WordPress','Emergent','Anthropic / Claude','Invitalia','Startup Building'];
-    C.innerHTML=`
+    if(!vivo(giro))return; C.innerHTML=`
       <div class="grid g-stats" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">${K.map(k=>`<div class="stat"><div class="glow" style="background:${k.c}"></div><div class="lbl">${esc(k.l)} <span class="tag pos" style="font-size:8.5px">REALE</span></div><div class="val" style="color:${k.c}">${esc(k.v)}</div><div class="meta">${esc(k.m)}</div></div>`).join('')}</div>
       <div class="grid g-2" style="margin-top:14px;align-items:start">
         <div class="card"><div class="card-head"><div><h3>Servizi a listino</h3><p>4 servizi core · prezzi d'ingresso dal sito formahub.it</p></div></div>${LISTINO.map(([n,p,c])=>`<div class="row" style="justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--border)"><span style="font-size:13px;font-weight:600;color:${c}">${esc(n)}</span><span class="small muted">${esc(p)}</span></div>`).join('')}</div>
@@ -1136,14 +1266,14 @@ const VIEWS={
   },
 
   /* ---------- DASHBOARD (engine) ---------- */
-  async dashboard(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+  async dashboard(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
     try{
       const [a,st,h,br]=await Promise.all([api('engine','/admin/analytics'),api('engine','/admin/status'),api('engine','/health'),api('engine','/admin/brain').catch(()=>null)]);
       const t=a.totals||{},fbTot=(t.feedback_up||0)+(t.feedback_down||0),help=fbTot?Math.round(t.feedback_up/fbTot*100):null;
       const cover=(t.chat+t.gap)?Math.round(t.chat/(t.chat+t.gap)*100):null;
       const scopes=Object.entries(a.per_scope||{}).sort((x,y)=>(y[1].chat||0)-(x[1].chat||0));const maxChat=Math.max(1,...scopes.map(s=>s[1].chat||0));
-      C.innerHTML=`<div class="grid g-stats">
+      if(!vivo(giro))return; C.innerHTML=`<div class="grid g-stats">
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">${icon('chat',13)} Chat con risposta</div><div class="val" style="color:var(--cyan)">${fmtN(t.chat)}</div><div class="meta"><span class="tag info">${cover??'—'}% coperto</span></div></div>
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">${icon('signal',13)} Gap</div><div class="val" style="color:var(--orange)">${fmtN(t.gap)}</div><div class="meta">senza risposta</div></div>
         <div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">${icon('thumb',13)} Utilità</div><div class="val" style="color:var(--green)">${help==null?'—':help+'%'}</div><div class="meta">${fmtN(t.feedback_up)} ${icon('thumb',11)} · ${fmtN(t.feedback_down)} ${icon('thumbdown',11)}</div></div>
@@ -1155,14 +1285,14 @@ const VIEWS={
         <div class="card"><div class="card-head"><div><h3>Volume chat per tenant</h3><p>Conversazioni per area del cervello</p></div></div>
           ${scopes.length?`<div class="mini-bars">${scopes.map(([s,d])=>`<div class="mini-row"><div class="top"><span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span><b>${fmtN(d.chat)}</b></div><div class="bar-track"><div class="bar-fill" style="width:${pct(d.chat,maxChat)}%;background:${scopeColor(s)}"></div></div></div>`).join('')}</div>`:emptyBox(icon('inbox',36),'Nessun dato','')}</div>
         <div class="card"><div class="card-head"><div><h3>Salute motore</h3><p>Provider &amp; funzioni</p></div></div>
-          <table><tbody><tr><td class="muted">LLM</td><td class="num"><span class="pill">${esc(h.llm||'—')}</span></td></tr><tr><td class="muted">Embeddings</td><td class="num"><span class="pill">${esc(h.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr><tr><td class="muted">Analytics persist</td><td class="num">${st.analytics_persist?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Cifratura</td><td class="num">${st.content_encryption?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Voce</td><td class="num"><span class="pill">${esc(st.voice_provider||'browser')}</span></td></tr>${st.voice_provider?`<tr><td class="muted">Voce italiana impostata</td><td class="num">${st.voice_id_set?'<span class="tag pos">SÌ</span>':'<span class="tag neg">NO — timbro inglese</span>'}</td></tr><tr><td class="muted">Modello voce</td><td class="num"><span class="pill">${esc(st.voice_tts_model||'—')}</span></td></tr>`:''}</tbody></table></div>
+          <table><tbody><tr><td class="muted">LLM</td><td class="num"><span class="pill">${esc(h.llm||'—')}</span></td></tr><tr><td class="muted">Embeddings</td><td class="num"><span class="pill">${esc(h.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(st.grants_backend||'—')}</span></td></tr><tr><td class="muted">Analytics persist</td><td class="num">${st.analytics_persist?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Cifratura</td><td class="num">${st.content_encryption?'<span class="tag pos">ON</span>':'<span class="tag mut">OFF</span>'}</td></tr><tr><td class="muted">Voce</td><td class="num"><span class="pill">${esc(st.voice_provider||'browser')}</span></td></tr>${st.voice_provider?`<tr><td class="muted">Voce italiana impostata</td><td class="num">${st.voice_id_set?'<span class="tag pos">SÌ</span>':'<span class="tag neg">NO — timbro inglese</span>'}</td></tr><tr><td class="muted">Modello voce</td><td class="num"><span class="pill">${esc(st.voice_tts_model||'—')}</span></td></tr><tr><td class="muted">Una voce per agente</td><td class="num">${vociAgente(st.voci_agente)}</td></tr>`:''}</tbody></table></div>
       </div>`;
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
   /* ---------- CERVELLO VIVO (engine · convergenza portale, tranche 1) ---------- */
-  async brain(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(5);
+  async brain(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(5);
     try{const d=await api('engine','/admin/brain');const s=d.stats||{},rec=d.recent||[];
       /* A0 · spia anti-stantio: commit del vault fotografato dal motore. Se la
          fotografia è più vecchia di 48h la spia diventa arancione.
@@ -1174,7 +1304,7 @@ const VIEWS={
       const cervMeta=ic?`cervello <span class="mono" ${disallineato?'style="color:var(--orange);font-weight:700"':''}>${esc(ic)}</span> · `:'';
       const vaultMeta=v.vault_commit?`${cervMeta}vault <span class="mono">${esc(v.vault_commit)}</span> · ${disallineato?`<span style="color:var(--orange);font-weight:700">non letto — serve una ingest</span>`:vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`:'<span style="color:var(--orange)">manca il commit del vault — l\'allarme «cervello fermo» è cieco (serve <span class="mono">ingest_meta</span> e una ingest col motore aggiornato)</span>';
       const noteRow=n=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div><div class="small muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.path||'')}</div></div><div class="row" style="gap:8px;flex-shrink:0"><span class="scope-chip" style="background:${scopeColor(n.tenant)}22;color:${scopeColor(n.tenant)};border-color:${scopeColor(n.tenant)}44">${esc(n.tenant||'')}</span><span class="small muted" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</span></div></div>`;
-      C.innerHTML=`
+      if(!vivo(giro))return; C.innerHTML=`
       <!-- R3 (scelta a): le ORBITE vivono qui, a tutta larghezza — la scelta
            dell'orbita è un atto raro, la chat è un posto dove si sta sempre.
            Il clic si VEDE: chip attiva + toast + pillola «stai lavorando su X»
@@ -1201,43 +1331,44 @@ const VIEWS={
       /* Sinapsi REALI ([[link]]) se il grafo è stato generato dall'ingest; altrimenti
          fallback alla costellazione per vicinanza d'area. */
       let g=null;try{g=await api('engine','/admin/brain/graph');}catch(_){}
+      if(!vivo(giro))return;   /* V8/D1: niente canvas nuova su una vista che non c'è più */
       const cap=$('#brainCap'),sub=$('#brainOrbSub');
       if(g&&(g.links||[]).length){if(cap)cap.textContent=`sinapsi REALI dai [[link]] · ${g.links.length} collegamenti`;if(sub)sub.innerHTML=`${fmtN(s.notes)} neuroni · ${fmtN(g.links.length)} sinapsi reali · ${etaDato(g.generated_at)}`;startBrainCanvas(g.nodes||[],g.links);}
       else{if(cap&&d.persist)cap.textContent="collegamenti per vicinanza d'area — le sinapsi reali arrivano con la prossima ingest completa";if(sub)sub.textContent=`${fmtN(s.notes)} neuroni · collegamenti per vicinanza d'area`;try{const r=await api('engine','/admin/brain/notes?'+q({limit:220}));startBrainCanvas(r.notes||[]);}catch(_){startBrainCanvas([]);}}
       setOrb('idle');
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async scopes(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(5);
+  async scopes(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(5);
     try{const a=await api('engine','/admin/analytics');const rows=Object.entries(a.per_scope||{}).sort((x,y)=>(y[1].chat||0)-(x[1].chat||0));
-      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Metriche per scope</h3><p>Ogni scope è un'area del cervello</p></div><span class="pill">${rows.length} scope</span></div><div class="tbl-wrap"><table><thead><tr><th>Scope</th><th class="num">Chat</th><th class="num">Gap</th><th class="num">${icon('thumb',12)}</th><th class="num">${icon('thumbdown',12)}</th><th class="num">Utilità</th></tr></thead><tbody>${rows.length?rows.map(([s,d])=>{const fb=(d.feedback_up||0)+(d.feedback_down||0),h=fb?Math.round(d.feedback_up/fb*100):null;return `<tr><td><span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span></td><td class="num">${fmtN(d.chat)}</td><td class="num">${d.gap?`<span style="color:var(--orange)">${fmtN(d.gap)}</span>`:'0'}</td><td class="num" style="color:var(--green)">${fmtN(d.feedback_up)}</td><td class="num" style="color:var(--neg)">${fmtN(d.feedback_down)}</td><td class="num">${h==null?'—':`<span class="tag ${h>=80?'pos':h>=50?'warn':'neg'}">${h}%</span>`}</td></tr>`}).join(''):`<tr><td colspan="6">${emptyBox(icon('inbox',36),'Nessuno scope','')}</td></tr>`}</tbody></table></div></div>`;
-    }catch(e){C.innerHTML=errBox(e);}
+      if(!vivo(giro))return; C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Metriche per scope</h3><p>Ogni scope è un'area del cervello</p></div><span class="pill">${rows.length} scope</span></div><div class="tbl-wrap"><table><thead><tr><th>Scope</th><th class="num">Chat</th><th class="num">Gap</th><th class="num">${icon('thumb',12)}</th><th class="num">${icon('thumbdown',12)}</th><th class="num">Utilità</th></tr></thead><tbody>${rows.length?rows.map(([s,d])=>{const fb=(d.feedback_up||0)+(d.feedback_down||0),h=fb?Math.round(d.feedback_up/fb*100):null;return `<tr><td><span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span></td><td class="num">${fmtN(d.chat)}</td><td class="num">${d.gap?`<span style="color:var(--orange)">${fmtN(d.gap)}</span>`:'0'}</td><td class="num" style="color:var(--green)">${fmtN(d.feedback_up)}</td><td class="num" style="color:var(--neg)">${fmtN(d.feedback_down)}</td><td class="num">${h==null?'—':`<span class="tag ${h>=80?'pos':h>=50?'warn':'neg'}">${h}%</span>`}</td></tr>`}).join(''):`<tr><td colspan="6">${emptyBox(icon('inbox',36),'Nessuno scope','')}</td></tr>`}</tbody></table></div></div>`;
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async insights(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+  async insights(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
     try{const d=await api('engine','/admin/insights');const gaps=d.gaps||[],negs=d.negative_feedback||[];
       const lc=(title,sub,items,accent,render)=>`<div class="card"><div class="card-head"><div><h3>${title}</h3><p>${sub}</p></div><span class="pill">${items.length}</span></div>${items.length?`<div style="display:flex;flex-direction:column;gap:10px">${items.map(render).join('')}</div>`:emptyBox(icon('spark',36),'Tutto pulito','')}</div>`;
-      C.innerHTML=`<div class="grid g-2">${lc('Domande senza risposta','Priorità di ingest',gaps,'orange',it=>`<div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:10px"><div style="font-size:13px;margin-bottom:5px">${esc(it.q)}</div><div class="row small muted"><span class="scope-chip" style="background:${scopeColor(it.scope)}22;color:${scopeColor(it.scope)};border-color:${scopeColor(it.scope)}44">${esc(it.scope)}</span><span>${timeAgoTs(it.at)}</span></div></div>`)}${lc('Feedback negativi','Risposte da rivedere',negs,'neg',it=>`<div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--neg);border-radius:10px"><div style="font-size:13px;margin-bottom:5px">${esc(it.q)}</div><div class="row small muted"><span class="scope-chip" style="background:${scopeColor(it.scope)}22;color:${scopeColor(it.scope)};border-color:${scopeColor(it.scope)}44">${esc(it.scope)}</span><span>${timeAgoTs(it.at)}</span></div></div>`)}</div>`;
-    }catch(e){C.innerHTML=errBox(e);}
+      if(!vivo(giro))return; C.innerHTML=`<div class="grid g-2">${lc('Domande senza risposta','Priorità di ingest',gaps,'orange',it=>`<div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--orange);border-radius:10px"><div style="font-size:13px;margin-bottom:5px">${esc(it.q)}</div><div class="row small muted"><span class="scope-chip" style="background:${scopeColor(it.scope)}22;color:${scopeColor(it.scope)};border-color:${scopeColor(it.scope)}44">${esc(it.scope)}</span><span>${timeAgoTs(it.at)}</span></div></div>`)}${lc('Feedback negativi','Risposte da rivedere',negs,'neg',it=>`<div style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--neg);border-radius:10px"><div style="font-size:13px;margin-bottom:5px">${esc(it.q)}</div><div class="row small muted"><span class="scope-chip" style="background:${scopeColor(it.scope)}22;color:${scopeColor(it.scope)};border-color:${scopeColor(it.scope)}44">${esc(it.scope)}</span><span>${timeAgoTs(it.at)}</span></div></div>`)}</div>`;
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async learning(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+  async learning(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
     try{const d=await api('engine','/admin/learning');const tasks=d.tasks||[];$('#b-learning').textContent=tasks.length;
-      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Task di apprendimento</h3><p>Azioni da gap e feedback negativi, per frequenza</p></div><span class="pill">${tasks.length} task</span></div>${tasks.length?`<div style="display:flex;flex-direction:column;gap:12px">${tasks.map(t=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px"><div class="row"><span class="tag ${t.kind==='gap'?'warn':'neg'}">${t.kind==='gap'?'GAP':'FDBK'}</span><span class="scope-chip" style="background:${scopeColor(t.scope)}22;color:${scopeColor(t.scope)};border-color:${scopeColor(t.scope)}44">${esc(t.scope)}</span></div><span class="pill">×${t.count} · ${timeAgoTs(t.last_at)}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:7px">"${esc(t.question)}"</div><div class="small muted" style="line-height:1.6">→ ${esc(t.suggestion)}</div></div>`).join('')}</div>`:emptyBox(icon('target',36),'Nessun task','Il cervello risponde bene')}</div>`;
-    }catch(e){C.innerHTML=errBox(e);}
+      if(!vivo(giro))return; C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Task di apprendimento</h3><p>Azioni da gap e feedback negativi, per frequenza</p></div><span class="pill">${tasks.length} task</span></div>${tasks.length?`<div style="display:flex;flex-direction:column;gap:12px">${tasks.map(t=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px"><div class="row"><span class="tag ${t.kind==='gap'?'warn':'neg'}">${t.kind==='gap'?'GAP':'FDBK'}</span><span class="scope-chip" style="background:${scopeColor(t.scope)}22;color:${scopeColor(t.scope)};border-color:${scopeColor(t.scope)}44">${esc(t.scope)}</span></div><span class="pill">×${t.count} · ${timeAgoTs(t.last_at)}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:7px">"${esc(t.question)}"</div><div class="small muted" style="line-height:1.6">→ ${esc(t.suggestion)}</div></div>`).join('')}</div>`:emptyBox(icon('target',36),'Nessun task','Il cervello risponde bene')}</div>`;
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async proposals(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+  async proposals(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
     try{const d=await api('engine','/admin/proposals');const ps=d.proposals||[];
       const tk=await api('engine','/admin/tasks?status=in-approvazione').catch(()=>({tasks:[]}));
       const acts=(tk.tasks||[]).filter(t=>t.status==='in-approvazione');
       $('#b-props').textContent=ps.length+acts.length;
       const SRC={gap:'warn',feedback:'neg',sistema:'info',conversazione:'acc'};
-      C.innerHTML=`<div class="card" style="margin-bottom:14px;border-color:rgba(221,36,242,.35)"><div class="row" style="gap:12px;align-items:flex-start"><span style="color:var(--magenta)">${icon('lock',22)}</span><div class="small" style="line-height:1.7"><b>Sezione riservata all'owner</b> (Bearer ADMIN_TOKEN — mai chiave tenant): i tenant non vedono queste proposte. L'audit del cervello propone → <b>tu approvi o ignori</b> → le approvate diventano task nella coda <b>Task del cervello</b> (brain_tasks). Niente è automatico.</div></div></div>
+      if(!vivo(giro))return; C.innerHTML=`<div class="card" style="margin-bottom:14px;border-color:rgba(221,36,242,.35)"><div class="row" style="gap:12px;align-items:flex-start"><span style="color:var(--magenta)">${icon('lock',22)}</span><div class="small" style="line-height:1.7"><b>Sezione riservata all'owner</b> (Bearer ADMIN_TOKEN — mai chiave tenant): i tenant non vedono queste proposte. L'audit del cervello propone → <b>tu approvi o ignori</b> → le approvate diventano task nella coda <b>Task del cervello</b> (brain_tasks). Niente è automatico.</div></div></div>
       ${acts.length?`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>Azioni in attesa di approvazione</h3><p>Effetti esterni: non partono MAI senza il tuo ok — approvi tu, esegue il companion</p></div><span class="pill">${acts.length}</span></div><div style="display:flex;flex-direction:column;gap:12px">${acts.map(t=>`<div style="padding:15px;background:var(--surface-2);border:1px solid rgba(248,105,60,.35);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px"><span class="tag warn">azione</span>${t.scope?`<span class="scope-chip" style="background:${scopeColor(t.scope)}22;color:${scopeColor(t.scope)};border-color:${scopeColor(t.scope)}44">${esc(t.scope)}</span>`:''}</div><span class="small muted">${timeAgoIso(t.created_at)}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(t.title)}</div>${t.note?`<div class="small muted" style="margin-bottom:10px">${esc(t.note)}</div>`:''}<div class="row"><input placeholder="Chi approva (nome)" id="ab-${esc(t.id)}" style="max-width:200px"><button class="btn sm primary" data-tapp="${esc(t.id)}">✓ Approva</button><button class="btn sm danger" data-trej="${esc(t.id)}">✕ Rifiuta</button></div></div>`).join('')}</div></div>`:''}
       <div class="card"><div class="card-head"><div><h3>Proposte di auto-miglioramento</h3><p>Da gap, feedback negativi e audit di sistema — decide sempre l'owner</p></div><span class="pill">${ps.length} da valutare</span></div>${ps.length?`<div style="display:flex;flex-direction:column;gap:12px">${ps.map(p=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px"><span class="tag ${SRC[p.source]||'mut'}">${esc(p.source)}</span>${p.scope?`<span class="scope-chip" style="background:${scopeColor(p.scope)}22;color:${scopeColor(p.scope)};border-color:${scopeColor(p.scope)}44">${esc(p.scope)}</span>`:''}</div><span class="pill">×${p.count||1}${p.last_at?` · ${timeAgoTs(p.last_at)}`:''}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(p.title)}</div><div class="small muted" style="line-height:1.6;margin-bottom:10px">→ ${esc(p.detail||'')}</div>${p.citazione?`<div class="imparato-cita" style="margin-bottom:10px">«${esc(p.citazione)}»${p.conversazione?` <span class="muted" style="font-style:normal">· ${esc(p.conversazione)}</span>`:''}</div>`:''}<div class="row"><button class="btn sm primary" data-papp="${esc(p.id)}">✓ Approva → ${p.source==='conversazione'?'nota nel cervello':'coda task'}</button><button class="btn sm" data-pdis="${esc(p.id)}">Ignora</button></div></div>`).join('')}</div>`:emptyBox(icon('spark',36),'Nessuna proposta','L\'audit del cervello non ha nulla da segnalare')}</div>`;
       $$('[data-papp]').forEach(b=>b.onclick=async()=>{try{await api('engine','/admin/proposals/approve',{method:'POST',body:{id:b.dataset.papp}});toast('Approvata: è nella coda Task del cervello','ok');route('proposals');}catch(e){toast(e.message,'bad');}});
@@ -1245,62 +1376,62 @@ const VIEWS={
       const actBy=id=>(document.getElementById('ab-'+id)||{value:''}).value.trim();
       $$('[data-tapp]').forEach(b=>b.onclick=async()=>{const by=actBy(b.dataset.tapp);if(!by){toast('Indica chi approva','bad');return;}try{await api('engine','/admin/tasks/transition',{method:'POST',body:{id:b.dataset.tapp,to:'approvata',by}});toast('Azione approvata: parte l\'esecuzione','ok');route('proposals');}catch(e){toast(e.message,'bad');}});
       $$('[data-trej]').forEach(b=>b.onclick=async()=>{const by=actBy(b.dataset.trej);if(!by){toast('Indica chi rifiuta','bad');return;}try{await api('engine','/admin/tasks/transition',{method:'POST',body:{id:b.dataset.trej,to:'archiviata',by}});toast('Azione rifiutata (archiviata, mai cancellata)','info');route('proposals');}catch(e){toast(e.message,'bad');}});
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async roadmap(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(5);
+  async roadmap(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(5);
     try{const d=await api('engine','/admin/roadmap');const tasks=d.tasks||[],pf=d.strengths||[],bm=d.benchmark||{},cn=d.counts||{};
       $('#b-roadmap').textContent=(cn.aperte??tasks.filter(t=>t.status!=='fatto').length);
       const PRI={alta:'neg',media:'warn',bassa:'mut'},STA={'da-fare':'mut',parziale:'warn','in-corso':'info',fatto:'pos'};
       const AREA={memoria:`${icon('brain',12)} Memoria`,companions:`${icon('sparks',12)} Companion`,automazioni:`${icon('gear',12)} Automazioni`,integrazioni:`${icon('link',12)} Integrazioni`,voce:`${icon('mic',12)} Voce`,workspace:`${icon('doc',12)} Workspace`,business:`${icon('coins',12)} Business`};
       const byArea={};tasks.forEach(t=>{(byArea[t.area]=byArea[t.area]||[]).push(t);});
       const card=t=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px"><span class="tag ${PRI[t.priority]||'mut'}">${esc(t.priority)}</span><span class="tag ${STA[t.status]||'mut'}">${esc(t.status)}</span><span class="pill">${esc(t.repo)}</span></div><span class="pill">effort ${esc(t.effort)}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(t.title)}</div><div class="small" style="line-height:1.6;margin-bottom:8px">${esc(t.description)}</div><div class="small muted" style="line-height:1.6;margin-bottom:4px">Zoey: ${esc(t.zoey_ref)}</div><div class="small muted" style="line-height:1.6">→ ${esc(t.divina_note)}</div></div>`;
-      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Roadmap — Divina come "AI Operating System"</h3><p>Benchmark: <a href="${esc(bm.url||'#')}" target="_blank" rel="noopener"><b>${esc(bm.name||'Zoey OS')}</b></a> · statica, si aggiorna con una PR (app/roadmap.py del motore)</p></div><span class="pill">${cn.totale??tasks.length} task · ${cn.parziali??0} parziali</span></div><div class="small muted" style="line-height:1.7;margin-bottom:14px">${esc(bm.summary||'')}</div>${pf.length?`<div class="sec" style="margin-top:4px">Dove Divina è già avanti (da proteggere)</div><div class="row" style="flex-wrap:wrap;gap:8px">${pf.map(s=>`<span class="pill" style="border-color:var(--green);color:var(--green)">✓ ${esc(s)}</span>`).join('')}</div>`:''}</div>${Object.entries(byArea).map(([a,ts])=>`<div class="sec">${AREA[a]||esc(a)}</div><div class="grid g-2" style="align-items:start">${ts.map(card).join('')}</div>`).join('')}`;
-    }catch(e){C.innerHTML=errBox(e);}
+      if(!vivo(giro))return; C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Roadmap — Divina come "AI Operating System"</h3><p>Benchmark: <a href="${esc(bm.url||'#')}" target="_blank" rel="noopener"><b>${esc(bm.name||'Zoey OS')}</b></a> · statica, si aggiorna con una PR (app/roadmap.py del motore)</p></div><span class="pill">${cn.totale??tasks.length} task · ${cn.parziali??0} parziali</span></div><div class="small muted" style="line-height:1.7;margin-bottom:14px">${esc(bm.summary||'')}</div>${pf.length?`<div class="sec" style="margin-top:4px">Dove Divina è già avanti (da proteggere)</div><div class="row" style="flex-wrap:wrap;gap:8px">${pf.map(s=>`<span class="pill" style="border-color:var(--green);color:var(--green)">✓ ${esc(s)}</span>`).join('')}</div>`:''}</div>${Object.entries(byArea).map(([a,ts])=>`<div class="sec">${AREA[a]||esc(a)}</div><div class="grid g-2" style="align-items:start">${ts.map(card).join('')}</div>`).join('')}`;
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async tasks(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+  async tasks(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
     try{const d=await api('engine','/admin/tasks');const all=d.tasks||[];
       const TERM=['fatta','fallita','archiviata'];
       const ts=all.filter(t=>!TERM.includes(t.status));$('#b-tasks').textContent=ts.length;
       const hist=[...((await api('engine','/admin/tasks?status=fallita&limit=6').catch(()=>({tasks:[]}))).tasks||[]),...((await api('engine','/admin/tasks?status=fatta&limit=6').catch(()=>({tasks:[]}))).tasks||[])].filter(t=>TERM.includes(t.status)).slice(0,10);
       const KT={manuale:'acc',gap:'warn',feedback:'neg',agente:'info',azione:'acc'};
       const STT={'aperta':'mut','in-approvazione':'warn','approvata':'info','in-esecuzione':'acc','fatta':'pos','fallita':'neg','archiviata':'mut'};
-      C.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>＋ Nuova task</h3><p>Coda operativa ${d.persist?'<b style="color:var(--green)">persistente (Supabase)</b>':'<b style="color:var(--orange)">in-memory — applica db/brain_tasks.sql per la persistenza</b>'}</p></div></div><div class="row" style="flex-wrap:wrap"><input id="tkTitle" placeholder="Titolo (niente dati personali)" style="flex:2;min-width:220px"><input id="tkScope" placeholder="Scope (es. ats)" style="max-width:140px"><input id="tkNote" placeholder="Nota (opzionale)" style="flex:1;min-width:160px"><button class="btn primary" id="tkAdd">Crea</button></div></div>
+      if(!vivo(giro))return; C.innerHTML=`<div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>＋ Nuova task</h3><p>Coda operativa ${d.persist?'<b style="color:var(--green)">persistente (Supabase)</b>':'<b style="color:var(--orange)">in-memory — applica db/brain_tasks.sql per la persistenza</b>'}</p></div></div><div class="row" style="flex-wrap:wrap"><input id="tkTitle" placeholder="Titolo (niente dati personali)" style="flex:2;min-width:220px"><input id="tkScope" placeholder="Scope (es. ats)" style="max-width:140px"><input id="tkNote" placeholder="Nota (opzionale)" style="flex:1;min-width:160px"><button class="btn primary" id="tkAdd">Crea</button></div></div>
       <div class="card"><div class="card-head"><div><h3>Task aperte</h3><p>Si chiudono col nome di chi decide — mai cancellate, solo 'fatta' o 'archiviata'</p></div><span class="pill">${ts.length} aperte</span></div>${ts.length?`<div style="display:flex;flex-direction:column;gap:12px">${ts.map(t=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px"><span class="tag ${KT[t.kind]||'mut'}">${esc(t.kind)}</span><span class="tag ${STT[t.status]||'mut'}">${esc(t.status)}</span>${t.scope?`<span class="scope-chip" style="background:${scopeColor(t.scope)}22;color:${scopeColor(t.scope)};border-color:${scopeColor(t.scope)}44">${esc(t.scope)}</span>`:''}</div><span class="small muted">${timeAgoIso(t.created_at)}</span></div><div style="font-size:13.5px;font-weight:600;margin-bottom:6px">${esc(t.title)}</div>${t.note?`<div class="small muted" style="margin-bottom:10px">${esc(t.note)}</div>`:''}${t.approved_by?`<div class="small muted" style="margin-bottom:8px">✓ approvata da <b>${esc(t.approved_by)}</b></div>`:''}${t.error?`<div class="small" style="color:var(--neg);margin-bottom:8px">✕ ${esc(t.error)}</div>`:''}${t.status==='aperta'?`<div class="row"><input placeholder="Chi chiude (nome)" id="tb-${esc(t.id)}" style="max-width:200px"><button class="btn sm primary" data-tclose="${esc(t.id)}" data-st="fatta">Fatta</button><button class="btn sm" data-tclose="${esc(t.id)}" data-st="archiviata">Archivia</button></div>`:t.status==='in-approvazione'?`<div class="small" style="color:var(--orange)">In attesa dell'ok dell'owner → tab <b>Proposte audit</b></div>`:''}</div>`).join('')}</div>`:emptyBox(icon('target',36),'Nessuna task attiva','Creane una qui sopra, o lascia che nascano da gap, feedback e azioni dei companion')}</div>
       ${hist.length?`<div class="card" style="margin-top:14px"><div class="card-head"><div><h3>Storico recente</h3><p>Esiti delle ultime task chiuse — gli ERRORI si leggono qui (fix collaudo 17-07)</p></div><span class="pill">${hist.length}</span></div><div style="display:flex;flex-direction:column;gap:10px">${hist.map(t=>`<div style="padding:12px 14px;background:var(--surface-2);border:1px solid ${t.status==='fallita'?'rgba(239,68,68,.4)':'var(--border)'};border-radius:10px"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:5px"><div class="row" style="gap:6px"><span class="tag ${STT[t.status]||'mut'}">${esc(t.status)}</span><span class="tag ${KT[t.kind]||'mut'}">${esc(t.kind)}</span></div><span class="small muted">${timeAgoIso(t.created_at)}</span></div><div style="font-size:13px;font-weight:600">${esc(t.title)}</div>${t.error?`<div class="small" style="color:var(--neg);margin-top:5px">✕ ${esc(t.error)}</div>`:''}</div>`).join('')}</div></div>`:''}`;
       $('#tkAdd').onclick=async()=>{const title=$('#tkTitle').value.trim();if(!title){toast('Titolo obbligatorio','bad');return;}try{await api('engine','/admin/tasks',{method:'POST',body:{title,scope:$('#tkScope').value.trim(),note:$('#tkNote').value.trim()}});toast('Task creata','ok');route('tasks');}catch(e){toast(e.message,'bad');}};
       $$('[data-tclose]').forEach(b=>b.onclick=async()=>{const by=(document.getElementById('tb-'+b.dataset.tclose)||{value:''}).value.trim();if(!by){toast('Indica chi chiude la task','bad');return;}try{await api('engine','/admin/tasks/close',{method:'POST',body:{id:b.dataset.tclose,by,status:b.dataset.st}});toast('Task '+b.dataset.st,'ok');route('tasks');}catch(e){toast(e.message,'bad');}});
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async usage(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+  async usage(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
     try{const d=await api('engine','/admin/usage');const rows=Object.entries(d).filter(([k])=>typeof d[k]==='object');
       const totReq=rows.reduce((a,[,v])=>a+(v.count||0),0),totCost=rows.reduce((a,[,v])=>a+(v.cost_eur||0),0),alerts=rows.filter(([,v])=>v.alert).length,maxReq=Math.max(1,...rows.map(([,v])=>v.count||0));
-      C.innerHTML=`<div class="grid g-stats"><div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">${icon('signal',13)} Richieste oggi</div><div class="val" style="color:var(--cyan)">${fmtN(totReq)}</div><div class="meta">${rows.length} tenant</div></div><div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">${icon('coins',13)} Spesa stimata</div><div class="val" style="color:var(--green)">€${totCost.toFixed(2)}</div><div class="meta">oggi</div></div><div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">${icon('alert',13)} Alert</div><div class="val" style="color:${alerts?'var(--orange)':'var(--text)'}">${alerts}</div><div class="meta">oltre soglia</div></div></div>
+      if(!vivo(giro))return; C.innerHTML=`<div class="grid g-stats"><div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--cyan),#7de8f2)"></div><div class="lbl">${icon('signal',13)} Richieste oggi</div><div class="val" style="color:var(--cyan)">${fmtN(totReq)}</div><div class="meta">${rows.length} tenant</div></div><div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--green),#c3ee7f)"></div><div class="lbl">${icon('coins',13)} Spesa stimata</div><div class="val" style="color:var(--green)">€${totCost.toFixed(2)}</div><div class="meta">oggi</div></div><div class="stat"><div class="glow" style="background:linear-gradient(90deg,var(--orange),#fbb08a)"></div><div class="lbl">${icon('alert',13)} Alert</div><div class="val" style="color:${alerts?'var(--orange)':'var(--text)'}">${alerts}</div><div class="meta">oltre soglia</div></div></div>
         <div class="sec">Dettaglio per tenant</div><div class="card"><div class="tbl-wrap"><table><thead><tr><th>Tenant</th><th>Volume</th><th class="num">Richieste</th><th class="num">Spesa</th><th class="num">Stato</th></tr></thead><tbody>${rows.length?rows.sort((a,b)=>(b[1].count||0)-(a[1].count||0)).map(([k,v])=>`<tr><td><span class="scope-chip" style="background:${scopeColor(k)}22;color:${scopeColor(k)};border-color:${scopeColor(k)}44">${esc(k)}</span></td><td style="width:34%"><div class="bar-track"><div class="bar-fill" style="width:${pct(v.count,maxReq)}%;background:${v.alert?'var(--orange)':scopeColor(k)}"></div></div></td><td class="num">${fmtN(v.count)}</td><td class="num">${v.cost_eur!=null?'€'+Number(v.cost_eur).toFixed(2):'—'}</td><td class="num">${v.alert?'<span class="tag warn">SOGLIA</span>':'<span class="tag pos">ok</span>'}</td></tr>`).join(''):`<tr><td colspan="5">${emptyBox(icon('inbox',36),'Quote non attive','')}</td></tr>`}</tbody></table></div></div>`;
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async events(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(5);
+  async events(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(5);
     try{const d=await api('engine','/admin/events?limit=100');const ev=d.events||[];
       const kt=k=>k==='chat'?'<span class="tag info">chat</span>':k&&k.includes('up')?`<span class="tag pos">${icon('thumb',10)}</span>`:k&&k.includes('down')?`<span class="tag neg">${icon('thumbdown',10)}</span>`:'<span class="tag warn">gap</span>';
-      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Eventi conversazione</h3><p>Da Supabase · persistenza ${d.persist?'<b style="color:var(--green)">attiva</b>':'<b style="color:var(--orange)">off</b>'}</p></div><a class="btn sm" href="${(state.engBase||'')}/admin/events.csv" target="_blank" rel="noopener">Scarica CSV</a></div><div class="tbl-wrap"><table><thead><tr><th>Quando</th><th>Tipo</th><th>Scope</th><th>Domanda</th></tr></thead><tbody>${ev.length?ev.map(e=>`<tr><td class="mono small muted" style="white-space:nowrap">${esc((e.at||'').replace('T',' ').slice(0,19))}</td><td>${kt(e.kind)}</td><td><span class="scope-chip" style="background:${scopeColor(e.scope)}22;color:${scopeColor(e.scope)};border-color:${scopeColor(e.scope)}44">${esc(e.scope||'∅')}</span></td><td>${esc(e.question||'—')}</td></tr>`).join(''):`<tr><td colspan="4">${emptyBox(icon('inbox',36),'Nessun evento','')}</td></tr>`}</tbody></table></div></div>`;
-    }catch(e){C.innerHTML=errBox(e);}
+      if(!vivo(giro))return; C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Eventi conversazione</h3><p>Da Supabase · persistenza ${d.persist?'<b style="color:var(--green)">attiva</b>':'<b style="color:var(--orange)">off</b>'}</p></div><a class="btn sm" href="${(state.engBase||'')}/admin/events.csv" target="_blank" rel="noopener">Scarica CSV</a></div><div class="tbl-wrap"><table><thead><tr><th>Quando</th><th>Tipo</th><th>Scope</th><th>Domanda</th></tr></thead><tbody>${ev.length?ev.map(e=>`<tr><td class="mono small muted" style="white-space:nowrap">${esc((e.at||'').replace('T',' ').slice(0,19))}</td><td>${kt(e.kind)}</td><td><span class="scope-chip" style="background:${scopeColor(e.scope)}22;color:${scopeColor(e.scope)};border-color:${scopeColor(e.scope)}44">${esc(e.scope||'∅')}</span></td><td>${esc(e.question||'—')}</td></tr>`).join(''):`<tr><td colspan="4">${emptyBox(icon('inbox',36),'Nessun evento','')}</td></tr>`}</tbody></table></div></div>`;
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async tenants(){
-    if(needSvc('engine'))return; C.innerHTML=skeleton(4);
+  async tenants(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
     try{const d=await api('engine','/admin/tenants');const ts=d.tenants||[];
       /* Accessi console cliente (owner-managed): la lista degrada con garbo se
          la feature è spenta (503 finché CLIENT_SESSION_SECRET non è impostata). */
       let cls=null,clsErr='';
       try{cls=(await api('engine','/admin/clients')).clients||[];}catch(e){clsErr=e.message||'';}
-      C.innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:16px"><div><h3 style="font-size:16px">Chiavi tenant</h3><p class="small muted">Onboarding, quote e revoca</p></div><button class="btn primary" id="newTenant">＋ Nuovo</button></div><div class="card"><div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>Scope</th><th class="num">Quota/gg</th><th>Creato</th><th class="num">Stato</th><th></th></tr></thead><tbody>${ts.length?ts.map(t=>`<tr><td><b>${esc(t.name)}</b></td><td>${(t.tenants||[]).map(s=>`<span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span>`).join(' ')||'—'}</td><td class="num">${t.quota_day??'∞'}</td><td class="muted small">${esc((t.created_at||'').slice(0,10))}</td><td class="num">${t.active?'<span class="tag pos">attivo</span>':'<span class="tag mut">revocato</span>'}</td><td class="num">${t.active?`<button class="btn sm danger" data-revoke="${esc(t.name)}">Revoca</button>`:''}</td></tr>`).join(''):`<tr><td colspan="6">${emptyBox(icon('key',36),'Nessun tenant','')}</td></tr>`}</tbody></table></div></div>
+      if(!vivo(giro))return; C.innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:16px"><div><h3 style="font-size:16px">Chiavi tenant</h3><p class="small muted">Onboarding, quote e revoca</p></div><button class="btn primary" id="newTenant">＋ Nuovo</button></div><div class="card"><div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>Scope</th><th class="num">Quota/gg</th><th>Creato</th><th class="num">Stato</th><th></th></tr></thead><tbody>${ts.length?ts.map(t=>`<tr><td><b>${esc(t.name)}</b></td><td>${(t.tenants||[]).map(s=>`<span class="scope-chip" style="background:${scopeColor(s)}22;color:${scopeColor(s)};border-color:${scopeColor(s)}44">${esc(s)}</span>`).join(' ')||'—'}</td><td class="num">${t.quota_day??'∞'}</td><td class="muted small">${esc((t.created_at||'').slice(0,10))}</td><td class="num">${t.active?'<span class="tag pos">attivo</span>':'<span class="tag mut">revocato</span>'}</td><td class="num">${t.active?`<button class="btn sm danger" data-revoke="${esc(t.name)}">Revoca</button>`:''}</td></tr>`).join(''):`<tr><td colspan="6">${emptyBox(icon('key',36),'Nessun tenant','')}</td></tr>`}</tbody></table></div></div>
       <div class="sec">Accessi console clienti</div><div class="card">${clsErr?`<div class="small muted" style="line-height:1.7">${clsErr.includes('503')?`${icon('lock',13)} Funzione spenta: imposta <b>CLIENT_SESSION_SECRET</b> (32+ caratteri casuali) sul motore e applica <b>db/client_access.sql</b> su Supabase. Poi da qui crei gli accessi.`:esc(clsErr)}</div>`
       :`<div class="row" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px"><p class="small muted" style="line-height:1.6;max-width:560px">Primo accesso con email+password; poi SOLO il codice a 6 cifre, che generi e rigeneri tu. La chiave tenant resta sul server: il cliente non la vede mai. «Entra» apre il suo pannello come FORMA (sessione breve, tracciata).</p><button class="btn sm primary" id="clNew">＋ Nuovo accesso</button></div>
       <div class="tbl-wrap"><table><thead><tr><th>Email</th><th>Nome</th><th>Stato</th><th>Codice</th><th>Ultimo accesso</th><th></th></tr></thead><tbody>${cls.length?cls.map(c=>`<tr><td><b>${esc(c.email)}</b></td><td>${esc(c.display_name)}</td><td><span class="tag ${c.status==='attivo'?'pos':'mut'}">${esc(c.status)}</span>${c.locked?' <span class="tag neg">bloccato</span>':''}</td><td>${c.pin_set?'<span class="tag info">attivo</span>':'<span class="tag mut">da generare</span>'}</td><td class="small muted" style="white-space:nowrap">${esc((c.last_login_at||'—').slice(0,16).replace('T',' '))}</td><td class="num" style="white-space:nowrap"><button class="btn sm" data-clpin="${esc(c.id)}">Codice</button> <button class="btn sm" data-clghost="${esc(c.id)}">Entra</button> <button class="btn sm" data-clst="${esc(c.id)}" data-to="${c.status==='attivo'?'sospeso':'attivo'}">${c.status==='attivo'?'Sospendi':'Riattiva'}</button> <button class="btn sm danger" data-clst="${esc(c.id)}" data-to="rimosso">Rimuovi</button></td></tr>`).join(''):`<tr><td colspan="6">${emptyBox(icon('key',36),'Nessun accesso cliente','Creane uno: email, password iniziale e chiave del tenant')}</td></tr>`}</tbody></table></div>`}</div>`;
@@ -1321,11 +1452,11 @@ const VIEWS={
           window.open(base+'/panel/','_blank');toast('Sessione ghost aperta (30 min)','ok');
         }catch(e){toast('Ghost non riuscito: '+e.message,'bad');}
       });
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
   /* ---------- ORCHESTRATORE ---------- */
-  async agents(){
+  async agents(giro){
     /* V3+V4 (01-08) · La squadra COMPATTA con la gerarchia esplicita:
        Divina in testa (orchestratrice e CEO: smista, non esegue), tre righe
        richiudibili — chi entra vuole sapere CHI fa cosa, non leggere
@@ -1335,7 +1466,7 @@ const VIEWS={
        almeno una cosa che sa fare da solo. Caronte è il primo (ricerca
        clienti — riusa customer-research di Beatrice); gli altri restano
        struttura dichiarata, e lo si DICE. */
-    if(needSvc('orch'))return; C.innerHTML=skeleton(5);
+    if(needSvc('orch'))return; if(!vivo(giro))return; C.innerHTML=skeleton(5);
     const LAVORO={dante:'i soldi di tutti i giorni',virgilio:'costruire e tutelare',beatrice:'crescere e raccontare'};
     try{const ag=await api('orch','/agents');const agents=ag.agents||[];const SUBAG=ag.subagents||[];$('#b-agents').textContent=agents.length;
       const aperti=state._sqAperti||(state._sqAperti={});
@@ -1349,7 +1480,7 @@ const VIEWS={
           <span class="pill" style="flex-shrink:0">${n} capacità</span></button>
           ${su?`<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:4px">${Object.entries(byDept).map(([d,sk])=>`<div class="dept-title">${esc(d)}</div>${sk.map(s=>`<div class="skill-item" onclick="quickRun('${esc(a.id)}','${esc(s.id)}')"><span style="color:${col};font-size:14px">▸</span><div><div class="skill-role">${esc(s.role||s.id)}</div><div class="skill-desc">${esc(s.desc||'')}</div></div></div>`).join('')}`).join('')}</div>`:''}
         </div>`;};
-      C.innerHTML=`
+      if(!vivo(giro))return; C.innerHTML=`
       <div class="card" style="margin-bottom:10px;border-color:color-mix(in srgb,var(--magenta) 35%,var(--border))"><div class="row" style="gap:12px;align-items:center">
         <div class="agent-avatar" style="background:linear-gradient(135deg,var(--magenta),var(--cyan));width:38px;height:38px">DV</div>
         <div><b style="font-size:15px">Divina</b><div class="small muted">orchestratrice e CEO — smista il lavoro alla squadra, non esegue</div></div></div></div>
@@ -1363,54 +1494,163 @@ const VIEWS={
         </div>`;}).join('')}
       </div>`:''}`;
       $$('[data-sq]').forEach(b=>b.onclick=()=>{aperti[b.dataset.sq]=!aperti[b.dataset.sq];route('agents');});
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async live(){
+  async live(giro){
     if(needSvc('orch'))return;
-    C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Regia live</h3><p>Gli ultimi dispatch degli agenti (route/run), mentre accadono · aggiornamento ogni 5s</p></div><span class="pill" id="liveCount">—</span></div><div class="live-feed" id="liveFeed">${skeleton(3)}</div></div>`;
+    if(!vivo(giro))return; C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Regia live</h3><p>Gli ultimi dispatch degli agenti (route/run), mentre accadono · aggiornamento ogni 5s</p></div><span class="pill" id="liveCount">—</span></div><div class="live-feed" id="liveFeed">${skeleton(3)}</div></div>`;
     const draw=async()=>{try{const d=await api('orch','/agents/dispatches?limit=50');const evs=d.dispatches||[];const lc=$('#liveCount'),lf=$('#liveFeed');if(!lf)return;lc.textContent=evs.length+' dispatch';
       lf.innerHTML=evs.length?evs.map(e=>{const col=e.routed?(AG_COLORS[e.agent]||'var(--magenta)'):'var(--orange)';return `<div class="live-row"><span class="live-dot" style="background:${col};box-shadow:0 0 8px ${col}"></span><div style="flex:1;min-width:0"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px"><div class="row" style="gap:6px">${e.routed?`<b style="color:${col}">${esc(e.agent)}</b><span class="pill">${esc(e.role||e.skill||'')}</span>`:'<span class="tag warn">non instradato</span>'}<span class="tag ${e.kind==='route'?'info':'acc'}">${esc(e.kind)}</span>${e.confidence!=null?`<span class="pill">conf. ${Math.round(e.confidence*100)}%</span>`:''}${e.esito?`<span class="tag ${e.esito==='ok'?'pos':'neg'}">${e.esito==='ok'?'✓ eseguita':'✕ fallita'}</span>`:''}</div><span class="small muted">${timeAgoTs(e.at)} · ${esc(e.tenant||'')}</span></div><div class="small muted" style="margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">“${esc(e.input||'')}”</div></div></div>`;}).join(''):emptyBox(icon('live',36),'Nessun dispatch ancora','Affida un compito dal Router o dalla chat: lo vedrai qui mentre accade');
     }catch(e){const lf=$('#liveFeed');if(lf)lf.innerHTML=errBox(e);}};
     await draw();
+    if(!vivo(giro))return;   /* V8/D1: un timer lasciato acceso da una vista uscita di scena */
     state._liveTimer=setInterval(draw,5000);
   },
 
-  async router(){
+  async router(giro){
     if(needSvc('orch'))return;
-    C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Router conversazionale</h3><p>Divina smista la richiesta all'agente+skill più adatti (e la esegue se sicura). Tenant <b>${esc(state.tenant)}</b></p></div></div><label class="fld"><span class="lt">Richiesta</span><textarea id="rInput" placeholder="Es. Prepara i solleciti per le fatture scadute del cliente ATS"></textarea></label><div class="row"><button class="btn primary" id="rGo">Instrada &amp; esegui</button><label class="row small muted" style="cursor:pointer"><input type="checkbox" id="rBrain" style="width:auto;min-height:auto;margin-right:6px" ${state.tenantKey?'checked':''}> aggancia il cervello</label></div><div id="rOut" style="margin-top:18px"></div></div>`;
+    if(!vivo(giro))return; C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Router conversazionale</h3><p>Divina smista la richiesta all'agente+skill più adatti (e la esegue se sicura). Tenant <b>${esc(state.tenant)}</b></p></div></div><label class="fld"><span class="lt">Richiesta</span><textarea id="rInput" placeholder="Es. Prepara i solleciti per le fatture scadute del cliente ATS"></textarea></label><div class="row"><button class="btn primary" id="rGo">Instrada &amp; esegui</button><label class="row small muted" style="cursor:pointer"><input type="checkbox" id="rBrain" style="width:auto;min-height:auto;margin-right:6px" ${state.tenantKey?'checked':''}> aggancia il cervello</label></div><div id="rOut" style="margin-top:18px"></div></div>`;
     $('#rGo').onclick=async()=>{const input=$('#rInput').value.trim();if(!input){toast('Scrivi una richiesta','bad');return;}const out=$('#rOut');out.innerHTML=skeleton(3);try{const r=await api('orch','/agents/route',{method:'POST',tenantKey:$('#rBrain').checked,body:{tenant:state.tenant,input,history:[]}});out.innerHTML=renderAgentOut(r);}catch(e){out.innerHTML=errBox(e);}};
   },
 
-  async nodes(){
-    if(needSvc('orch'))return; C.innerHTML=skeleton(5);
+  /* ══════════ V8/A1 · «COSA SO DI TE» ══════════
+     La cosa migliore vista in Zoey, senza i suoi due difetti.
+     - Niente percentuale. In Zoey ogni memoria è al 70%: un numero costante
+       travestito da misura. Qui ci sono i due dati veri — quante volte l'hai
+       ridetto, e la frase da cui viene — perché senza un criterio la fonte
+       batte la percentuale.
+     - La memoria si USA: le righe che il motore sa applicare portano il
+       distintivo «in uso adesso». Ricordare e non servirsene è il difetto che
+       rendeva quella pagina una vetrina. */
+  async memoria(giro){
+    if(needSvc('engine'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
+    try{
+      const d=await api('engine','/admin/memoria?tenant='+encodeURIComponent(state.tenant));
+      const voci=d.memorie||[],usate=d.usate||{};
+      if(!vivo(giro))return; C.innerHTML=`
+      <div class="card" style="margin-bottom:14px"><div class="row" style="gap:12px;align-items:flex-start">
+        <span style="color:var(--divina)">${icon('brain',22)}</span>
+        <div class="small" style="line-height:1.7"><b>Quello che il sistema ha imparato di «${esc(state.tenant)}».</b>
+        Il GDPR dà il diritto di sapere cosa un sistema sa di te (art. 15) e di farlo cancellare (art. 17):
+        questa pagina è quella risposta — un elenco e un bottone. <b>Dimentica cancella davvero</b>: il testo
+        sparisce, resta solo che qualcosa è stato dimenticato, quando e da chi.
+        ${d.persist?'':'<br><span style="color:var(--orange)">'+icon('alert',11)+' Memoria NON persistente: applica <span class="mono">db/tenant_memory.sql</span>, altrimenti si azzera al prossimo redeploy.</span>'}</div>
+      </div></div>
+      <div class="card"><div class="card-head"><div><h3>Cosa so di te</h3>
+        <p>Nessuna percentuale: non c'è un criterio che la renderebbe una misura. C'è la frase da cui viene, e quante volte l'hai ridetta.</p></div>
+        <span class="pill">${voci.length} cos${voci.length===1?'a':'e'}</span></div>
+        ${voci.length?voci.map(m=>`<div class="mem-riga">
+          <div style="min-width:0;flex:1">
+            <b style="font-size:13.5px">${esc(m.fatto)}</b>
+            <div class="row small muted" style="gap:8px;margin-top:4px;flex-wrap:wrap">
+              <span>${m.created_at?timeAgoIso(m.created_at):'—'}</span>
+              <span class="pill">${m.conferme}× detto</span>
+              <span class="pill">${m.origine==='mano'?'scritto a mano':'detto in chat'}</span>
+              ${m.chiave&&usate[m.chiave]===m.valore?`<span class="pill mem-usata">✓ in uso adesso · ${esc(m.chiave)}=${esc(m.valore)}</span>`
+                :m.chiave?`<span class="pill">${esc(m.chiave)}=${esc(m.valore)}</span>`:'<span class="pill">contesto</span>'}
+            </div>
+            ${m.citazione?`<div class="mem-fonte">«${esc(m.citazione)}»</div>`
+              :'<div class="small muted" style="margin-top:5px">— nessuna frase di origine: è stato scritto a mano</div>'}
+          </div>
+          <button class="btn sm ghost" data-dim="${esc(m.id)}">Dimentica</button>
+        </div>`).join(''):emptyBox(icon('brain',36),'Non so ancora niente di te',
+          'Le preferenze dichiarate in chat («parlami in italiano», «rispondi breve») finiscono qui, con la frase da cui vengono.')}
+      </div>
+      <div class="card" style="margin-top:14px"><div class="card-head"><div><h3>Aggiungi a mano</h3><p>Un fatto stabile che vuoi che il sistema tenga presente. Niente dati personali: vengono rifiutati.</p></div></div>
+        <div class="row" style="flex-wrap:wrap"><input id="memF" placeholder="Es. Fatturate a fine mese" style="flex:2;min-width:220px">
+        <select id="memK" style="max-width:150px"><option value="">solo contesto</option>${Object.keys(d.chiavi||{}).map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select>
+        <select id="memV" style="max-width:130px"><option value="">—</option></select>
+        <button class="btn primary" id="memAdd">Ricorda</button></div></div>`;
+      const chiavi=d.chiavi||{};
+      const aggV=()=>{const k=$('#memK').value;$('#memV').innerHTML=k?(chiavi[k]||[]).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join(''):'<option value="">—</option>';};
+      $('#memK').onchange=aggV;aggV();
+      $('#memAdd').onclick=async()=>{
+        const fatto=$('#memF').value.trim();if(!fatto){toast('Scrivi il fatto','bad');return;}
+        try{await api('engine','/admin/memoria',{method:'POST',body:{tenant:state.tenant,fatto,chiave:$('#memK').value,valore:$('#memV').value}});
+          toast('Ricordato','ok');route('memoria');}catch(e){toast('✕ '+e.message,'bad');}};
+      $$('[data-dim]').forEach(b=>b.onclick=async()=>{
+        if(!confirm('Dimenticare questa cosa? Il testo viene cancellato davvero: resta solo che è stata dimenticata.'))return;
+        try{await api('engine','/admin/memoria/dimentica',{method:'POST',body:{id:b.dataset.dim,by:'andrea'}});
+          toast('Dimenticato','info');route('memoria');}catch(e){toast('✕ '+e.message,'bad');}});
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
+  },
+
+  /* ══════════ V8/B · LE DUE PORTE DEL CLIENTE ══════════
+     La terza persona del sistema, che finora non esisteva: poteva PARLARE col
+     proprio cervello e non poteva GUARDARLO. */
+  async ckb(giro){
+    if(!vivo(giro))return; C.innerHTML=skeleton(4);
+    try{
+      const d=state.demo?demoClient('kb'):await(await fetch('/client/kb',{credentials:'include'})).json();
+      const n=d.note||[];
+      if(!vivo(giro))return; C.innerHTML=`
+      <div class="card" style="margin-bottom:14px"><div class="small" style="line-height:1.7">
+        <b>Ecco le ${n.length} cos${n.length===1?'a':'e'} che sappiamo di voi.</b> Sono le note del cervello nelle vostre aree —
+        le uniche a cui il vostro assistente attinge quando risponde. Se qualcosa è sbagliato, segnalatelo:
+        arriva a FORMA, che corregge. <b>Da qui non si scrive nel cervello</b>, e non è una limitazione tecnica:
+        è il motivo per cui potete fidarvi di quello che c'è dentro.</div></div>
+      <div class="card"><div class="card-head"><div><h3>La vostra knowledge base</h3>
+        <p>${(d.scopes||[]).map(s=>esc(s)).join(' · ')||'—'}</p></div><span class="pill">${n.length}</span></div>
+        ${n.length?`<div class="tbl-wrap"><table><thead><tr><th>Nota</th><th>Aggiornata</th><th></th></tr></thead><tbody>
+          ${n.map((x,i)=>`<tr><td><b>${esc(x.title)}</b><div class="mono small muted">${esc(x.path)}</div></td>
+            <td class="small muted" style="white-space:nowrap">${x.updated_at?timeAgoIso(x.updated_at):'—'}</td>
+            <td class="num"><button class="btn sm ghost" data-sbag="${i}">È sbagliata</button></td></tr>`).join('')}
+          </tbody></table></div>`
+        :emptyBox(icon('inbox',36),'Ancora nessuna nota nelle vostre aree',esc(d.vuota_perche||''))}
+      </div>`;
+      $$('[data-sbag]').forEach(b=>b.onclick=()=>formSegnala(n[+b.dataset.sbag]));
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
+  },
+
+  async cbuchi(giro){
+    if(!vivo(giro))return; C.innerHTML=skeleton(3);
+    try{
+      const d=state.demo?demoClient('buchi'):await(await fetch('/client/buchi',{credentials:'include'})).json();
+      if(!vivo(giro))return; C.innerHTML=!d.consentito
+        ? `<div class="card"><div class="empty"><span class="ic">${icon('lock',36)}</span>
+            <h4>Questa pagina è spenta, e non perché manchi un dato</h4>
+            <p style="max-width:560px;margin:0 auto">${esc(d.perche||'')}</p></div></div>`
+        : `<div class="card"><div class="card-head"><div><h3>Cosa non sappiamo ancora</h3>
+            <p>Le domande a cui l'assistente non ha saputo rispondere sui vostri dati: è l'elenco di cosa conviene aggiungere</p></div>
+            <span class="pill">${d.totale}</span></div>
+            ${(d.buchi||[]).length?(d.buchi||[]).map(g=>`<div style="padding:11px 0;border-top:1px solid var(--border)">
+              <div style="font-size:13.5px">«${esc(g.q||'')}»</div>
+              <div class="small muted" style="margin-top:3px">${timeAgoTs(g.at)}</div></div>`).join('')
+            :emptyBox(icon('check',36),'Nessuna domanda rimasta senza risposta','Per ora il vostro cervello ha coperto tutto quello che gli è stato chiesto.')}
+          </div>`;
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
+  },
+
+  async nodes(giro){
+    if(needSvc('orch'))return; if(!vivo(giro))return; C.innerHTML=skeleton(5);
     try{const d=await api('orch','/nodes/recent?'+q({tenant:state.tenant,limit:30}));const nodes=d.nodes||[];const stt=s=>s==='promosso'?'pos':s==='bozza'?'warn':s==='archiviato'?'mut':'info';
-      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Nodi wiki recenti</h3><p>Tenant <b>${esc(state.tenant)}</b> · promozione bozza→vault = PR (merge umano)</p></div><span class="pill">${nodes.length} nodi</span></div><div class="tbl-wrap"><table><thead><tr><th>Titolo</th><th>Tipo</th><th class="num">Conf.</th><th>Stato</th><th>Aggiornato</th><th></th></tr></thead><tbody>${nodes.length?nodes.map(n=>`<tr><td><b>${esc(n.title||n.slug)}</b><div class="small muted">${esc(n.summary||'')}</div></td><td><span class="pill">${esc(n.kind||'—')}</span></td><td class="num">${n.confidence!=null?Math.round(n.confidence*100)+'%':'—'}</td><td><span class="tag ${stt(n.status)}">${esc(n.status||'—')}</span></td><td class="muted small" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</td><td class="num">${n.status==='bozza'?`<button class="btn sm" data-promote="${esc(n.node_id)}" data-slug="${esc(n.slug)}">Promuovi</button>`:''}</td></tr>`).join(''):`<tr><td colspan="6">${emptyBox(icon('nodes',36),'Nessun nodo','')}</td></tr>`}</tbody></table></div></div>`;
+      if(!vivo(giro))return; C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Nodi wiki recenti</h3><p>Tenant <b>${esc(state.tenant)}</b> · promozione bozza→vault = PR (merge umano)</p></div><span class="pill">${nodes.length} nodi</span></div><div class="tbl-wrap"><table><thead><tr><th>Titolo</th><th>Tipo</th><th class="num">Conf.</th><th>Stato</th><th>Aggiornato</th><th></th></tr></thead><tbody>${nodes.length?nodes.map(n=>`<tr><td><b>${esc(n.title||n.slug)}</b><div class="small muted">${esc(n.summary||'')}</div></td><td><span class="pill">${esc(n.kind||'—')}</span></td><td class="num">${n.confidence!=null?Math.round(n.confidence*100)+'%':'—'}</td><td><span class="tag ${stt(n.status)}">${esc(n.status||'—')}</span></td><td class="muted small" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</td><td class="num">${n.status==='bozza'?`<button class="btn sm" data-promote="${esc(n.node_id)}" data-slug="${esc(n.slug)}">Promuovi</button>`:''}</td></tr>`).join(''):`<tr><td colspan="6">${emptyBox(icon('nodes',36),'Nessun nodo','')}</td></tr>`}</tbody></table></div></div>`;
       $$('[data-promote]').forEach(b=>b.onclick=()=>promoteNode(b.dataset.promote,b.dataset.slug));
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async contradictions(){
-    if(needSvc('orch'))return; C.innerHTML=skeleton(4);
+  async contradictions(giro){
+    if(needSvc('orch'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
     try{const d=await api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'}));const cs=d.contradictions||[];$('#b-contra').textContent=cs.length;
-      C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Coda di revisione umana</h3><p>Le contraddizioni le chiude SOLO un umano (resolved_by). Tenant <b>${esc(state.tenant)}</b></p></div><span class="pill">${cs.length} aperte</span></div>${cs.length?`<div style="display:flex;flex-direction:column;gap:12px">${cs.map(c=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="mono small muted">${esc(c.node_a||'?')} ↔ ${esc(c.node_b||'?')}</span><span class="small muted">${timeAgoIso(c.created_at)}</span></div><div style="font-size:13.5px;margin-bottom:12px">${esc(c.description)}</div><div class="row"><input placeholder="Chi decide (nome)" id="rb-${esc(c.id)}" style="max-width:200px"><input placeholder="Risoluzione / nota" id="rr-${esc(c.id)}" style="flex:1;min-width:160px"><button class="btn sm primary" data-resolve="${esc(c.id)}" data-st="risolto">Risolvi</button><button class="btn sm" data-resolve="${esc(c.id)}" data-st="ignorato">Ignora</button></div></div>`).join('')}</div>`:emptyBox(icon('check',36),'Tutto coerente','')}</div>`;
+      if(!vivo(giro))return; C.innerHTML=`<div class="card"><div class="card-head"><div><h3>Coda di revisione umana</h3><p>Le contraddizioni le chiude SOLO un umano (resolved_by). Tenant <b>${esc(state.tenant)}</b></p></div><span class="pill">${cs.length} aperte</span></div>${cs.length?`<div style="display:flex;flex-direction:column;gap:12px">${cs.map(c=>`<div style="padding:15px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px"><div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="mono small muted">${esc(c.node_a||'?')} ↔ ${esc(c.node_b||'?')}</span><span class="small muted">${timeAgoIso(c.created_at)}</span></div><div style="font-size:13.5px;margin-bottom:12px">${esc(c.description)}</div><div class="row"><input placeholder="Chi decide (nome)" id="rb-${esc(c.id)}" style="max-width:200px"><input placeholder="Risoluzione / nota" id="rr-${esc(c.id)}" style="flex:1;min-width:160px"><button class="btn sm primary" data-resolve="${esc(c.id)}" data-st="risolto">Risolvi</button><button class="btn sm" data-resolve="${esc(c.id)}" data-st="ignorato">Ignora</button></div></div>`).join('')}</div>`:emptyBox(icon('check',36),'Tutto coerente','')}</div>`;
       $$('[data-resolve]').forEach(b=>b.onclick=()=>resolveContra(b.dataset.resolve,b.dataset.st));
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
-  async docs(){
-    if(needSvc('orch'))return; C.innerHTML=skeleton(4);
+  async docs(giro){
+    if(needSvc('orch'))return; if(!vivo(giro))return; C.innerHTML=skeleton(4);
     try{const d=await api('orch','/templates');const ts=d.templates||[];
-      C.innerHTML=`<div class="grid g-21" style="align-items:start"><div class="card"><div class="card-head"><div><h3>Genera documento</h3><p>Template + nodi pertinenti · tenant <b>${esc(state.tenant)}</b></p></div></div><label class="fld"><span class="lt">Template</span><select id="dTpl">${ts.map(t=>`<option value="${esc(t.name)}">${esc(t.name)} · ${esc(t.business_area)}</option>`).join('')}</select></label><label class="fld"><span class="lt">Tier</span><select id="dTier"><option value="starter">starter</option><option value="pro">pro</option><option value="enterprise" selected>enterprise</option></select></label><div class="row"><button class="btn primary" id="dGo">Genera</button></div><div id="dOut" style="margin-top:16px"></div></div><div class="card"><div class="card-head"><div><h3>Catalogo template</h3><p>${ts.length} disponibili</p></div></div><div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>Area</th><th>Tier</th></tr></thead><tbody>${ts.map(t=>`<tr><td><b>${esc(t.name)}</b> ${t.system?'<span class="tag mut">sys</span>':''}</td><td class="muted small">${esc(t.business_area)}</td><td><span class="pill">${esc(t.min_tier)}</span></td></tr>`).join('')}</tbody></table></div><div class="sec" style="margin-top:18px">Manutenzione</div><div class="row"><button class="btn sm" id="mRun">Manutentore</button><button class="btn sm" id="cSync">Sync connettori</button></div></div></div>`;
+      if(!vivo(giro))return; C.innerHTML=`<div class="grid g-21" style="align-items:start"><div class="card"><div class="card-head"><div><h3>Genera documento</h3><p>Template + nodi pertinenti · tenant <b>${esc(state.tenant)}</b></p></div></div><label class="fld"><span class="lt">Template</span><select id="dTpl">${ts.map(t=>`<option value="${esc(t.name)}">${esc(t.name)} · ${esc(t.business_area)}</option>`).join('')}</select></label><label class="fld"><span class="lt">Tier</span><select id="dTier"><option value="starter">starter</option><option value="pro">pro</option><option value="enterprise" selected>enterprise</option></select></label><div class="row"><button class="btn primary" id="dGo">Genera</button></div><div id="dOut" style="margin-top:16px"></div></div><div class="card"><div class="card-head"><div><h3>Catalogo template</h3><p>${ts.length} disponibili</p></div></div><div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>Area</th><th>Tier</th></tr></thead><tbody>${ts.map(t=>`<tr><td><b>${esc(t.name)}</b> ${t.system?'<span class="tag mut">sys</span>':''}</td><td class="muted small">${esc(t.business_area)}</td><td><span class="pill">${esc(t.min_tier)}</span></td></tr>`).join('')}</tbody></table></div><div class="sec" style="margin-top:18px">Manutenzione</div><div class="row"><button class="btn sm" id="mRun">Manutentore</button><button class="btn sm" id="cSync">Sync connettori</button></div></div></div>`;
       $('#dGo').onclick=async()=>{const out=$('#dOut');out.innerHTML=skeleton(2);try{const r=await api('orch','/docs/generate',{method:'POST',body:{tenant:state.tenant,template:$('#dTpl').value,tier:$('#dTier').value,data:{},format:'markdown',lang:'it'}});out.innerHTML=`<div style="padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px"><div class="row" style="justify-content:space-between;margin-bottom:8px"><b class="small">${esc(r.template||'documento')}</b>${(r.warnings||[]).length?`<span class="tag warn">${r.warnings.length} warning</span>`:'<span class="tag pos">ok</span>'}</div><pre class="mono small" style="white-space:pre-wrap;color:var(--text)">${esc(r.content||'')}</pre></div>`;}catch(e){out.innerHTML=errBox(e);}};
       $('#mRun').onclick=async()=>{try{const r=await api('orch','/maintenance/run',{method:'POST',body:{tenant:state.tenant}});toast(r.note||'Manutenzione eseguita','ok');}catch(e){toast(e.message,'bad');}};
       $('#cSync').onclick=async()=>{try{const r=await api('orch','/connectors/sync',{method:'POST',body:{}});toast(`Connettori: ${r.connectors||0}`,'info');}catch(e){toast(e.message,'bad');}};
-    }catch(e){C.innerHTML=errBox(e);}
+    }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
   /* ---------- SISTEMA (both) ---------- */
-  async system(){
-    C.innerHTML=skeleton(3);
+  async system(giro){
+    if(!vivo(giro))return; C.innerHTML=skeleton(3);
     const eng=await Promise.all([api('engine','/health').catch(()=>({})),api('engine','/version').catch(()=>({})),api('engine','/admin/status').catch(()=>({}))]).catch(()=>[{},{},{}]);
     const orch=await Promise.all([api('orch','/health').catch(()=>({})),api('orch','/version').catch(()=>({})),api('orch','/ready').catch(()=>({db:false}))]).catch(()=>[{},{},{db:false}]);
     const [eh,ev,est]=eng,[oh,ov,ordy]=orch;
@@ -1420,7 +1660,7 @@ const VIEWS={
        legge qui invece di scoprirlo fra tre settimane da un bottone che manca.
        Se un servizio non è collegato non si dice niente: due console non si
        confrontano se se ne vede una sola. */
-    C.innerHTML=`${paritaConsole(ev,ov)}<div class="grid g-2">
+    if(!vivo(giro))return; C.innerHTML=`${paritaConsole(ev,ov)}<div class="grid g-2">
       <div class="card"><div class="card-head"><div><h3 style="display:flex;align-items:center;gap:8px"><span style="color:var(--cyan)">◆</span> Motore (chat + cervello)</h3><p>Il motore Divina</p></div>${state.engOk?'<span class="tag pos">connesso</span>':'<span class="tag mut">n/d</span>'}</div>
         <table><tbody><tr><td class="muted">Servizio</td><td class="num"><b>${esc(ev.name||'Divina')}</b></td></tr><tr><td class="muted">Stato</td><td class="num">${eh.status==='ok'?'<span class="tag pos">ok</span>':'<span class="tag mut">—</span>'}</td></tr><tr><td class="muted">Versione</td><td class="num mono">${esc(ev.version||'—')}</td></tr><tr><td class="muted">LLM / embed</td><td class="num"><span class="pill">${esc(eh.llm||'—')}</span> <span class="pill">${esc(eh.embed||'—')}</span></td></tr><tr><td class="muted">Grants</td><td class="num"><span class="pill">${esc(est.grants_backend||'—')}</span></td></tr><tr><td class="muted">Console servita</td><td class="num mono">${ev.console_sha?esc(String(ev.console_sha).slice(0,12)):'<span class="muted">—</span>'}</td></tr></tbody></table>
         <div class="row" style="margin-top:14px"><a class="btn sm" href="${(state.engBase||'')}/metrics" target="_blank" rel="noopener">Metriche</a><a class="btn sm" href="${(state.engBase||'')}/admin/access-logs.csv" target="_blank" rel="noopener">Audit CSV</a></div>
@@ -1825,6 +2065,36 @@ function renderChat(){
         :`<div class="small muted">Da questa conversazione non è emerso niente di stabile da ricordare. È l'esito più frequente, e va bene così: si propone solo ciò che è riutilizzabile e dimostrabile.</div>`}
       </div></div>`;
     }
+    /* V8/C2 · La DELEGA si vede dentro il filo. Divina aveva la «Regia live»
+       come sezione a parte: giusta per la vista d'insieme, inutile nel momento
+       in cui serve — quando stai guardando la chat e non capisci perché ci
+       mette. Sono righe di sistema, deliberatamente diverse dai messaggi:
+       niente avatar, niente bolla, un filetto del colore dell'agente. */
+    if(m.role==='delega'){
+      const col=AG_COLORS[m.agent]||'var(--magenta)';
+      const fine=m.fine;
+      return `<div class="riga-sistema" data-delega="${esc(m.agent)}" style="border-color:${col}55">
+        <span style="color:${col}">${fine?'✓':'↗'}</span>
+        <span>${fine?`<b>${esc(_agNome(m.agent))}</b> ha finito`:`affido a <b>${esc(_agNome(m.agent))}</b>${m.ruolo?' · '+esc(m.ruolo):''}`}</span></div>`;
+    }
+    /* V8/C3 · Il risultato è un OGGETTO con un nome, non testo che scorre via.
+       Quello che l'agente produce diventa una scheda: si vede cos'è, si apre,
+       si salva. Il «Salva nel cervello» esisteva già — era un bottone in fondo
+       a un paragrafo, e nessuno lo trovava. */
+    if(m.role==='scheda'){
+      const col=AG_COLORS[m.agent]||'var(--magenta)';
+      return `<div class="msg bot"><div class="av" style="background:${col}">${icon('doc',15)}</div>
+        <div class="scheda-out" style="border-color:${col}66">
+          <div class="row" style="justify-content:space-between;gap:8px;align-items:flex-start">
+            <div><b class="scheda-nome">${esc(m.nome||'Documento')}</b>
+              <div class="small muted" style="margin-top:2px">${esc(_agNome(m.agent))}${m.tipo?' · '+esc(m.tipo):''} · ${m.righe} rig${m.righe===1?'a':'he'}</div></div>
+            <span class="pill" style="border-color:${col}66;color:${col}">pronto</span></div>
+          <div class="row" style="margin-top:10px;flex-wrap:wrap">
+            <button class="btn sm" onclick="apriScheda(${i})">Apri</button>
+            ${state.clientMode||state.demo?'':`<button class="btn sm primary" onclick="salvaForm(${i})">${icon('doc',12)} Salva nel cervello</button>`}
+            <button class="btn sm ghost" onclick="copiaScheda(${i})">Copia</button></div>
+        </div></div>`;
+    }
     if(m.role==='approval'){const col=AG_COLORS[m.agent]||'var(--magenta)';return `<div class="msg bot"><div class="av" style="background:${col}">${icon('spark',15)}</div><div class="bubble" style="border:1px solid rgba(248,105,60,.45)"><div style="font-weight:700;font-size:13px;margin-bottom:4px">Azione in attesa della TUA approvazione</div><div class="small muted" style="margin-bottom:10px">${esc(m.title||'')} — nessun effetto finché non decidi · ${icon('lock',11)} coerente con Proposte audit</div>${m.done?`<span class="tag ${m.done==='approvata'?'pos':'mut'}">${m.done==='approvata'?'✓ approvata da '+esc(m.by||''):'✕ rifiutata (archiviata, mai cancellata)'}</span>`:`<div class="row" style="flex-wrap:wrap"><input placeholder="Chi decide (nome)" id="ap-${esc(m.tid)}" style="max-width:170px"><button class="btn sm primary" onclick="chatApprove('${esc(m.tid)}','approvata')">✓ Approva</button><button class="btn sm" onclick="chatApprove('${esc(m.tid)}','archiviata')">✕ Rifiuta</button></div>`}</div></div>`;}
     const src=(m.sources||[]).map(s=>{
       if(s.type==='agent'){const col=AG_COLORS[s.agent]||'var(--magenta)';return `<span class="src-pill" style="color:${col};border-color:${col}55">${icon('spark',11)} ${esc(s.agent||'agente')}${s.skill?` · ${esc(s.skill)}`:''}${s.confidence!=null?` · ${Math.round(s.confidence*100)}%`:''}</span>`;}
@@ -1841,7 +2111,14 @@ function renderChat(){
     const salva=(!state.clientMode&&!state.demo&&!m.gap&&m.text&&!m.text.startsWith('✕'))
       ?`<button class="btn sm ghost" id="sv-${i}" onclick="salvaForm(${i})" style="margin-top:6px;min-height:28px;padding:2px 10px">${icon('doc',12)} Salva nel cervello</button>`:'';
     const traccia=(m.trace||[]).length?`<div style="margin-top:5px">${m.trace.map(t=>`<div class="trace-line">✓ ${esc(t)}</div>`).join('')}</div>`:'';
-    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${bb.h}</div>${bb.fuori?`<div class="small" style="color:var(--orange);margin-top:4px">${icon('alert',11)} le parti evidenziate NON vengono dal cervello: ragionamento, non fonte</div>`:''}${traccia}${src?`<div class="sources">${src}</div>`:''}${offerta}${capBox(m,i)}${salva}</div></div>`;
+    /* V8/A · Quando il sistema registra qualcosa su di te, lo dici LÌ, nel
+       momento in cui succede, col bottone per farglielo dimenticare. Una
+       memoria che si forma di nascosto è la cosa che rende sgradevoli questi
+       prodotti; questa si forma davanti agli occhi. */
+    const ric=m.ricordato?`<div class="ricordato" data-ric="${esc(m.ricordato.id)}">
+      <span class="small">${icon('brain',12)} Me lo ricordo: <b>${esc(m.ricordato.fatto)}</b></span>
+      <button class="btn sm ghost" onclick="dimenticaSubito(${i})">Dimentica</button></div>`:'';
+    return `<div class="msg bot"><div class="av">DV</div><div><div class="bubble">${bb.h}</div>${bb.fuori?`<div class="small" style="color:var(--orange);margin-top:4px">${icon('alert',11)} le parti evidenziate NON vengono dal cervello: ragionamento, non fonte</div>`:''}${traccia}${src?`<div class="sources">${src}</div>`:''}${ric}${offerta}${capBox(m,i)}${salva}</div></div>`;
   }).join('');
   const sc=$('#chatScroll');if(sc)sc.scrollTop=sc.scrollHeight;
   $$('#chatInner [data-fire]').forEach(p=>p.onclick=()=>apriNota(p.dataset.fire));
@@ -1862,7 +2139,8 @@ async function sendChat(){
   if(state.orchOk){brainTimer=setInterval(async()=>{try{
     const d=await api('orch','/agents/dispatches?limit=1');const e=(d.dispatches||[])[0];
     const el=document.getElementById('typingStatus');
-    if(el&&e&&e.at>=t0-2&&e.routed){const col=AG_COLORS[e.agent]||'var(--magenta)';el.innerHTML=`<b style="color:${col}">${icon('spark',12)} ${esc(e.agent)}</b> · ${esc(e.role||e.skill||'')} sta lavorando…`;setOrb('ragionando',e.agent);agLavora(e.agent,{brief:text,role:e.role||e.skill||''});}
+    if(el&&e&&e.at>=t0-2&&e.routed){const col=AG_COLORS[e.agent]||'var(--magenta)';el.innerHTML=`<b style="color:${col}">${icon('spark',12)} ${esc(e.agent)}</b> · ${esc(e.role||e.skill||'')} sta lavorando…`;setOrb('ragionando',e.agent);agLavora(e.agent,{brief:text,role:e.role||e.skill||''});
+      segnaDelega(e.agent,e.role||e.skill||'');}   // V8/C2: la delega entra nel FILO
   }catch(_){}},1500);}
   try{
     const r=await chatTurn(text,history);
@@ -1876,19 +2154,83 @@ async function sendChat(){
     if(nFonti)trace.push(`ricerca sul cervello — ${nFonti} font${nFonti===1?'e':'i'}`);
     if((r.web_sources||[]).length)trace.push(`ricerca web — ${r.web_sources.length} risultati`);
     if(r.free)trace.push('ragionamento fuori dal cervello, marcato');
-    state.chat.push({role:'bot',text:r.answer,sources:r.sources,trace,gap:r.gap||null});
+    if(ag)chiudiDelega(ag.agent);          // V8/C2: «✓ … ha finito», nel filo
+    state.chat.push({role:'bot',text:r.answer,sources:r.sources,trace,gap:r.gap||null,
+                     ricordato:r.ricordato||null});   // V8/A: «me lo ricordo» + Dimentica
     if(ag){
       agFinisce(ag.agent,{output:r.answer,trace,brief:text});
-      toast(`${ag.agent.charAt(0).toUpperCase()+ag.agent.slice(1)} ha finito — apri la sua tab per il dettaglio`,'ok');
+      schedaRisultato(ag,r.answer,text);   // V8/C3: il risultato diventa un oggetto
     }
     setOrb(state.tts?null:'idle',r.agent||comp||'divina');
-    speak(r.answer);
+    speak(r.answer,false,(ag&&ag.agent)||comp||'');   // V8/C1: la voce di chi ha risposto
     /* A2 · Se ha risposto il cervello ma esiste un agente che quel lavoro lo FA,
        lo si dice sotto la risposta. Non si dirotta niente: la risposta resta. */
     if(!ag&&!state.clientMode)suggerisciCapacita(state.chat.length-1,text);
   }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'✕ '+e.message,sources:[]});setOrb('idle');}
   if(brainTimer)clearInterval(brainTimer);
   renderChat();
+}
+
+/* ══════════ V8/C2-C3 · La delega e il risultato, dentro la conversazione ══════
+   In Zoey, quando un companion passa il lavoro a un altro, nella chat compaiono
+   due righe di sistema — `↗ delegating to Marta`, `✓ Marta finished` — e il
+   documento prodotto appare come una scheda con i suoi bottoni. Non è una
+   rifinitura: è la differenza fra «ci mette tanto» e «sta lavorando, e lo vedo».
+   Divina aveva entrambe le informazioni e le teneva altrove (la Regia live e la
+   tab dell'agente). Restano dov'erano — la vista d'insieme serve — ma adesso
+   passano anche di qui, dove sta l'attenzione. */
+function segnaDelega(agent,ruolo){
+  if(!agent||agent==='divina')return;
+  if(state.chat.some(m=>m.role==='delega'&&m.agent===agent&&!m.fine))return;   // una volta sola
+  const i=state.chat.findIndex(m=>m.role==='typing');
+  const riga={role:'delega',agent,ruolo:ruolo||'',fine:false};
+  if(i<0)state.chat.push(riga); else state.chat.splice(i,0,riga);
+  renderChat();
+}
+function chiudiDelega(agent){
+  if(!state.chat.some(m=>m.role==='delega'&&m.agent===agent))segnaDelega(agent,'');
+  state.chat.push({role:'delega',agent,fine:true});
+}
+/* Il NOME della scheda: la prima riga del risultato se sembra un titolo,
+   altrimenti il brief accorciato. Mai «Documento 1»: un nome che non dice
+   niente è peggio del testo che sostituisce. */
+function nomeScheda(testo,brief){
+  const prima=String(testo||'').split('\n').map(s=>s.replace(/^#+\s*/,'').trim()).find(Boolean)||'';
+  if(prima&&prima.length<=70&&!/[.!?]$/.test(prima))return prima;
+  const b=String(brief||'').trim();
+  return b?(b.length>60?b.slice(0,57)+'…':b):'Risultato del lavoro';
+}
+function schedaRisultato(ag,testo,brief){
+  const t=String(testo||'').trim();
+  /* Solo se è davvero un OGGETTO: una risposta di due righe è una risposta, e
+     incorniciarla la farebbe sembrare più di quello che è. */
+  if(t.split('\n').filter(Boolean).length<4&&t.length<400)return;
+  state.chat.push({role:'scheda',agent:ag.agent,tipo:ag.skill||'',
+                   nome:nomeScheda(t,brief),testo:t,righe:t.split('\n').length});
+}
+function apriScheda(i){
+  const m=state.chat[i];if(!m)return;
+  const col=AG_COLORS[m.agent]||'var(--magenta)';
+  const back=document.createElement('div');back.className='modal-back open';
+  back.innerHTML=`<div class="modal" style="max-width:760px"><div class="card-head"><div><h3 style="color:${col}">${esc(m.nome)}</h3><p class="small muted">${esc(_agNome(m.agent))}${m.tipo?' · '+esc(m.tipo):''}</p></div><button class="btn sm ghost" id="scChiudi">Chiudi</button></div><pre class="mono small" style="white-space:pre-wrap;color:var(--text);margin-top:10px">${esc(m.testo)}</pre></div>`;
+  document.body.appendChild(back);
+  const via=()=>back.remove();
+  back.onclick=e=>{if(e.target===back)via();};
+  back.querySelector('#scChiudi').onclick=via;
+}
+function copiaScheda(i){
+  const m=state.chat[i];if(!m)return;
+  navigator.clipboard.writeText(m.testo||'').then(()=>toast('Copiato','ok'),()=>toast('Copia non riuscita','bad'));
+}
+/* V8/A · Il DIMENTICA che sta nella bolla: un clic, adesso, senza cercare la
+   pagina. Cancella davvero (art. 17): il server svuota il contenuto e lascia
+   solo la lapide. */
+async function dimenticaSubito(i){
+  const m=state.chat[i];if(!m||!m.ricordato)return;
+  try{
+    if(!state.demo)await api('engine','/admin/memoria/dimentica',{method:'POST',body:{id:m.ricordato.id,by:'owner'}});
+    m.ricordato=null;renderChat();toast('Dimenticato','info');
+  }catch(e){toast('✕ '+e.message,'bad');}
 }
 
 /* ── O2 · Le ORBITE: i tre raggruppamenti che il vault produce DAVVERO
@@ -2418,7 +2760,7 @@ async function voxSend(text){
     /* nel modo vocale la risposta si PARLA sempre (anche se la lettura è
        spenta nella chat scritta): è il punto del modo vocale */
     state._voxAfter=()=>{state._voxAfter=null;if(v.open&&!v.paused)voxListen();};
-    speak(r.answer,true);
+    speak(r.answer,true,r.agent||'');       // V8/C1: nel modo vocale la voce è di chi risponde
   }catch(e){
     state.chat.pop();
     if(v.open){voxLine('bot','✕ '+e.message);if(!v.paused)voxListen();}
@@ -2471,10 +2813,15 @@ function vce(){
   return _vce;
 }
 function dictUiOff(){const m=$('#chatMic');if(m)m.classList.remove('rec');}
-function speak(text,force){
+function speak(text,force,agente){
   if(!state.tts&&!force)return;                      // force: nel modo vocale si parla sempre
   const e=vce();
   if(!e){voxAfter();return;}                         // modulo assente: il loop vocale non resta appeso
+  /* V8/C1 · Chi parla ha la SUA voce. Al server va il nome dell'agente, mai un
+     voice_id: la mappa sta in app/voice.py. Se per quell'agente non è stata
+     configurata nessuna voce, il server ricade su quella di Divina — cioè
+     esattamente il comportamento di prima, senza spiegazioni da dare. */
+  if(e.setAgente)e.setAgente(agente||state._compSel||'');
   _voicePro().then(()=>{e.speak(String(text).slice(0,4000));});
 }
 function voxAfter(){const f=state._voxAfter;if(!f)return;state._voxAfter=null;f();}
@@ -2518,7 +2865,7 @@ async function chatApprove(tid,to){
 /* ── M1 · resa della coda unica: gruppi visibili (IN CORSO in cima), filtri
    in testa (origine + salto di stato), righe con titolo · origine · peso ·
    data di chiusura. Nessuna sotto-scheda da scegliere prima di capire. ── */
-const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)'],conversazione:['Da conversazione','var(--divina)']};
+const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cyan)'],proposta:['Proposta','var(--magenta)'],gap:['Gap','#EAB308'],cervello:['Cervello','var(--green)'],conversazione:['Da conversazione','var(--divina)'],cliente:['Dal cliente','var(--dante)']};
 /* ── H2 · La figura umana: SVG A STRATI (scelta a, motivata) — silhouette
    vettoriale con tre livelli semitrasparenti (corpo · asse interno · punti
    vivi) e una leggera parallasse al mouse. La sensazione di volume viene da
@@ -2843,6 +3190,7 @@ function renderImprove(){
         ${x.peso?`<span class="pill" title="peso">${esc(x.peso)}</span>`:''}
         ${x.pid?`<button class="btn sm" data-papp="${esc(x.pid)}" style="min-height:24px;padding:1px 8px">Approva</button>`:''}
       </div>
+      ${x.sid?`<div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center"><input placeholder="chi risponde" id="sgb-${esc(x.sid)}" style="max-width:120px;min-height:26px;font-size:11.5px"><button class="btn sm primary" data-sgok="${esc(x.sid)}" style="min-height:24px;padding:1px 8px">Accogli</button><button class="btn sm" data-sgno="${esc(x.sid)}" style="min-height:24px;padding:1px 8px">Respingi</button></div>`:''}
       ${x.tid?`<div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center"><span class="small muted">L'hai guardata?</span><input placeholder="chi conferma" id="vf-${esc(x.tid)}" style="max-width:130px;min-height:26px;font-size:11.5px"><button class="btn sm primary" data-vfok="${esc(x.tid)}" style="min-height:24px;padding:1px 8px">✓ Fatta</button><button class="btn sm" data-vfno="${esc(x.tid)}" style="min-height:24px;padding:1px 8px">Non ancora</button></div>`:''}
       </div>`;
   };
@@ -2870,6 +3218,16 @@ function renderImprove(){
   $$('[data-tutte]').forEach(b=>b.onclick=()=>{state._impTutte=state._impTutte||{};state._impTutte[b.dataset.tutte]=!state._impTutte[b.dataset.tutte];renderImprove();});
   $$('[data-is]').forEach(b=>b.onclick=()=>{const el=document.getElementById('imp-'+b.dataset.is);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});});
   $$('[data-papp]').forEach(b=>b.onclick=async()=>{try{await api('engine','/admin/proposals/approve',{method:'POST',body:{id:b.dataset.papp}});toast('Approvata: ora è una task del cervello','info');route('improve');}catch(e){toast('✕ '+e.message,'bad');}});
+  /* V8/B2 · La segnalazione del cliente si chiude col nome di chi risponde:
+     è la stessa firma delle contraddizioni e delle task, per la stessa ragione. */
+  const chiudiSeg=async(id,stato)=>{
+    const by=((document.getElementById('sgb-'+id)||{}).value||'').trim();
+    if(!by){toast('Indica chi risponde','bad');return;}
+    try{await api('engine','/admin/segnalazioni/chiudi',{method:'POST',body:{id,stato,by}});
+      toast(stato==='accolta'?'Accolta — ricordati di correggere la nota':'Respinta, col tuo nome','info');route('improve');}
+    catch(e){toast('✕ '+e.message,'bad');}};
+  $$('[data-sgok]').forEach(b=>b.onclick=()=>chiudiSeg(b.dataset.sgok,'accolta'));
+  $$('[data-sgno]').forEach(b=>b.onclick=()=>chiudiSeg(b.dataset.sgno,'respinta'));
   /* V7/C · Il merge ha messo la task «da verificare»; qui una PERSONA la chiude,
      col suo nome. «Non ancora» la rimanda in DA FARE: guardare e non essere
      convinti è un esito, e va registrato come gli altri. */
@@ -3157,13 +3515,19 @@ function newClientForm(){
 }
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],improve:['Miglioramenti','Da fare · in corso · fatte — audit, roadmap, proposte e gap in un posto solo'],proposals:['Miglioramenti','Da fare · in corso · fatte'],roadmap:['Miglioramenti','Da fare · in corso · fatte'],tasks:['Miglioramenti','Da fare · in corso · fatte'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Chiavi tenant','Onboarding & accessi'],agents:['Squadra','Divina e i tre companion — le capacità, la regia, il router'],clienti:['Clienti','Le schede, le note e gli accessi di ogni cliente'],human:['Human · evoluzione','La persona, non il lavoro — dati fuori dall\'indice, letti solo qui'],integrazioni:['Integrazioni','Gli strumenti collegati al tuo mondo'],impostazioni:['Impostazioni','Permessi, connessione, tema, installazione'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore']};
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],improve:['Miglioramenti','Da fare · in corso · fatte — audit, roadmap, proposte e gap in un posto solo'],proposals:['Miglioramenti','Da fare · in corso · fatte'],roadmap:['Miglioramenti','Da fare · in corso · fatte'],tasks:['Miglioramenti','Da fare · in corso · fatte'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Chiavi tenant','Onboarding & accessi'],agents:['Squadra','Divina e i tre companion — le capacità, la regia, il router'],clienti:['Clienti','Le schede, le note e gli accessi di ogni cliente'],human:['Human · evoluzione','La persona, non il lavoro — dati fuori dall\'indice, letti solo qui'],integrazioni:['Integrazioni','Gli strumenti collegati al tuo mondo'],impostazioni:['Impostazioni','Permessi, connessione, tema, installazione'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore'],
+  memoria:['Cosa so di te','Quello che il sistema ha imparato — con la fonte, e il bottone per dimenticarlo'],
+  ckb:['La vostra knowledge base','Le cose che sappiamo di voi, e come dirci che una è sbagliata'],
+  cbuchi:['Cosa non sappiamo','Le domande rimaste senza risposta sui vostri dati']};
 VIEWS.roadmap=VIEWS.tasks=VIEWS.proposals=VIEWS.improve;   // M1: tre nomi, una vista
 /* Le viste che non stanno più nel menu si evidenziano sulla loro PORTA. */
-const VIEW_PORTA={nodes:'brain',docs:'brain',contradictions:'brain',live:'agents',router:'agents',
+const VIEW_PORTA={nodes:'brain',docs:'brain',contradictions:'brain',live:'agents',router:'agents',memoria:'agents',
                   tasks:'improve',proposals:'improve',roadmap:'improve',clients:'clienti'};
+/* V8/B · Le porte che esistono anche per il CLIENTE. Fino a ieri ne aveva una
+   sola (la chat) e route() ci rimandava qualunque cosa chiedesse. */
+const CLIENTE_VIEWS=new Set(['chat','ckb','cbuchi']);
 function route(view){
-  if(state.clientMode)view='chat';   /* modalità cliente: esiste solo la chat */
+  if(state.clientMode&&!CLIENTE_VIEWS.has(view))view='chat';   /* modalità cliente: solo le sue porte */
   /* V2 · Fase 5: 'chat' apre il pannello sempre presente e la vista resta
      quella corrente — nessun link salvato si rompe. */
   if(view==='chat'&&!state.clientMode){
@@ -3171,6 +3535,11 @@ function route(view){
     view=(state.view&&state.view!=='chat')?state.view:'home';
     if(view===state.view){return;}                 // pannello aperto, vista invariata
   }
+  /* V8/D1 · Il numero del giro si incrementa QUI, non prima: sopra c'è un
+     ritorno anticipato (apri la chat, vista invariata) e incrementare lassù
+     avrebbe annullato un caricamento ancora in corso della vista corrente,
+     lasciandola a scheletro per sempre. */
+  const giro=++_giro;
   if(state._vox&&state._vox.open){console.info('[vox] chiusura richiesta da route('+view+')');voxClose();}
   if(state._liveTimer){clearInterval(state._liveTimer);state._liveTimer=null;}
   if(state._homeTimer){clearInterval(state._homeTimer);state._homeTimer=null;}   /* V5: le spie della home */
@@ -3192,13 +3561,18 @@ function route(view){
   /* Fase 4 · la porta Cervello e la porta Squadra hanno viste sorelle:
      si vedono MENTRE si guarda, non da un menu a parte */
   const SUBNAV={brain:[['brain','Cervello vivo'],['nodes','Nodi wiki'],['docs','Documenti'],['contradictions','Contraddizioni']],
-                agents:[['agents','Capacità'],['live','Regia live'],['router','Router / esegui']]};
-  const fam=SUBNAV[view]||SUBNAV[VIEW_PORTA[view]]||null;
+                agents:[['agents','Capacità'],['memoria','Cosa so di te'],['live','Regia live'],['router','Router / esegui']]};
+  /* V8/B · Il cliente non ha la barra laterale (resta il suo perimetro): le sue
+     tre porte stanno qui, sopra il contenuto. Sono TRE e non di più — un
+     pannello cliente con dodici voci è il modo di non farlo usare a nessuno. */
+  const fam=state.clientMode
+    ? [['chat','La conversazione'],['ckb','Cosa sappiamo di voi'],['cbuchi','Cosa non sappiamo']]
+    : (SUBNAV[view]||SUBNAV[VIEW_PORTA[view]]||null);
   const sn=$('#subnav');
   if(fam){sn.classList.add('on');sn.innerHTML=fam.map(([v2,l])=>`<button class="orbit-tab ${v2===view?'active':''}" data-sn="${v2}">${l}</button>`).join('');
     sn.querySelectorAll('[data-sn]').forEach(b=>b.onclick=()=>route(b.dataset.sn));}
   else{sn.classList.remove('on');sn.innerHTML='';}
-  (VIEWS[view]||VIEWS.home)();
+  (VIEWS[view]||VIEWS.home)(giro);
 }
 $$('.nav-item').forEach(n=>n.onclick=()=>route(n.dataset.view));
 $('#diagToggle').onclick=()=>{
@@ -3291,6 +3665,48 @@ function enterClientMode(d){
   }
   route('chat');
   const sub=$('#pageSub');if(sub)sub.textContent=`${d.account.display_name||d.account.email} · accesso cliente`;
+}
+/* V8/B2 · «Questa cosa è sbagliata» — una PROPOSTA, non una modifica.
+   Il cliente non scrive nel vault e non lo scriverà mai da qui: la segnalazione
+   arriva nella coda di FORMA, che corregge col suo nome. È la stessa governance
+   del write-back, vista dall'altra parte del vetro. */
+function formSegnala(nota){
+  const back=document.createElement('div');back.className='modal-back open';
+  back.innerHTML=`<div class="modal" style="max-width:560px">
+    <div class="card-head"><div><h3>Segnala un errore</h3>
+      <p class="small muted">${nota?esc(nota.title):'sulla vostra knowledge base'}</p></div></div>
+    <div class="small muted" style="line-height:1.7;margin-bottom:10px">Non modifica niente: arriva a FORMA come proposta di correzione.
+      Vi rispondiamo. Se scrivete un indirizzo o un numero, viene tolto prima di salvare.</div>
+    <label class="fld"><span class="lt">Cosa c'è di sbagliato</span><textarea id="sgCosa" placeholder="Es. gli orari del sabato sono cambiati: adesso chiudiamo alle 13"></textarea></label>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="sgNo">Annulla</button><button class="btn primary" id="sgOk">Invia a FORMA</button></div>
+    <div class="small" id="sgErr" style="color:var(--neg);min-height:16px;margin-top:8px"></div></div>`;
+  document.body.appendChild(back);
+  const via=()=>back.remove();
+  back.onclick=e=>{if(e.target===back)via();};
+  back.querySelector('#sgNo').onclick=via;
+  back.querySelector('#sgOk').onclick=async()=>{
+    const cosa=back.querySelector('#sgCosa').value.trim();
+    if(!cosa){back.querySelector('#sgErr').textContent='Scrivi cosa non va.';return;}
+    if(state.demo){via();toast('(DEMO) Segnalazione inviata a FORMA','ok');return;}
+    try{
+      const r=await fetch('/client/segnala',{method:'POST',credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({cosa,slug:(nota&&nota.slug)||'',titolo:(nota&&nota.title)||''})});
+      if(!r.ok){const d=await r.json().catch(()=>({}));back.querySelector('#sgErr').textContent=d.detail||'Invio non riuscito.';return;}
+      via();toast('Segnalazione inviata a FORMA — vi rispondiamo','ok');
+    }catch(_){back.querySelector('#sgErr').textContent='Servizio non raggiungibile.';}
+  };
+  back.querySelector('#sgCosa').focus();
+}
+/* Le due porte del cliente in modalità DEMO: servono al guardiano (che gira su
+   file://, senza cookie né server) e a far vedere il pannello a chi non ha
+   ancora un accesso cliente. */
+function demoClient(che){
+  if(che==='kb')return {totale:2,scopes:['ats'],persist:true,vuota_perche:'',note:[
+    {slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',updated_at:new Date(Date.now()-36e5*30).toISOString()},
+    {slug:'menu-ats',title:'Menu e orari ATS',path:'forma/clienti/ats/menu.md',updated_at:new Date(Date.now()-36e5*90).toISOString()}]};
+  return {consentito:false,buchi:[],totale:0,
+    perche:"Le domande rimaste senza risposta le hanno scritte i vostri utenti finali: mostrarle qui è una cosa che decidiamo insieme, non un'impostazione predefinita. Chiedetelo a FORMA e si accende."};
 }
 function clientLogout(){fetch('/client/logout',{method:'POST',credentials:'include'}).finally(()=>{location.hash='';location.reload();});}
 function renderClientLogin(){

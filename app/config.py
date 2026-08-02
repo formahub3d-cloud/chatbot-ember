@@ -181,6 +181,15 @@ class Settings(BaseSettings):
     elevenlabs_similarity: float = 0.80
     elevenlabs_style: float = 0.25
     elevenlabs_speaker_boost: bool = True
+    # V8/C1 · Una voce per agente. Zoey ha 63 voci ricercabili, scelte per
+    # companion; Divina ne aveva UNA per tutti e quattro — Dante, Virgilio e
+    # Beatrice hanno colori e forme diversi e parlavano con la stessa gola.
+    # È un parametro, non un progetto: la chiave resta sul server come adesso,
+    # e ogni variabile vuota ricade su ELEVENLABS_VOICE_ID (nessuna regressione
+    # per chi non le imposta). Le si prova cambiando una variabile su Railway.
+    elevenlabs_voice_id_dante: str = ""
+    elevenlabs_voice_id_virgilio: str = ""
+    elevenlabs_voice_id_beatrice: str = ""
 
     # tenant: in cloud (Railway) il file tenants.json non c'è (gitignored).
     # Se valorizzata, questa variabile contiene la mappa tenant come stringa JSON
