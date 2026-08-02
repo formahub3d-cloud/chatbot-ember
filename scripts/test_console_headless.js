@@ -254,6 +254,30 @@ function trovaChromium() {
              nonFingeVuoto: !/Nessuna domanda rimasta/.test(t) };
   });
 
+  // 1b-quinquies-bis · V9/C · La capacità arriva DAL SERVER e si vede sotto la
+  //   risposta, con il bottone per affidarla. Il riconoscitore nella console non
+  //   esiste più: era l'unico posto dove funzionava, e a voce non serviva a
+  //   niente. Qui si verifica che la console disegni il dato che riceve.
+  const capV9 = await page.evaluate(() => {
+    const salvo = state.chat.slice();
+    state.demo = false;
+    state.chat = [{ role: "user", text: "cerca chi vende stampa 3D a Benevento" },
+                  { role: "bot", text: "Nel cervello non c'è.", sources: [],
+                    cap: { agente: "beatrice", skill: "customer-research",
+                           role: "Customer Research", desc: "trova e qualifica potenziali clienti" } }];
+    renderChat();
+    const t = document.getElementById("chatInner").textContent.replace(/\s+/g, " ");
+    const out = {
+      offerta: /Questo lo sa fare/.test(t),
+      chi: /Beatrice/.test(t),
+      bottone: /Affida a/.test(t),
+      // il riconoscitore lessicale del V7 non deve più esistere nella console
+      niente: typeof window.capTrova === "undefined" && typeof window.capCatalogo === "undefined",
+    };
+    state.chat = salvo; state.demo = true; renderChat();
+    return out;
+  });
+
   // 1b-sexies · V9/A · Una funzione spenta lo dice DOVE si usa.
   //   Il 2/08 «Cosa so di te» diceva «non so niente di te» mentre la verità era
   //   «non posso ricordare niente, mi manca la tabella». Qui si sorveglia che
@@ -583,6 +607,12 @@ function trovaChromium() {
   if (!vociV9) {
     console.error("FAIL (V9-A2): in Squadra non si vede chi parla ancora con la voce di Divina"); ko = 1;
   } else console.log("[voci] " + vociV9 + " agenti senza voce propria, dichiarati accanto al nome");
+  if (!capV9.offerta || !capV9.chi || !capV9.bottone) {
+    console.error("FAIL (V9-C): la capacità che il server suggerisce non si vede sotto la risposta " + JSON.stringify(capV9)); ko = 1;
+  }
+  if (!capV9.niente) {
+    console.error("FAIL (V9-C): il riconoscitore lessicale è rimasto nella console — due matcher divergono, e quello sbagliato è sempre quello che vede l'utente"); ko = 1;
+  }
   if (!sitoV9.bottone || !sitoV9.voci || sitoV9.cita !== sitoV9.voci || !sitoV9.url) {
     console.error("FAIL (V9-B): le voci proposte dal sito non portano tutte la pagina e la frase da cui vengono " + JSON.stringify(sitoV9)); ko = 1;
   }

@@ -753,7 +753,13 @@ function demoData(service, path, opts){
       if(msg.includes('orari')||msg.includes('apert')) a='(DEMO) La sede di Benevento è aperta lun–ven 9:00–18:00. Il servizio a domicilio ATS copre anche il weekend su prenotazione.';
       if(msg.includes('prezzo')||msg.includes('costo')||msg.includes('stampa')) a='(DEMO) La stampa 3D FDM parte da €15/pezzo; la SLA è su preventivo in base a volume e finitura. Vuoi una stima per un modello specifico?';
       if(msg.includes('business')||msg.includes('mercato')) a='(DEMO) Dal cervello: ATS opera nella ristorazione con servizio a domicilio. ⟦fuori⟧Nel mercato italiano della ristorazione il canale delivery vale in media il 10-15% del fatturato dei locali medio-piccoli: può essere una leva di crescita da verificare con dati reali del cliente.⟦/fuori⟧ Vuoi che salviamo questa pista sulla scheda ATS?';
-      return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats'],free:msg.includes('business')||msg.includes('mercato')});
+      /* V9/C · In demo la capacità arriva dal server come in produzione: qui la
+         si simula sui messaggi che somigliano a un compito, per far vedere la
+         FORMA dell'offerta — «questo lo sa fare X», con il bottone. */
+      const capD=/cerc|trov|client|mercat|concorren|fattur|sollecit|margin|contratt|post|social/.test(msg)
+        ?{agente:/fattur|sollecit|margin/.test(msg)?'dante':(/contratt/.test(msg)?'virgilio':'beatrice'),
+          skill:'customer-research',role:'Customer Research',desc:'(DEMO) trova e qualifica potenziali clienti, con la ricerca di mercato attorno'}:null;
+      return Promise.resolve({answer:a,sources:[{title:'Listino servizi 2026',slug:'listino-2026',scope:'forma-core'},{title:'Scheda cliente ATS',slug:'scheda-ats',scope:'ats'}],scopes:['forma-core','ats'],free:msg.includes('business')||msg.includes('mercato'),capacita:capD});
     }
     if(path.startsWith('/admin/tasks/close')||path.startsWith('/admin/tasks/transition')) return Promise.resolve({ok:true});
     if(path.startsWith('/admin/tasks?')&&path.includes('status=fatta')) return Promise.resolve({persist:true,tasks:[
@@ -1760,45 +1766,16 @@ const VIEWS={
    cervello resta, e sotto compare «questo lo sa fare Dante». Affidare il lavoro
    resta un clic dell'utente — e da lì in poi valgono i freni di sempre (una
    bozza, `in-approvazione`, livello 3 spento = non si accoda nemmeno). */
-const CAP_STOP=new Set(['il','lo','la','i','gli','le','un','una','uno','del','della','dei','delle','degli','di','a','da','in','con','su','per','tra','fra','e','o','che','chi','cosa','come','quando','dove','perche','mi','ti','ci','vi','si','me','te','se','non','piu','molto','tutto','tutti','puoi','potresti','vorrei','volevo','serve','bisogno','fare','fammi','dammi','sono','essere','avere','questo','questa','quello','quella','adesso','subito','favore','cortesia','grazie','ciao']);
-function capParole(t){
-  return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .split(/[^a-z0-9]+/).filter(w=>w.length>3&&!CAP_STOP.has(w));
-}
-async function capCatalogo(){
-  if(state._capacita)return state._capacita;
-  let ag=null;
-  try{ag=await api('orch','/agents');}catch(_){return null;}   // orchestratore giù: nessun suggerimento, mai un errore in chat
-  const out=[];
-  const aggiungi=(agente,nome,skills)=>(skills||[]).forEach(sk=>out.push({
-    agente,nome,id:sk.id,role:sk.role||sk.id,desc:sk.desc||'',dip:sk.department||'',
-    parole:capParole([sk.id,sk.role,sk.desc,sk.department].join(' '))}));
-  (ag.agents||[]).forEach(a=>aggiungi(a.id,a.name||a.id,a.skills));
-  (ag.subagents||[]).forEach(a=>aggiungi(a.sotto||a.id,a.name||a.id,a.skills));
-  state._capacita=out;
-  return out;
-}
-/* Punteggio grezzo per sovrapposizione di parole. Volutamente semplice e
-   volutamente SEVERO nella soglia: un suggerimento sbagliato sotto ogni
-   risposta diventa rumore, e il rumore si impara a ignorare. */
-function capTrova(testo,cat){
-  const p=capParole(testo);
-  if(!p.length||!cat||!cat.length)return null;
-  let best=null;
-  for(const c of cat){
-    let n=0;
-    for(const w of p){if(c.parole.some(x=>x===w||(w.length>5&&x.startsWith(w.slice(0,5)))))n++;}
-    if(n&&(!best||n>best.n))best={c,n};
-  }
-  return best&&best.n>=2?best.c:null;    // due parole in comune: sotto è caso
-}
-async function suggerisciCapacita(i,testo){
-  const m=state.chat[i];if(!m||m.role!=='bot')return;
-  const cat=await capCatalogo();
-  const c=capTrova(testo,cat);
-  if(!c)return;
-  m.cap=c;renderChat();
-}
+/* V9/C · Il riconoscimento è passato al SERVER, e questo blocco è sparito.
+   Il V7 lo aveva messo qui — giusto, per non duplicare il catalogo — ma esisteva
+   solo nella console: nel widget sul sito di un cliente non c'era, e **a voce
+   non c'era affatto**, perché un chip non si clicca mentre si parla. Adesso è
+   `agents_bridge.trova()` a riconoscerlo, la capacità entra nella FRASE della
+   risposta, e `/chat` la restituisce anche come dato (`capacita`) perché qui si
+   possa disegnare il bottone. Un riconoscitore solo, per tutte le superfici.
+
+   Il catalogo continua a non essere duplicato da nessuna parte: il server lo
+   legge da `/agents` e lo tiene in RAM dieci minuti. */
 function affidaCapacita(i){
   const m=state.chat[i];if(!m||!m.cap)return;
   const testo=(state.chat[i-1]&&state.chat[i-1].role==='user')?state.chat[i-1].text:'';
@@ -2245,7 +2222,8 @@ async function sendChat(){
     if(r.free)trace.push('ragionamento fuori dal cervello, marcato');
     if(ag)chiudiDelega(ag.agent);          // V8/C2: «✓ … ha finito», nel filo
     state.chat.push({role:'bot',text:r.answer,sources:r.sources,trace,gap:r.gap||null,
-                     ricordato:r.ricordato||null});   // V8/A: «me lo ricordo» + Dimentica
+                     ricordato:r.ricordato||null,      // V8/A: «me lo ricordo» + Dimentica
+                     cap:(!ag&&!state.clientMode)?(r.capacita||null):null});   // V9/C: dal server
     if(ag){
       agFinisce(ag.agent,{output:r.answer,trace,brief:text});
       schedaRisultato(ag,r.answer,text);   // V8/C3: il risultato diventa un oggetto
@@ -2254,7 +2232,6 @@ async function sendChat(){
     speak(r.answer,false,(ag&&ag.agent)||comp||'');   // V8/C1: la voce di chi ha risposto
     /* A2 · Se ha risposto il cervello ma esiste un agente che quel lavoro lo FA,
        lo si dice sotto la risposta. Non si dirotta niente: la risposta resta. */
-    if(!ag&&!state.clientMode)suggerisciCapacita(state.chat.length-1,text);
   }catch(e){state.chat.pop();state.chat.push({role:'bot',text:'✕ '+e.message,sources:[]});setOrb('idle');}
   if(brainTimer)clearInterval(brainTimer);
   renderChat();

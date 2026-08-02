@@ -530,11 +530,25 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
                 lang = nuova["valore"]        # vale già da questa risposta, non dalla prossima
             pref[nuova["chiave"]] = nuova["valore"]
     ricordi = memoria.per_prompt(tcode)
+    # V9/C · Le capacità raggiungibili dalla CONVERSAZIONE (audit-2026-07-31-06,
+    # aperta dal 31 luglio). Il V7 aveva messo il riconoscitore nella console:
+    # giusto per non duplicare il catalogo, ma nel widget di un cliente non c'è
+    # e **a voce non c'è affatto** — un chip non si clicca mentre si parla.
+    # Adesso lo fa il server, e la capacità entra nella FRASE.
+    #
+    # Il vettore della domanda si calcola UNA volta e serve a due cose: il
+    # retrieval e il riconoscimento. Senza, «cerca chi vende stampa 3D» non
+    # arriverebbe mai a `customer-research` — non hanno una parola in comune, e
+    # contare le parole vorrebbe dire chiedere all'utente di indovinare il nome
+    # della skill scritto peggio.
+    qvec = rag.vettore(body.message) if agents_bridge.enabled() else None
+    cap = agents_bridge.trova(body.message, qvec=qvec) if agents_bridge.enabled() else None
     if body.stream:
         try:
             gen = rag.answer_stream(body.message, _grants(tenant), history=turni,
                                     lang=lang, tier=tier, web=body.web, web_enabled=web_enabled,
-                                    focus_slugs=focus_slugs, free=free, memoria=ricordi)
+                                    focus_slugs=focus_slugs, free=free, memoria=ricordi,
+                                    capacita=cap)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -558,7 +572,8 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     try:
         out = rag.answer(body.message, _grants(tenant), history=turni, lang=lang,
                          tier=tier, web=body.web, web_enabled=web_enabled,
-                         focus_slugs=focus_slugs, free=free, memoria=ricordi)
+                         focus_slugs=focus_slugs, free=free, memoria=ricordi,
+                         capacita=cap)
     except HTTPException:
         raise
     except Exception:
@@ -568,6 +583,10 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     filo.aggiungi(tcode, conv, turni, body.message, out.get("answer", ""))
     if isinstance(out.get("filo"), dict):
         out["filo"]["da"] = da_dove      # client | server | nessuno: la console lo dice
+    if cap:
+        # La stessa forma che la console già disegna dal V7 (`m.cap`): un posto
+        # solo dove renderla, e adesso la riceve anche il widget.
+        out["capacita"] = {k: cap[k] for k in ("agente", "skill", "role", "desc")}
     if nuova and salvata:
         # Nella bolla, non in un menu: «me lo ricordo» + il bottone per farmelo
         # dimenticare. Una memoria che si forma di nascosto è la cosa che rende
