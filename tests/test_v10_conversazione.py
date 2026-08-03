@@ -146,7 +146,7 @@ def test_prova5_dice_al_modello_di_non_reintrodurre():
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# Il conto delle cinque prove — quello che giustifica il punteggio dell'area
+# Il conto delle prove — quello che giustifica il punteggio dell'area
 # ══════════════════════════════════════════════════════════════════════════
 PROVE = {
     "torna indietro di un turno": "test_prova1_la_correzione_non_ricerca_la_frase_ritirata",
@@ -154,18 +154,32 @@ PROVE = {
     "abbandona senza rispondere lo stesso": "test_prova3_abbandonare_senza_niente_dopo_non_risponde_lo_stesso",
     "riapre la fonte invece di riformulare": "test_prova4_il_dubbio_arriva_con_le_fonti",
     "riprende dal punto in sospeso": "test_prova5_la_ripresa_riprende_il_punto",
+    # V12/B · La sesta, e non l'ho trovata io: l'ha trovata Andrea facendo due
+    # domande di fila in produzione. «Parlami del cliente HRH» → «E quanto paga
+    # al mese?» finiva contro il muro mentre la cifra era nel vault, perché la
+    # domanda di seguito partiva SENZA soggetto e pescava la KB pubblica invece
+    # della scheda. Vive in `tests/test_v12_filo_scheda.py` perché è lì che sta
+    # il suo indice finto; il conto dell'area si legge da qui.
+    "la domanda di seguito trova la scheda, non la KB":
+        "tests/test_v12_filo_scheda.py::test_la_domanda_di_seguito_trova_la_scheda_col_prezzo",
 }
 
 
-def test_le_prove_sono_cinque_e_hanno_tutte_un_test():
+def test_le_prove_hanno_tutte_un_test():
     """Il punteggio della conversazione, da adesso, si legge qui. Se una prova
     sparisce dall'elenco senza che sparisca dal quadro, il quadro mente."""
     import inspect
+    import pathlib
     import sys
     qui = {n for n, _f in inspect.getmembers(sys.modules[__name__], inspect.isfunction)}
-    assert len(PROVE) == 5
+    assert len(PROVE) == 6
     for descrizione, nome in PROVE.items():
-        assert nome in qui, f"«{descrizione}» non ha il suo test"
+        if "::" in nome:
+            f, t = nome.split("::")
+            testo = (pathlib.Path(__file__).parent.parent / f).read_text("utf-8")
+            assert f"def {t}(" in testo, f"«{descrizione}» non ha il suo test"
+        else:
+            assert nome in qui, f"«{descrizione}» non ha il suo test"
 
 
 # ══════════════════════════════════════════════════════════════════════════

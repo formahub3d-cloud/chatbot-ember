@@ -78,7 +78,6 @@ button{font-family:inherit}
 .brand-mark{width:40px;height:40px;border-radius:12px;flex-shrink:0;display:grid;place-items:center;font-family:'Orbitron';font-weight:800;font-size:15px;color:#fff;background:linear-gradient(140deg,var(--magenta),var(--cyan));box-shadow:0 0 22px rgba(221,36,242,.32)}
 .brand-name{font-size:15px;font-weight:800;letter-spacing:.02em}
 .brand-sub{font-size:10.5px;color:var(--text-2);letter-spacing:.02em}
-.nav-label{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.11em;margin:14px 10px 6px;display:flex;align-items:center;gap:7px}
 .nav-label .ld{width:6px;height:6px;border-radius:2px}
 .nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:9px 12px;border-radius:var(--radius-xs);border:1px solid transparent;background:none;color:var(--text-2);font-size:13.5px;font-weight:600;cursor:pointer;text-align:left;transition:background .15s,color .15s,border-color .15s;min-height:42px}
 .nav-item:hover{background:var(--surface-2);color:var(--text)}
@@ -112,7 +111,6 @@ button{font-family:inherit}
 .icon-btn:hover{color:var(--text);border-color:var(--magenta)}
 .content{padding:26px;max-width:1320px;width:100%;overflow-y:auto;flex:1}
 .content.chatmode{padding:0;max-width:none;display:flex;flex-direction:column}
-.view{animation:fade .3s ease}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .sec{font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.11em;margin:28px 0 14px;display:flex;align-items:center;gap:11px}
 .sec:first-child{margin-top:0}
@@ -183,13 +181,8 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
 .muted{color:var(--text-2)}.small{font-size:11.5px}.hide{display:none!important}.hbar{display:flex;align-items:center;gap:10px}
 .side-backdrop{display:none}
 /* agent cards */
-.agent-card{border:1px solid var(--border);border-radius:var(--radius);padding:20px;background:var(--surface);position:relative;overflow:hidden;box-shadow:var(--shadow-sm)}
 .agent-card .accent-top{position:absolute;inset:0 0 auto 0;height:4px}
-.agent-head{display:flex;align-items:center;gap:13px;margin-bottom:6px}
 .agent-avatar{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-family:'Orbitron';font-weight:800;font-size:18px;color:#fff;flex-shrink:0}
-.agent-name{font-size:17px;font-weight:800;font-family:'Orbitron'}
-.agent-arch{font-size:11px;color:var(--text-2);font-style:italic}
-.agent-tagline{font-size:12.5px;color:var(--text-2);margin:8px 0 14px;line-height:1.5}
 .dept-title{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 8px;display:flex;align-items:center;gap:8px}
 .dept-title::after{content:'';flex:1;height:1px;background:var(--border)}
 .skill-item{display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);margin-bottom:6px;font-size:12.5px;cursor:pointer;transition:border-color .15s}
@@ -236,10 +229,8 @@ label.fld .lt{display:block;font-size:11.5px;font-weight:600;color:var(--text-2)
   .bubble{max-width:86%}
 }
 /* ── Il tuo mondo (home) · stile "AI OS", brand FORMA ── */
-.hero{position:relative;border:1px solid var(--border);border-radius:var(--radius);padding:32px 28px;overflow:hidden;background:linear-gradient(150deg,var(--surface),var(--bg));box-shadow:var(--shadow-sm)}
 .hero::before{content:'';position:absolute;top:-45%;right:-12%;width:430px;height:430px;border-radius:50%;background:radial-gradient(circle,var(--bg-grad-1),transparent 65%);pointer-events:none}
 .hero::after{content:'';position:absolute;bottom:-55%;left:-14%;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,var(--bg-grad-2),transparent 65%);pointer-events:none}
-.hero-in{position:relative;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
 .orb{width:76px;height:76px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-family:'Orbitron';font-weight:800;font-size:21px;color:#fff;background:radial-gradient(circle at 30% 28%,rgba(255,255,255,.34),transparent 42%),linear-gradient(140deg,var(--magenta),var(--cyan));box-shadow:0 0 44px rgba(221,36,242,.45);animation:breathe 4.5s ease-in-out infinite}
 @keyframes breathe{0%,100%{transform:scale(1);box-shadow:0 0 34px rgba(221,36,242,.38)}50%{transform:scale(1.05);box-shadow:0 0 54px rgba(14,212,228,.5)}}
 .hero h1{font-size:clamp(20px,3.4vw,27px);letter-spacing:-.4px;line-height:1.25}
@@ -402,10 +393,6 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
 .orb-pick.lavora::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-left:6px;vertical-align:middle;animation:lampeggia 1s infinite}
 @keyframes lampeggia{50%{opacity:.2}}
 .chipx{background:none;border:none;color:inherit;cursor:pointer;font-size:13px;margin-left:6px;padding:0 2px}
-/* Human · la figura a strati: prospettiva leggera, strati che scivolano */
-.hfig{perspective:700px;display:flex;justify-content:center;padding:8px 0}
-.hfig svg{width:min(100%,300px);height:auto;transform:rotateX(var(--hrx,0deg)) rotateY(var(--hry,0deg));transition:transform .25s ease}
-.hstrato{transition:transform .25s ease}
 #subnav{margin:10px 22px 0;display:none;gap:6px;flex-wrap:wrap}
 #subnav.on{display:flex}
 /* ── Task 18 · L'allarme del cervello fermo: visibile ovunque, non a piè di pagina ── */
@@ -441,8 +428,6 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
   .composer{margin-bottom:56px}
   .topbar>div{min-width:0}
   .page-title{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hero{padding:20px 16px}
-  .hero-in{gap:16px}
   .orb{width:60px;height:60px;font-size:17px}
   .hero .cta .btn{flex:1 1 auto;min-width:132px}
   .orbbar{padding:7px 12px;gap:10px;flex-wrap:wrap}
@@ -470,7 +455,6 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
   .content{padding:12px}
   .stat{padding:14px}
   .tag{font-size:9px}
-  .agent-tagline{font-size:11px}
 }
 </style>
 </head>
@@ -756,6 +740,15 @@ function demoData(service, path, opts){
       if(msg.includes('orari')||msg.includes('apert')) a='(DEMO) La sede di Benevento è aperta lun–ven 9:00–18:00. Il servizio a domicilio ATS copre anche il weekend su prenotazione.';
       if(msg.includes('prezzo')||msg.includes('costo')||msg.includes('stampa')) a='(DEMO) La stampa 3D FDM parte da €15/pezzo; la SLA è su preventivo in base a volume e finitura. Vuoi una stima per un modello specifico?';
       if(msg.includes('business')||msg.includes('mercato')) a='(DEMO) Dal cervello: ATS opera nella ristorazione con servizio a domicilio. ⟦fuori⟧Nel mercato italiano della ristorazione il canale delivery vale in media il 10-15% del fatturato dei locali medio-piccoli: può essere una leva di crescita da verificare con dati reali del cliente.⟦/fuori⟧ Vuoi che salviamo questa pista sulla scheda ATS?';
+      /* V12/C · …e così la DELEGA: con `agent` nella richiesta la risposta porta
+         una fonte di tipo agent, esattamente come in produzione. Senza, il
+         percorso «affido a Dante → ha finito → scheda» non era attraversabile
+         in demo, ed è una delle task che nessuno poteva verificare. */
+      if(opts.body&&opts.body.agent&&opts.body.companion){
+        const chi=opts.body.companion;
+        return Promise.resolve({answer:`(DEMO) ${chi} ha preparato quello che hai chiesto.`,
+          agent:chi,sources:[{type:'agent',agent:chi,skill:'cash-flow-snapshot',role:'Prepara il preventivo'}]});
+      }
       /* V9/C · In demo la capacità arriva dal server come in produzione: qui la
          si simula sui messaggi che somigliano a un compito, per far vedere la
          FORMA dell'offerta — «questo lo sa fare X», con il bottone. */
@@ -1616,6 +1609,13 @@ const VIEWS={
       <div class="card"><div class="card-head"><div><h3>Cosa so di te</h3>
         <p>Nessuna percentuale: non c'è un criterio che la renderebbe una misura. C'è la frase da cui viene, e quante volte l'hai ridetta.</p></div>
         <span class="pill">${voci.length} cos${voci.length===1?'a':'e'}</span></div>
+        <!-- V12/C · Il difetto che il V9 esisteva per togliere era ESATTAMENTE
+             questo, e in questa pagina era rimasto: la lista delle memorie
+             mostrava «Non so ancora niente di te» anche quando la verità era
+             «mi manca la tabella». L'avviso era stato attaccato ai promemoria,
+             che sono la sezione sotto. Nessuno se n'era accorto perché nessuna
+             prova attraversava questa schermata con la dipendenza spenta. -->
+        ${boxDegrado(d.degrado)}
         ${voci.length?voci.map(m=>`<div class="mem-riga">
           <div style="min-width:0;flex:1">
             <b style="font-size:13.5px">${esc(m.fatto)}</b>
@@ -1630,8 +1630,8 @@ const VIEWS={
               :'<div class="small muted" style="margin-top:5px">— nessuna frase di origine: è stato scritto a mano</div>'}
           </div>
           <button class="btn sm ghost" data-dim="${esc(m.id)}">Dimentica</button>
-        </div>`).join(''):emptyBox(icon('brain',36),'Non so ancora niente di te',
-          'Le preferenze dichiarate in chat («parlami in italiano», «rispondi breve») finiscono qui, con la frase da cui vengono.')}
+        </div>`).join(''):vuotoOnesto(d.degrado,'Non so ancora niente di te',
+          'Le preferenze dichiarate in chat («parlami in italiano», «rispondi breve») finiscono qui, con la frase da cui vengono.','brain')}
       </div>
       <div class="card" style="margin-top:14px"><div class="card-head"><div><h3>Quello che ci siamo detti</h3>
         <p>Un promemoria per conversazione, scritto quando finisce — serve a riprendere il filo il giorno dopo.
@@ -3159,7 +3159,8 @@ async function oggiTreCose(){
     if(magre.length)cose.push({peso:3,
       titolo:`La knowledge base di ${magre[0][0].toUpperCase()} ha ${magre[0][1]===1?'una nota':magre[0][1]+' note'}.`,
       perche:'Se ti chiamano e il bot non sa rispondere, la brutta figura è tua.',
-      dove:'clienti',azione:'Riempila dal loro sito'});
+      dove:'clienti',azione:'Riempila dal loro sito',
+      fai:()=>formDalSito(magre[0][0])});
   }
 
   /* 2 · Il cervello non ha letto l'ultima versione del vault. Stessa fonte
@@ -3172,22 +3173,25 @@ async function oggiTreCose(){
     titolo:gg!=null&&gg>=1?`Il cervello non legge il vault da ${gg===1?'un giorno':gg+' giorni'}.`
                           :'Il cervello non ha letto l\'ultima versione del vault.',
     perche:'Quello che hai scritto ieri, Divina non lo sa ancora.',
-    dove:'brain',azione:'Lancia una lettura'});
+    dove:'brain',azione:'Lancia una lettura',fai:lanciaIngest});
 
   /* 3 · Proposte in coda: note pronte, ferme perché nessuno le ha guardate. */
   const np=((prop&&prop.proposals)||[]).length;
   if(np)cose.push({peso:2,
     titolo:`${np===1?'C\'è una proposta':'Ci sono '+np+' proposte'} in attesa di uno sguardo.`,
     perche:'Sono note già scritte: finché non le approvi, il cervello non le sa.',
-    dove:'improve',azione:'Guardale'});
+    dove:'improve',azione:'Guardale',fai:()=>route('improve')});
 
   /* 4 · Il pannello del cliente che nessun cliente ha aperto. È la cosa su cui
          si sta scommettendo di più, ed è anche la più facile da dimenticare. */
   const acc=(cli&&cli.clients)||[];
+  /* Qui il rimedio NON è collegabile: mandare un accesso a una persona è una
+     decisione, non un'azione da un clic. La riga resta e **il bottone no** —
+     meglio una diagnosi senza rimedio che un rimedio finto (V12/A1). */
   if(acc.length&&!acc.some(a=>a.last_login_at))cose.push({peso:1,
     titolo:'Nessun cliente ha mai aperto il suo pannello.',
     perche:'È la cosa che stai vendendo, e non l\'ha ancora vista nessuno.',
-    dove:'clienti',azione:'Manda un accesso'});
+    dove:'clienti'});
 
   cose.sort((a,b)=>b.peso-a.peso);
   const tre=cose.slice(0,OGGI_MAX);
@@ -3195,13 +3199,13 @@ async function oggiTreCose(){
     <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div>
       <h3 style="font-size:15px">Cosa conviene fare oggi</h3>
       <p>${tre.length===1?'una cosa sola':tre.length+' cose'} — le altre possono aspettare</p></div></div>
-      ${tre.map(c=>`<div class="imp-riga" style="cursor:pointer" onclick="route('${c.dove}')">
+      ${tre.map((c,i)=>`<div class="imp-riga" style="cursor:pointer" data-oggirow="${i}">
         <div class="row" style="gap:10px;align-items:baseline">
           <span style="color:var(--cyan);flex:none">▸</span>
           <div style="flex:1;min-width:0">
             <div style="font-size:13.5px;font-weight:600">${esc(c.titolo)}</div>
             <div class="small muted" style="margin-top:2px;line-height:1.6">${esc(c.perche)}</div></div>
-          <span class="pill" style="flex:none">${esc(c.azione)}</span></div></div>`).join('')}
+          ${c.fai?`<button class="btn sm" data-oggi="${i}" style="flex:none">${esc(c.azione)}</button>`:''}</div></div>`).join('')}
       <div class="small muted" style="margin-top:10px">
         <a href="#" onclick="route('improve');return false" style="color:var(--text-2)">mostrami tutto</a>
         — la lista completa, quando la vuoi.</div></div>`
@@ -3211,6 +3215,38 @@ async function oggiTreCose(){
       l'ultima versione del vault e non ci sono proposte in attesa. Quando una di queste cose cambia, compare qui —
       ${connesso()?'e questi sono dati veri, non un riempitivo.':'appena la console è connessa a un motore.'}
       <a href="#" onclick="route('improve');return false" style="color:var(--text-2)">mostrami tutto</a>.</div></div>`;
+  /* V12/A1 · Il cablaggio, che nel V11 mancava. Le azioni erano `<span
+     class="pill">`: sembravano bottoni e non facevano niente — Andrea le ha
+     premute e ha dovuto lanciare l'ingest dall'API. È l'opposto esatto della
+     regola del V11 («una funzione spenta lo dichiara»), finito proprio dentro
+     la funzione nata per quella regola.
+     La riga naviga, il bottone esegue, e premere il bottone non fa tutt'e due:
+     senza stopPropagation il rimedio partirebbe e la pagina cambierebbe sotto. */
+  box.querySelectorAll('[data-oggirow]').forEach(el=>{
+    const c=tre[+el.dataset.oggirow];
+    el.onclick=()=>{if(c&&c.dove)route(c.dove);};
+  });
+  box.querySelectorAll('[data-oggi]').forEach(b=>{
+    b.onclick=async e=>{
+      e.stopPropagation();
+      const c=tre[+b.dataset.oggi];if(!c||!c.fai)return;
+      b.disabled=true;
+      try{await c.fai();}finally{b.disabled=false;}
+    };
+  });
+}
+
+/* V12/A1 · Il rimedio vero: la lettura del vault si LANCIA dalla console.
+   Finora non esisteva da nessuna parte nel pannello — si faceva da curl, ed è
+   il motivo per cui «Lancia una lettura» non poteva funzionare. */
+async function lanciaIngest(){
+  if(state.demo){toast('In demo la lettura non parte: non c\'è un motore da leggere','info');return;}
+  toast('Sto leggendo il vault…','info');
+  try{
+    const r=await api('engine','/ingest',{method:'POST'});
+    toast('Cervello aggiornato: '+(r&&r.notes!=null?r.notes+' note':'fatto'),'ok');
+    refreshBadges();route('home');
+  }catch(e){toast('✕ '+e.message,'bad');}
 }
 function connesso(){return !!(state.engOk||state.demo);}
 /* ── Fase 8 · Aggiungi cliente: crea la SCHEDA nel cervello via /writeback,

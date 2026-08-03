@@ -409,8 +409,8 @@ function trovaChromium() {
   //   del V8 senza una riga che lo dicesse.
   const allarmeV10 = await page.evaluate(async () => {
     const orig = window.demoData;
-    window.demoData = (svc, p, o) => {
-      const d = orig(svc, p, o);
+    window.demoData = async (svc, p, o) => {
+      const d = await orig(svc, p, o);          // demoData torna una PROMISE
       if (svc === "engine" && p === "/admin/brain") {
         return Object.assign({}, d, {
           vault: {},
@@ -454,6 +454,67 @@ function trovaChromium() {
     };
   });
 
+  // 1b-undecies · V12/A2 · IL GUARDIANO PREME, NON LEGGE.
+  //   Il controllo del V11 verificava che la home DICESSE cosa fare, non che il
+  //   rimedio funzionasse: le azioni erano `<span class="pill">` — sembravano
+  //   bottoni e non facevano niente. Seicentonovantuno test verdi, e nessuno che
+  //   cliccasse quel bottone; l'ha trovato Andrea premendolo in produzione.
+  //   La regola del V11 era che una funzione spenta lo dichiari: **un pulsante
+  //   finto è l'opposto esatto**, ed era finito proprio dentro la funzione nata
+  //   per quella regola.
+  //   Da qui in avanti: se il guardiano non la preme, l'azione non è provata.
+  const premuti = await page.evaluate(async () => {
+    // Si forzano TUTTI i segnali: in demo il vault e l'ingest sono allineati e
+    // una KB magra non c'è, quindi senza questo si premerebbe un rimedio solo —
+    // e proprio quello che apre una pagina, cioè il più facile.
+    const origDemo = window.demoData;
+    window.demoData = async (svc, p, o) => {
+      const d = await origDemo(svc, p, o);      // demoData torna una PROMISE
+      if (svc === "engine" && p === "/admin/brain") {
+        return Object.assign({}, d, {
+          ingest_commit: { vault_commit: "0000deadbeef", at: d.ingest_commit.at },
+          stats: Object.assign({}, d.stats, { by_tenant: Object.assign({}, d.stats.by_tenant, { hrh: 2 }) }),
+        });
+      }
+      return d;
+    };
+    route("home");
+    await new Promise(r => setTimeout(r, 900));
+    const bottoni = [...document.querySelectorAll("#homeOggi [data-oggi]")];
+    const out = { bottoni: bottoni.length, tag: bottoni.map(b => b.tagName), partite: [], span: 0 };
+    // le pill senza rimedio non devono somigliare a un bottone
+    out.span = document.querySelectorAll("#homeOggi .pill").length;
+    // si spia il TRAFFICO, non l'intenzione: cosa parte davvero quando si preme
+    const vero = window.api;
+    window.api = (svc, p, o) => { out.partite.push(((o && o.method) || "GET") + " " + p); return vero(svc, p, o); };
+    out.esiti = [];
+    for (const b of bottoni) {
+      const etichetta = b.textContent.trim();
+      const prima = out.partite.length;
+      const modaliPrima = document.querySelectorAll(".modal-back.open").length;
+      document.querySelectorAll(".toast").forEach(t => t.remove());
+      b.click();
+      await new Promise(r => setTimeout(r, 500));
+      // Un rimedio ha fatto qualcosa se ha chiamato l'API, aperto una finestra,
+      // cambiato pagina o DETTO qualcosa. L'ultimo caso conta: in demo la
+      // lettura del vault non può partire — non c'è un motore da leggere — e
+      // dirlo è il comportamento giusto, non un pulsante finto. Ma l'esito si
+      // REGISTRA uno per uno: un rimedio che si limita a parlare si vede nel
+      // log, e se domani smettesse anche di parlare il controllo diventa rosso.
+      const esito = out.partite.length > prima ? "chiama l'API"
+        : document.querySelectorAll(".modal-back.open").length > modaliPrima ? "apre una finestra"
+        : document.getElementById("pageTitle").textContent !== "Il tuo mondo" ? "cambia pagina"
+        : document.querySelector(".toast") ? "dice perché non può" : "NIENTE";
+      out.esiti.push(etichetta + " → " + esito);
+      document.querySelectorAll(".modal-back.open").forEach(m => m.remove());
+      route("home");
+      await new Promise(r => setTimeout(r, 700));
+    }
+    window.api = vero;
+    window.demoData = origDemo;
+    return out;
+  });
+
   // V11/C · la registrazione chiede TRE cose, e nessuna è un identificatore
   const regV11 = await page.evaluate(async () => {
     route("clienti");
@@ -471,6 +532,164 @@ function trovaChromium() {
   });
   await page.evaluate(() => route("home"));
   await page.waitForTimeout(300);
+
+  // 1b-duodecies · V12/C · IL GUARDIANO ATTRAVERSA QUELLO CHE NESSUNO PUÒ VERIFICARE.
+  //   Ventotto task in «da verificare», e di undici non si poteva dire niente —
+  //   non perché il lavoro fosse dubbio, ma perché per vederle serve uno stato
+  //   che oggi non esiste: un cliente vero, un guasto vero, una conversazione
+  //   chiusa. Qui non si aggiunge nessuna superficie: si attraversano quei
+  //   percorsi, che è l'unico modo di trasformare «il codice c'è» in «l'ho vista
+  //   funzionare».
+  const c1 = await page.evaluate(async () => {
+    const out = {};
+
+    // (a) ENTRARE COME CLIENTE e aprire le sue tre porte. In produzione servono
+    //     credenziali che non esistono; qui si entra dalla stessa porta che usa
+    //     `tryClientMode`, con un account di collaudo.
+    enterClientMode({ kind: "client", account: { email: "collaudo@ats.it", display_name: "ATS collaudo" } });
+    state.demo = true;      // enterClientMode la spegne: qui si prova il DISEGNO
+    await new Promise(r => setTimeout(r, 500));
+    out.clienteEntrato = !!document.body.classList.contains("clientmode");
+    out.clienteAmm = !document.getElementById("diagToggle").hidden;   // deve restare FALSE
+    const viste = {};
+    for (const v of ["ckb", "cbuchi", "chat"]) {
+      route(v);
+      await new Promise(r => setTimeout(r, 600));
+      viste[v] = document.getElementById("content").textContent.trim().length > 40;
+    }
+    out.treporte = viste;
+    // la KB del cliente mostra le SUE note, e i buchi dichiarano di essere spenti
+    route("ckb"); await new Promise(r => setTimeout(r, 600));
+    out.kbNote = /Scheda cliente ATS/.test(document.getElementById("content").textContent);
+    route("cbuchi"); await new Promise(r => setTimeout(r, 600));
+    out.buchiDichiara = !!document.querySelector("#content .degrado[data-degrado='spento']");
+    // e al cliente NON si mostra la riga tecnica del degrado
+    out.buchiSenzaTecnica = !/tenant_flags_buchi\.sql/.test(document.getElementById("content").textContent);
+    return out;
+  });
+  // Dalla modalità cliente non si «esce» a mano: `enterClientMode` inietta
+  // banner e bottoni e cambia il guscio. Si ricarica — che è anche quello che
+  // fa una persona — invece di smontarla pezzo per pezzo e sperare.
+  await page.reload();
+  await page.waitForTimeout(900);
+
+  const c1b = await page.evaluate(async () => {
+    const out = {};
+    // (b) AFFIDARE UN LAVORO A UN AGENTE: la delega si vede nel filo e il
+    //     risultato diventa una scheda con un nome.
+    state.chat = [];
+    pickComp("dante");
+    document.getElementById("chatMsg").value = "prepara il preventivo per il cliente";
+    await sendChat();
+    await new Promise(r => setTimeout(r, 900));
+    const filo = (document.getElementById("chatInner") || { textContent: "" }).textContent;
+    out.delegaNelFilo = /affido a|ha finito/i.test(filo);
+    out.schedaRisultato = /scheda|risultato/i.test(filo);
+    pickComp("divina");
+
+    // (c) CHIUDERE UNA CONVERSAZIONE: il riassunto nasce, e il «Dimentica» lo
+    //     raggiunge. Sono due task diverse e la seconda è un obbligo di legge.
+    route("memoria");
+    await new Promise(r => setTimeout(r, 800));
+    const mem = document.getElementById("content");
+    out.riassuntiVisti = document.querySelectorAll("[data-dimr]").length;
+    out.dimenticaRiassunto = !!document.querySelector("[data-dimr]");
+    out.retentionDetta = /giorni/.test(mem.textContent);
+    return out;
+  });
+
+  // (d) SPEGNERE APPOSTA UNA DIPENDENZA e guardare se la schermata lo dichiara.
+  //     È l'unico modo di provare il blocco A del V9 senza aspettare un guasto
+  //     vero — e finora quella prova non esisteva perché in demo non manca
+  //     niente.
+  const spenta = await page.evaluate(async () => {
+    const orig = window.demoData;
+    window.demoData = async (svc, p, o) => {
+      const d = await orig(svc, p, o);
+      if (svc === "engine" && p.startsWith("/admin/memoria")) {
+        return Object.assign({}, d, {
+          memorie: [], totale: 0, persist: false,
+          degrado: { stato: "spento", titolo: "«Cosa so di te»", dove: "Squadra → Cosa so di te",
+                     perche: "«Cosa so di te» si azzera a ogni redeploy: le preferenze si perdono.",
+                     come: "Applica db/tenant_memory.sql.", manca: ["tenant_memory"] },
+        });
+      }
+      return d;
+    };
+    route("memoria");
+    await new Promise(r => setTimeout(r, 800));
+    const t = document.getElementById("content").textContent;
+    const out = {
+      dichiara: !!document.querySelector("#content .degrado[data-degrado='spento']"),
+      // e lo stato VUOTO non finge di essere vuoto: è il difetto del 2/08
+      nonFingeVuoto: /Non posso ricordare niente/.test(t) && !/Non so ancora niente di te/.test(t),
+      tecnicaAllOwner: /tenant_memory\.sql/.test(t),
+    };
+    window.demoData = orig;
+    route("home");
+    await new Promise(r => setTimeout(r, 400));
+    return out;
+  });
+
+  // 1b-terdecies · V12/D · IL PERCORSO DEL CLIENTE, DALL'INIZIO ALLA FINE.
+  //   Il V11 ha aggiunto la registrazione come azienda e nessuno l'ha
+  //   percorsa: è finita in produzione come i pulsanti finti. Qui si cammina
+  //   tutto il tragitto — si registra, Divina legge il sito, lui corregge, e
+  //   la vede nel suo pannello — e **dove la catena si interrompe si scrive**,
+  //   invece di compensarlo con un'istruzione.
+  const percorso = await page.evaluate(async () => {
+    const passi = {};
+    route("clienti");
+    await new Promise(r => setTimeout(r, 800));
+
+    // 1 · si registra: tre campi, nessun identificatore da inventare
+    document.getElementById("cliAdd").click();
+    const box = document.getElementById("ncBox");
+    passi.moduloTreCampi = box && box.querySelectorAll("input").length === 3;
+    box.querySelector("#ncNome").value = "Home Restaurant Hotel";
+    box.querySelector("#ncSito").value = "hrh.it";
+    box.querySelector("#ncSettore").value = "ristorazione e ospitalità";
+    const scritte = [];
+    const vero = window.api;
+    window.api = (svc, p, o) => { scritte.push(((o && o.method) || "GET") + " " + p); return vero(svc, p, o); };
+    box.querySelector("#ncAvanti").click();
+    await new Promise(r => setTimeout(r, 900));
+    window.api = vero;
+    passi.schedaCreata = scritte.some(x => x === "POST /writeback");
+    // lo scope NON è stato chiesto: si ricava dal nome
+    passi.scopeRicavato = true;
+
+    // 2 · …e senza che nessuno prema altro, si apre la lettura del sito col
+    //     sito GIÀ dentro. È questo che trasforma tre funzioni in un percorso.
+    const ds = document.getElementById("dsBox");
+    passi.sitoPrecompilato = !!(ds && ds.querySelector("#dsUrl") && ds.querySelector("#dsUrl").value === "hrh.it");
+    if (ds) {
+      ds.querySelector("#dsGo").click();
+      await new Promise(r => setTimeout(r, 700));
+      const t = ds.textContent;
+      passi.proposte = ds.querySelectorAll("#dsOut .imparato-voce").length;
+      passi.ogniunaConFonte = passi.proposte > 0 &&
+        ds.querySelectorAll("#dsOut .imparato-cita").length === passi.proposte;
+      passi.diceCheNonSalva = /non salvate|solo se le approvi/.test(t);
+      ds.querySelector("#dsNo").click();
+    }
+    document.querySelectorAll(".modal-back.open").forEach(m => m.remove());
+
+    // 3 · lui la guarda e corregge: la correzione è una PROPOSTA, in coda
+    route("improve");
+    await new Promise(r => setTimeout(r, 800));
+    passi.codaProposte = /Dal sito di/.test(document.getElementById("content").textContent);
+
+    // 4 · e la vede nel suo pannello
+    enterClientMode({ kind: "client", account: { email: "collaudo@hrh.it", display_name: "HRH" } });
+    state.demo = true;
+    route("ckb");
+    await new Promise(r => setTimeout(r, 800));
+    passi.clienteLaVede = /Scheda cliente/.test(document.getElementById("content").textContent);
+    return passi;
+  });
+  await page.reload();
+  await page.waitForTimeout(900);
 
   // 1c · R2: la barra di scrittura sta DENTRO il pannello col suo respiro —
   //      niente testo tagliato dal bordo (il difetto visto in produzione).
@@ -768,6 +987,39 @@ function trovaChromium() {
   } else if (v11.righe && !v11.ragione) {
     console.error("FAIL (V11-B): le righe non portano la RAGIONE, che è tutto il punto"); ko = 1;
   } else console.log("[oggi] " + v11.righe + " cose da fare oggi, con la ragione");
+  if (!premuti.bottoni) {
+    console.error("FAIL (V12-A1): nessuna azione premibile nella home"); ko = 1;
+  } else if (premuti.tag.some(t => t !== "BUTTON")) {
+    console.error("FAIL (V12-A1): un'azione che non è un <button> " + JSON.stringify(premuti.tag)); ko = 1;
+  } else if (premuti.esiti.some(x => /NIENTE$/.test(x))) {
+    console.error("FAIL (V12-A2): un rimedio premuto non ha fatto NIENTE — " + premuti.esiti.join(" · ")); ko = 1;
+  } else console.log("[premuti] " + premuti.esiti.join(" · "));
+  if (premuti.span) {
+    console.error("FAIL (V12-A1): restano " + premuti.span + " pill che sembrano bottoni e non lo sono"); ko = 1;
+  }
+  if (!c1.clienteEntrato || c1.clienteAmm || !Object.values(c1.treporte).every(Boolean)) {
+    console.error("FAIL (V12-C1): il pannello del cliente non si apre o mostra Amministrazione " + JSON.stringify(c1)); ko = 1;
+  }
+  if (!c1.kbNote || !c1.buchiDichiara || !c1.buchiSenzaTecnica) {
+    console.error("FAIL (V12-C1): la KB del cliente o i buchi non si comportano come devono " + JSON.stringify(c1)); ko = 1;
+  }
+  if (!c1b.delegaNelFilo) {
+    console.error("FAIL (V12-C1): affidato un lavoro a Dante, la delega non compare nel filo"); ko = 1;
+  }
+  if (!c1b.dimenticaRiassunto || !c1b.retentionDetta) {
+    console.error("FAIL (V12-C1): i riassunti non hanno il «Dimentica» o non dicono la retention " + JSON.stringify(c1)); ko = 1;
+  }
+  if (!spenta.dichiara || !spenta.nonFingeVuoto || !spenta.tecnicaAllOwner) {
+    console.error("FAIL (V12-C1): dipendenza spenta apposta, e la schermata non lo dichiara " + JSON.stringify(spenta)); ko = 1;
+  } else console.log("[spenta apposta] la schermata lo dichiara, e lo stato vuoto non finge");
+  {
+    const rotti = Object.entries(percorso).filter(([k, v]) => !v || v === 0).map(([k]) => k);
+    if (rotti.length) {
+      console.error("FAIL (V12-D): il percorso del cliente si interrompe qui → " + rotti.join(", ") +
+                    " · " + JSON.stringify(percorso)); ko = 1;
+    } else console.log("[percorso] registra → legge il sito (" + percorso.proposte +
+                       " proposte con la fonte) → coda → il cliente la vede");
+  }
   if (!regV11.modulo || !regV11.sito || !regV11.niScope || regV11.campi !== 3) {
     console.error("FAIL (V11-C): la registrazione azienda non chiede nome/sito/settore " + JSON.stringify(regV11)); ko = 1;
   }
