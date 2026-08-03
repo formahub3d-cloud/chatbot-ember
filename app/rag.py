@@ -18,7 +18,7 @@ from .config import settings
 from .providers import embed, chat, chat_stream
 from .ingest import client
 from .security import sanitize_context, redact_pii
-from . import events, filo, metrics, websearch
+from . import autodoc, conversa, events, filo, metrics, websearch
 
 log = logging.getLogger("ember.rag")
 
@@ -38,6 +38,14 @@ _NO_ANSWER_EN = ("This isn't in the brain: I can't find it in the areas I can ac
 # accompagna. Non entra nel system prompt — la usa solo l'offerta in console.
 _GAP_OFFER_IT = "Aggiungiamolo al cervello: scrivo io la nota, tu la confermi."
 _GAP_OFFER_EN = "Let's add it to the brain: I'll draft the note, you confirm it."
+
+
+# V10/C1 · «Lascia stare» senza una domanda nuova. La risposta giusta è una riga
+# e nient'altro: mandarla a un modello vorrebbe dire pagare un round-trip per
+# rischiare che risponda lo stesso alla domanda abbandonata — che è esattamente
+# il comportamento che si sta togliendo.
+_CHIUSO_IT = "Va bene, lascio stare. Dimmi pure quando vuoi."
+_CHIUSO_EN = "All right, dropping it. Tell me whenever you like."
 
 
 def gap_offer(lang: str = "it") -> str:
@@ -222,7 +230,7 @@ def _capacita_block(cap, lang: str = "it") -> str:
 
 
 def _system(lang: str = "it", tier: str | None = None, web: bool = False,
-            free: bool = False, memoria=None, capacita=None) -> str:
+            free: bool = False, memoria=None, capacita=None, mossa: str = "") -> str:
     """System prompt vincolato al contenuto, nella lingua richiesta. In CODA si
     AGGIUNGONO (mai si sostituiscono) eventuali direttive: lo stile del tier e, se
     ci sono fonti web nel contesto, la nota sull'uso non fidato delle FONTI WEB. I
@@ -239,6 +247,7 @@ def _system(lang: str = "it", tier: str | None = None, web: bool = False,
         base = base + (_FREE_NOTE_EN if _lang(lang) == "en" else _FREE_NOTE_IT)
     base = base + _memoria_block(memoria, lang)      # V8/A4: la memoria si usa
     base = base + _capacita_block(capacita, lang)    # V9/C: offrire, mai eseguire
+    base = base + conversa.istruzione(mossa, lang)   # V10/C1: la mossa del turno
     return base
 
 
@@ -456,6 +465,19 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     ADDITIVA: non cambia il filtro Qdrant (scope) e il contenuto web è dato non fidato.
     """
     lang = _resolve_lang(lang, question)
+    # V11/D1 · Le domande SU DIVINA hanno una fonte, e la fonte è nel vault.
+    # Prima rispondeva da istruzioni scritte nel codice: qualcosa che nessuno
+    # può leggere, correggere o citare. Adesso cita `ovyon/divina/`, che si
+    # aggiorna senza toccare una riga di Python.
+    auto = autodoc.contesto(question)
+    if auto:
+        out = _clean_answer(chat(_system(lang, tier, memoria=memoria), 
+                                 f"CONTENUTO:\n{auto['content']}\n\nDOMANDA: {question}"))
+        metrics.bump_chat(scopes_of(grants))
+        events.record("chat", scopes_of(grants))
+        return {"answer": out, "sources": auto["sources"], "scopes": scopes_of(grants),
+                "autodoc": True}
+
     # Fase 6 + task 16 · saluti e domande SUL sistema: percorso diverso, non
     # recupero migliore. Fallback esplicito: None → retrieval normale.
     from . import systemq
@@ -471,9 +493,28 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     # nella risposta resta la domanda vera. E NON tocca i grant: lo scope si
     # ricalcola sempre dai permessi, mai da cosa si è detto prima.
     turni = filo.normalizza(history)
-    q_ric = filo.query_retrieval(question, turni)
-    hits = _retrieve(q_ric, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
+    # V10/C1 · La mossa del turno decide COSA si cerca, prima del filo. Due casi
+    # non arrivano nemmeno al modello, perché la risposta giusta è già nota e
+    # farla scrivere a un LLM aggiungerebbe solo un ritardo e un modo di sbagliare.
+    mv = conversa.mossa(question, turni)
     scopes = scopes_of(grants)
+    if mv == "ambiguo":
+        chi = conversa.chiarimento(question, turni)
+        if chi:
+            metrics.bump_chat(scopes)
+            events.record("chat", scopes)
+            return {"answer": chi["answer"], "sources": [], "scopes": scopes,
+                    "mossa": mv, "chiarimento": chi["candidati"],
+                    "filo": _filo_meta(turni, question, question)}
+        mv = "normale"
+    q_ric = conversa.query(question, turni, mv)
+    if mv == "abbandono" and not q_ric:
+        metrics.bump_chat(scopes)
+        events.record("chat", scopes)
+        return {"answer": _CHIUSO_EN if _lang(lang) == "en" else _CHIUSO_IT,
+                "sources": [], "scopes": scopes, "mossa": mv,
+                "filo": _filo_meta(turni, question, "")}
+    hits = _retrieve(q_ric, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
     web_results = _maybe_web(q_ric, hits, web, web_enabled)
     gap = None
     if not hits and not web_results:
@@ -483,10 +524,20 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
         events.record("gap", scopes, q_red)
         # B1 · L'offerta di scrivere la nota viaggia CON la risposta: la console e
         # il widget ci attaccano il bottone, invece di lasciarla in un menu altrove.
-        gap = _gap_payload(question, lang)
+        # V10/C2 · Una domanda che non riguarda il cervello non merita l'offerta
+        # di scriverci una nota: annotare nel vault che ore sono a New York è una
+        # porta aperta sul niente, e riempirebbe il cervello di spazzatura con la
+        # nostra firma sopra. La risposta invece si dà — se il permesso c'è.
+        gap = None if conversa.generica(question, scopes) else _gap_payload(question, lang)
         if not free:
-            return {"answer": no_answer(lang), "sources": [], "scopes": scopes, "gap": gap,
-                    "filo": _filo_meta(turni, question, q_ric)}
+            # C3 · Il limite che non si baratta per nessuna fluidità: senza
+            # `libera` (o senza owner) il muro resta. Il widget sul sito di un
+            # cliente non può inventare sul cliente.
+            res = {"answer": no_answer(lang), "sources": [], "scopes": scopes,
+                   "filo": _filo_meta(turni, question, q_ric)}
+            if gap:
+                res["gap"] = gap
+            return res
         # O4 (owner o tenant con `libera`): il muro diventa un inizio — si risponde
         # con conoscenza generale, TUTTA dentro i marcatori di provenienza, e
         # l'offerta di colmare il buco resta attaccata comunque.
@@ -495,7 +546,7 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     user = (f"{_hist_block(turni)}CONTENUTO:\n{context}\n\n"
             f"{_build_web_context(web_results)}DOMANDA: {question}")
     out = _clean_answer(chat(_system(lang, tier, web=bool(web_results), free=free,
-                                     memoria=memoria, capacita=capacita), user))
+                                     memoria=memoria, capacita=capacita, mossa=mv), user))
     sources = _merge_sources(hits, web_results)
     metrics.bump_chat(scopes)
     events.record("chat", scopes)
@@ -504,6 +555,8 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
         res["free"] = True                  # la console mostra la legenda di provenienza
     if gap:
         res["gap"] = gap                    # B1: l'offerta resta attaccata alla risposta
+    if mv != "normale":
+        res["mossa"] = mv
     res["filo"] = _filo_meta(turni, question, q_ric)
     return res
 
@@ -608,6 +661,21 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
 
     lang = _resolve_lang(lang, question)
     scopes = scopes_of(grants)
+    auto = autodoc.contesto(question)          # V11/D1 · vedi answer()
+    if auto:
+        metrics.bump_chat(scopes)
+        events.record("chat", scopes)
+        yield sse("sources", {"sources": auto["sources"], "scopes": scopes, "autodoc": True})
+        try:
+            for delta in chat_stream(_system(lang, tier, memoria=memoria),
+                                     f"CONTENUTO:\n{auto['content']}\n\nDOMANDA: {question}"):
+                yield sse(None, {"delta": delta})
+        except Exception:  # pragma: no cover
+            yield sse("error", {"message": "Errore del provider durante la risposta."})
+            return
+        yield sse("done", {})
+        return
+
     # Fase 6 + task 16 · stesso intercettore del percorso non-stream
     from . import systemq
     sq = systemq.intercetta(question, grants)
@@ -619,7 +687,30 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
         yield sse("done", {})
         return
     turni = filo.normalizza(history)
-    q_ric = filo.query_retrieval(question, turni)          # V7/A1 · vedi answer()
+    # V10/C1 · Le stesse mosse del percorso non-stream, con le stesse due
+    # scorciatoie: un chiarimento e una chiusura non hanno bisogno del modello.
+    mv = conversa.mossa(question, turni)
+    if mv == "ambiguo":
+        chi = conversa.chiarimento(question, turni)
+        if chi:
+            metrics.bump_chat(scopes)
+            events.record("chat", scopes)
+            yield sse("sources", {"sources": [], "scopes": scopes, "mossa": mv,
+                                  "chiarimento": chi["candidati"],
+                                  "filo": _filo_meta(turni, question, question)})
+            yield sse(None, {"delta": chi["answer"]})
+            yield sse("done", {})
+            return
+        mv = "normale"
+    q_ric = conversa.query(question, turni, mv)            # V7/A1 + V10/C1
+    if mv == "abbandono" and not q_ric:
+        metrics.bump_chat(scopes)
+        events.record("chat", scopes)
+        yield sse("sources", {"sources": [], "scopes": scopes, "mossa": mv,
+                              "filo": _filo_meta(turni, question, "")})
+        yield sse(None, {"delta": _CHIUSO_EN if _lang(lang) == "en" else _CHIUSO_IT})
+        yield sse("done", {})
+        return
     hits = _retrieve(q_ric, grants, k, focus_slugs=focus_slugs)   # tier/web NON passano qui
     web_results = _maybe_web(q_ric, hits, web, web_enabled)
     gap = None
@@ -628,9 +719,11 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
         q_red = redact_pii(question)[:200]
         metrics.bump_gap(scopes, q_red)
         events.record("gap", scopes, q_red)
-        gap = _gap_payload(question, lang)          # B1: l'offerta viaggia con la risposta
+        # V10/C2 · niente offerta di nota per una domanda che non riguarda il cervello
+        gap = None if conversa.generica(question, scopes) else _gap_payload(question, lang)
         if not free:
-            yield sse("sources", {"sources": [], "scopes": scopes, "gap": gap,
+            yield sse("sources", {"sources": [], "scopes": scopes,
+                                  **({"gap": gap} if gap else {}),
                                   "filo": _filo_meta(turni, question, q_ric)})
             yield sse(None, {"delta": no_answer(lang)})
             yield sse("done", {})
@@ -642,6 +735,7 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
     yield sse("sources", {"sources": sources, "scopes": scopes,
                           "filo": _filo_meta(turni, question, q_ric),
                           **({"free": True} if free else {}),
+                          **({"mossa": mv} if mv != "normale" else {}),
                           **({"gap": gap} if gap else {})})
 
     context = _build_context(hits)
@@ -649,7 +743,7 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
             f"{_build_web_context(web_results)}DOMANDA: {question}")
     try:
         for delta in chat_stream(_system(lang, tier, web=bool(web_results), free=free,
-                                         memoria=memoria, capacita=capacita), user):
+                                         memoria=memoria, capacita=capacita, mossa=mv), user):
             yield sse(None, {"delta": delta})
     except Exception:  # pragma: no cover - errore del provider a stream avviato
         yield sse("error", {"message": "Errore del provider durante la risposta."})

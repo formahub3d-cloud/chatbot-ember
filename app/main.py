@@ -15,6 +15,7 @@ import io
 import logging
 import secrets
 import tempfile
+import threading
 import uuid
 from pathlib import Path
 
@@ -51,7 +52,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti
+from . import autodoc, ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -155,6 +156,46 @@ def _startup_dbcheck():
         log.info(dbcheck.riga_boot())
     except Exception:  # pragma: no cover
         log.warning("dbcheck all'avvio non riuscito (ignorato)", exc_info=True)
+
+
+@app.on_event("startup")
+def _startup_clone_vault():
+    """V10/A2 · Se all'avvio il clone del vault non c'è, procurarselo.
+
+    Il problema, visto due volte il 2/08: ogni redeploy fa un container nuovo, la
+    cartella del vault non esiste, `vault_info()` torna `{}` e l'allarme sui
+    commit — che di valori da confrontare ne vuole due — **si spegne da solo**.
+    Alle 17:40 il V9 era mergiato da venti minuti e il pannello mostrava ancora
+    il quadro del V8, senza una riga che lo dicesse. Quel giorno le variabili di
+    Railway sono state toccate cinque volte: cinque redeploy, cinque volte cieco.
+    Un allarme che si spegne a ogni deploy e che qualcuno deve riaccendere a mano
+    è un allarme che prima o poi non riaccende nessuno.
+
+    **Si prende il clone, NON si reindicizza**, ed è una scelta, non una scorciatoia:
+
+    1. Non è l'indice ad essere sparito. Qdrant sta fuori dal container e
+       sopravvive al redeploy: il cervello sa ancora tutto quello che sapeva.
+       L'unica cosa persa è la copia locale, cioè il metro. Una ingest completa
+       ricalcolerebbe gli embedding di ogni nota per riscrivere lo stesso indice:
+       si pagherebbe il modello per arrivare dov'eravamo.
+    2. Railway riavvia i container anche senza deploy (OOM, healthcheck che
+       sfarfalla). Legare una reindicizzazione all'avvio trasforma un ciclo di
+       riavvii in un ciclo di reindicizzazioni contro l'API degli embedding —
+       cioè un guasto piccolo in un conto grande.
+    3. Ciò che si era rotto è il CONFRONTO, e al confronto basta il clone: un
+       git shallow, qualche secondo, zero chiamate al modello, zero scritture.
+       Ripreso quello, l'allarme torna a funzionare e dice da solo «il vault è
+       avanti, lancia una ingest» — che resta una decisione di una persona,
+       visibile, invece di un lavoro che parte da sé mentre nessuno guarda.
+
+    In un thread: un clone lento non deve ritardare l'healthcheck. Se fallisce,
+    il motore parte lo stesso e `degrado.per("allarme-commit")` lo dichiara —
+    guarda il risultato, non il tentativo, quindi non c'è modo che questa
+    funzione dica «fatto» mentre il clone non c'è."""
+    if not settings.vault_boot_clone:
+        return
+    threading.Thread(target=ingest.procura_clone, name="vault-boot-clone",
+                     daemon=True).start()
 
 
 def tenant_or_401(key: str) -> dict:
@@ -750,34 +791,6 @@ def admin_roadmap(authorization: str = Header(default="")):
     return roadmap.roadmap()
 
 
-@app.get("/admin/human")
-def admin_human(authorization: str = Header(default="")):
-    """«Human · evoluzione» (01-08): la scheda personale di Andrea, letta dal
-    DISCO del vault — MAI dall'indice. Il percorso `andrea-aloia/human/` è
-    escluso dall'ingest (SKIP_DIRS: dati sanitari = categoria speciale GDPR,
-    motore in US West): nessun retrieval può restituirne frammenti, e Divina
-    non ci risponde sopra — per costruzione, non per prompt. Solo owner
-    (Bearer ADMIN_TOKEN), mai chiavi tenant."""
-    _require_admin(authorization)
-    import os as _os
-    base = (settings.vault_path or "").strip()
-    percorso = _os.path.join(base, "andrea-aloia", "human", "human-evoluzione.md") if base else ""
-    if not percorso or not _os.path.isfile(percorso):
-        return {"exists": False, "path": "andrea-aloia/human/human-evoluzione.md",
-                "note": "La nota non c'è ancora: si crea nel vault (fuori dall'indice, per scelta)."}
-    try:
-        with open(percorso, "r", encoding="utf-8") as f:
-            testo = f.read()
-        mtime = _os.path.getmtime(percorso)
-        import time as _t
-        return {"exists": True, "path": "andrea-aloia/human/human-evoluzione.md",
-                "text": testo[:40000],
-                "updated": _t.strftime("%Y-%m-%d %H:%M", _t.localtime(mtime))}
-    except Exception:
-        log.exception("lettura human fallita")
-        raise HTTPException(500, "Nota presente ma non leggibile in questo momento.")
-
-
 @app.get("/admin/brain")
 def admin_brain(authorization: str = Header(default="")):
     """Il cervello vivo in console: KPI del vault (note, aree, ultimi 7 giorni,
@@ -789,9 +802,14 @@ def admin_brain(authorization: str = Header(default="")):
     # del giorno Y») — la spia che rende VISIBILE un cervello stantio.
     # V5b · Punto 9: anche il commit dell'ULTIMA INGEST — l'allarme confronta
     # i due commit, non le ore (il tempo è un'approssimazione della freschezza).
+    # V10/A1: l'allarme sui commit ha bisogno di DUE valori, e quando gliene
+    # manca uno finora si spegneva in silenzio. Adesso viaggia col suo degrado,
+    # così la fascia può dire «non posso confrontare, ed ecco perché» invece di
+    # sparire — una fascia che sparisce si legge come «va tutto bene».
     return {"persist": brain.enabled(), "stats": brain.stats(),
             "recent": brain.notes(limit=10), "vault": ingest.vault_info(),
-            "ingest_commit": brain.ingest_commit()}
+            "ingest_commit": brain.ingest_commit(),
+            "degrado": degrado.per("allarme-commit")}
 
 
 @app.get("/admin/brain/graph")
@@ -1189,6 +1207,44 @@ class ImparatoIn(BaseModel):
     history: list = []           # i turni della conversazione (dal client, come /chat)
     scope: str = ""              # dove finirebbe la nota, se approvata
     conversazione: str = ""      # etichetta della conversazione (per ritrovarla)
+
+
+@app.post("/admin/conversazione/conclusioni")
+def admin_conversazione_conclusioni(body: ImparatoIn, authorization: str = Header(default="")):
+    """V11/D3 · «Cosa è emerso e cosa conviene fare», dopo una conversazione con
+    un cliente. Fratello di `/admin/conversazione/imparato` e domanda diversa:
+    quello dice cosa vale la pena RICORDARE, questo cosa conviene FARE — e la
+    seconda non si ricava dalla prima.
+
+    Stesse due cautele: ogni riga porta la citazione verificata alla lettera
+    nella conversazione, e non si scrive niente. È una proposta."""
+    _require_admin(authorization)
+    scope = (body.scope or "").strip()
+    if not scope:
+        raise HTTPException(422, "Indica il cliente di cui si sta parlando.")
+    return {"conclusioni": learned.conclusioni(body.history, scope)}
+
+
+@app.get("/admin/clients/punto")
+def admin_clients_punto(scope: str, authorization: str = Header(default="")):
+    """V11/D2 · A che punto è il lavoro con questo cliente, in una frase che si
+    può dire a voce. Il dato c'era già — le note della sua KB, le proposte in
+    coda: mancava che qualcuno lo raccontasse."""
+    _require_admin(authorization)
+    scope = (scope or "").strip()
+    if not scope:
+        raise HTTPException(422, "Indica il cliente.")
+    try:
+        note = brain.notes(limit=200) or []
+    except Exception:
+        note = []
+    mie = [n for n in note if (n.get("tenant") or "") == scope]
+    try:
+        pend = len([x for x in (proposals.generate() or [])
+                    if (x.get("scope") or "") == scope])
+    except Exception:
+        pend = 0
+    return autodoc.punto_del_lavoro(scope, mie, proposte=pend)
 
 
 @app.post("/admin/conversazione/imparato")

@@ -55,6 +55,24 @@ def env(campo: str, variabile: str, rompe: str) -> dict:
     return {"tipo": "env", "campo": campo, "variabile": variabile, "rompe": rompe}
 
 
+def vault() -> dict:
+    """V10/A1 · Il clone del vault, che non è né una tabella né una variabile.
+
+    Su Railway ogni redeploy crea un container nuovo, e la cartella del vault
+    non c'è. `vault_info()` torna `{}`, e l'allarme sui commit — che ha bisogno
+    di DUE valori per confrontarli — **si spegne da solo senza dichiararlo**: la
+    fascia sparisce, e una fascia che sparisce si legge come «va tutto bene».
+
+    Il 2/08 è successo due volte, la seconda con conseguenze: il V9 era mergiato
+    da venti minuti e il pannello mostrava ancora il quadro del V8. Nessuno se ne
+    sarebbe accorto senza confrontare i due commit a mano.
+
+    Non è un caso raro: succede a OGNI configurazione. Quel giorno le variabili
+    di Railway sono state toccate cinque volte — cinque redeploy, cinque volte
+    l'allarme cieco."""
+    return {"tipo": "vault"}
+
+
 # ── Il registro: quale funzione dipende da cosa ──────────────────────────────
 # `dove` è la schermata che deve dichiararlo. Serve a due cose: a ricordarsi che
 # ogni voce qui dentro ha un posto dove si vede, e a far fallire il test se una
@@ -100,6 +118,11 @@ FUNZIONI: dict[str, dict] = {
             env("elevenlabs_voice_id_beatrice", "ELEVENLABS_VOICE_ID_BEATRICE", "Beatrice"),
         ],
     },
+    "allarme-commit": {
+        "titolo": "L'allarme «il cervello è fermo»",
+        "dove": "la fascia in alto, ovunque · Cervello → il vault",
+        "serve": [vault(), tab("ingest_meta")],
+    },
     "kb-da-sito": {
         "titolo": "La knowledge base che nasce dal sito del cliente",
         "dove": "Clienti → Proponi dal sito",
@@ -115,6 +138,30 @@ def _rompe_tabella(tabella: str, colonna: str | None) -> tuple[str, str]:
         if t == tabella and c == colonna:
             return rompe, ddl
     return f"manca {tabella}" + (f".{colonna}" if colonna else ""), ""
+
+
+def clone_del_vault() -> dict:
+    """L'accertamento che `dbcheck` non può fare, perché il clone non è una
+    tabella. Quattro esiti, e il terzo è quello che ci interessa:
+
+        non-configurato  nessun VAULT_GIT_URL: il motore legge una cartella
+                         locale e non esiste un commit da confrontare — è una
+                         configurazione (sviluppo), non un guasto
+        c'è              clone presente, `vault_info()` sa dire il commit
+        manca            container nuovo dopo un redeploy: il clone non c'è
+        non-so           l'accertamento stesso non è riuscito
+
+    Import pigro: `ingest` tira dentro qdrant_client e i provider, e questo
+    modulo lo importa anche chi vuole solo disegnare un avviso."""
+    if not str(getattr(settings, "vault_git_url", "") or "").strip():
+        return {"stato": "non-configurato", "commit": ""}
+    try:
+        from . import ingest
+        info = ingest.vault_info()
+    except Exception as e:  # pragma: no cover - difensivo
+        return {"stato": "non-so", "commit": "", "errore": type(e).__name__}
+    sha = info.get("vault_commit", "")
+    return {"stato": "c'è" if sha else "manca", "commit": sha}
 
 
 def per(funzione: str) -> dict:
@@ -147,10 +194,32 @@ def per(funzione: str) -> dict:
                           "funzionare: lo schema del database non è leggibile adesso.",
                 "come": schema["errore"], "manca": []}
 
+    clone = clone_del_vault() if any(d["tipo"] == "vault" for d in f["serve"]) else None
+    if clone is not None and clone["stato"] == "non-so":
+        return {**base, "stato": "non-so",
+                "perche": f"Non è stato possibile verificare se {f['titolo']} può "
+                          "funzionare: la copia locale del vault non è ispezionabile adesso.",
+                "come": clone.get("errore", ""), "manca": []}
+
     perche, come, manca = [], [], []
     mancanti = {(m["tabella"], m["colonna"]) for m in (schema or {}).get("mancanti", [])}
     for d in f["serve"]:
-        if d["tipo"] == "tabella":
+        if d["tipo"] == "vault":
+            if clone["stato"] == "c'è":
+                continue
+            if clone["stato"] == "manca":
+                # LA frase del 2/08. Non «manca il clone» — quello è il come.
+                perche.append("non si può confrontare: il cervello non ha ancora "
+                              "letto il vault dopo il riavvio")
+                come.append("lancia una ingest (dopo un redeploy il clone si "
+                            "riprende da solo entro un minuto)")
+                manca.append("clone del vault")
+            else:                                    # non-configurato
+                perche.append("il motore legge una cartella locale invece di un "
+                              "repo: non esiste un commit del vault da confrontare")
+                come.append("imposta VAULT_GIT_URL")
+                manca.append("VAULT_GIT_URL")
+        elif d["tipo"] == "tabella":
             if (d["tabella"], d["colonna"]) not in mancanti:
                 continue
             r, ddl = _rompe_tabella(d["tabella"], d["colonna"])

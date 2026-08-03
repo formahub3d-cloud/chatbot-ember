@@ -178,3 +178,76 @@ def proponi(history, scope: str) -> list[dict]:
         log.warning("learned: il modello non ha risposto", exc_info=True)
         return []
     return filtra(_parse(raw), conversazione, scope)
+
+
+# ── V11/D3 · Le conclusioni, non solo le cose da ricordare ───────────────────
+# `proponi()` risponde a «cosa vale la pena ricordare». Dopo una conversazione
+# con un CLIENTE serve un passo diverso e più utile a lui: **cosa è emerso e
+# cosa conviene fare**. Sono due domande distinte, e la seconda non si ricava
+# dalla prima — una preferenza da ricordare non è un'azione da proporre.
+#
+# Le due cautele restano identiche, perché il rischio è lo stesso: ogni riga
+# porta la CITAZIONE dalla conversazione e viene scartata se la citazione non si
+# ritrova (`_cita_vera`, la stessa funzione), e niente viene scritto — è una
+# proposta finché non la guarda una persona.
+MAX_CONCLUSIONI = 3
+
+_PROMPT_CONCL_IT = (
+    "Leggi questa conversazione fra un'assistente e una persona di un'azienda.\n"
+    "Rispondi con un JSON: {{\"conclusioni\": [{{\"emerso\": \"…\", \"conviene\": \"…\", "
+    "\"citazione\": \"…\"}}]}}\n"
+    "Da ZERO a {max} voci — zero è l'esito giusto quando non è emerso niente di "
+    "concreto, e vale più di tre voci generiche.\n"
+    "REGOLE, tutte obbligatorie:\n"
+    "- `emerso`: un fatto detto nella conversazione, in una riga. Mai una deduzione.\n"
+    "- `conviene`: una cosa concreta da fare, in una riga, rivolta all'azienda.\n"
+    "- `citazione`: una frase COPIATA ALLA LETTERA dalla conversazione che regge "
+    "`emerso`. Se non riesci a copiarne una, salta la voce.\n"
+    "- Niente nomi di persone, email, telefoni.\n\n"
+    "CONVERSAZIONE:\n{conversazione}"
+)
+
+
+def conclusioni(history, scope: str) -> list[dict]:
+    """Da zero a tre conclusioni: cosa è emerso, cosa conviene fare. NON scrive.
+
+    Ritorna `[{emerso, conviene, citazione, scope}]`. La lista vuota è l'esito
+    più frequente ed è quello giusto: una conversazione in cui non è emerso
+    niente esiste, e inventarle una conclusione è peggio che tacere."""
+    turni = _turni(history)
+    if len(turni) < MIN_TURNS or not _scope_ok(scope):
+        return []
+    conversazione = _testo_conversazione(turni)
+    try:
+        raw = chat("Rispondi solo con JSON valido.",
+                   _PROMPT_CONCL_IT.format(max=MAX_CONCLUSIONI, conversazione=conversazione))
+    except Exception:
+        log.warning("learned: il modello non ha risposto (conclusioni)", exc_info=True)
+        return []
+    out = []
+    for v in (_parse_conclusioni(raw))[:MAX_CONCLUSIONI]:
+        em, co, ci = v.get("emerso", ""), v.get("conviene", ""), v.get("citazione", "")
+        if not (em and co and ci):
+            continue
+        if not _cita_vera(ci, conversazione):
+            continue                       # detta bene, mai detta: cade
+        if not _senza_pii(em, co, ci):
+            continue                       # scartata, non redatta: stessa scelta di sempre
+        out.append({"emerso": em.strip(), "conviene": co.strip(),
+                    "citazione": ci.strip(), "scope": scope})
+    return out
+
+
+def _parse_conclusioni(raw: str) -> list[dict]:
+    import json as _json
+    import re as _re
+    t = (raw or "").strip()
+    m = _re.search(r"\{.*\}", t, _re.S)
+    if not m:
+        return []
+    try:
+        d = _json.loads(m.group(0))
+    except ValueError:
+        return []
+    v = d.get("conclusioni")
+    return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []

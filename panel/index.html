@@ -406,7 +406,6 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
 .hfig{perspective:700px;display:flex;justify-content:center;padding:8px 0}
 .hfig svg{width:min(100%,300px);height:auto;transform:rotateX(var(--hrx,0deg)) rotateY(var(--hry,0deg));transition:transform .25s ease}
 .hstrato{transition:transform .25s ease}
-@media(max-width:980px){#humanGrid{grid-template-columns:1fr!important}}
 #subnav{margin:10px 22px 0;display:none;gap:6px;flex-wrap:wrap}
 #subnav.on{display:flex}
 /* ── Task 18 · L'allarme del cervello fermo: visibile ovunque, non a piè di pagina ── */
@@ -485,19 +484,23 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
       <div><div class="brand-name">Divina</div><div class="brand-sub">Il tuo mondo. La tua AI.</div></div>
     </div>
 
-<!-- V2 · Fase 4: SEI PORTE, scritte come intenzione, non come meccanismo.
-     La divisione tecnica (motore/orchestratore) resta nel codice, non arriva
-     allo schermo. Tutte le viste vecchie esistono ancora: quelle uscite dal
-     menu vivono in Diagnostica, e le rotte vecchie continuano a funzionare. -->
-    <button class="nav-item active" data-view="home"><span class="ic" data-ic="world" data-ics="17"></span> Mondo</button>
-    <button class="nav-item" data-view="brain"><span class="ic" data-ic="brain" data-ics="17"></span> Cervello</button>
-    <button class="nav-item" data-view="clienti"><span class="ic" data-ic="key" data-ics="17"></span> Clienti</button>
-    <button class="nav-item" data-view="agents"><span class="ic" data-ic="sparks" data-ics="17"></span> Squadra <span class="badge" id="b-agents">3</span></button>
+<!-- V11/A · CINQUE PORTE PER CHIUNQUE, più l'ingranaggio. Il criterio è uno
+     solo, e vale per tutto il giro: **una sezione esiste se un imprenditore
+     appena partito, che non sa niente di AI, capisce in tre secondi perché
+     aprirla.** Non «se è utile», non «se un giorno servirà».
+     Prima erano diciotto, e in due giorni ne sono state aperte cinque. -->
+    <button class="nav-item active" data-view="home"><span class="ic" data-ic="world" data-ics="17"></span> Divina</button>
+    <button class="nav-item" data-view="brain"><span class="ic" data-ic="brain" data-ics="17"></span> Il cervello</button>
+    <button class="nav-item" data-view="clienti"><span class="ic" data-ic="key" data-ics="17"></span> I clienti</button>
+    <button class="nav-item" data-view="agents"><span class="ic" data-ic="sparks" data-ics="17"></span> La squadra <span class="badge" id="b-agents">3</span></button>
     <button class="nav-item" data-view="integrazioni"><span class="ic" data-ic="plug" data-ics="17"></span> Integrazioni</button>
     <button class="nav-item" data-view="impostazioni"><span class="ic" data-ic="gear" data-ics="17"></span> Impostazioni</button>
-    <button class="nav-item" data-view="human"><span class="ic" data-ic="spark" data-ics="17"></span> Human · evoluzione</button>
 
-    <button class="nav-item diag-toggle" id="diagToggle" style="margin-top:14px"><span class="ic" data-ic="gear" data-ics="15"></span> ⚙ Diagnostica <span class="badge" id="b-improve">0</span></button>
+    <!-- A2 · Tutto il resto sotto UNA porta. Non si cancella: serve a chi
+         GESTISCE il servizio, non a chi lo usa — e non deve occupare tredici
+         righe nella barra di un imprenditore che vuole solo far rispondere il
+         suo bot. Compare solo con un token da owner, e chiusa. -->
+    <button class="nav-item diag-toggle" id="diagToggle" style="margin-top:14px" hidden><span class="ic" data-ic="gear" data-ics="15"></span> Amministrazione <span class="badge" id="b-improve">0</span></button>
     <div id="diagGroup" class="diag-group" hidden>
       <button class="nav-item" data-view="improve"><span class="ic" data-ic="check" data-ics="15"></span> Miglioramenti</button>
       <button class="nav-item" data-view="insights"><span class="ic" data-ic="signal" data-ics="15"></span> Segnali</button>
@@ -515,11 +518,11 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
   </aside>
   <div class="side-backdrop" id="sideBackdrop"></div>
   <nav class="bottombar" id="bottomBar">
-    <button data-bv="home"><span data-ic="world" data-ics="20"></span>Mondo</button>
+    <button data-bv="home"><span data-ic="world" data-ics="20"></span>Divina</button>
     <button data-bv="chat"><span data-ic="chat" data-ics="20"></span>Chat</button>
     <button data-bv="brain"><span data-ic="brain" data-ics="20"></span>Cervello</button>
+    <button data-bv="clienti"><span data-ic="key" data-ics="20"></span>Clienti</button>
     <button data-bv="agents"><span data-ic="sparks" data-ics="20"></span>Squadra</button>
-    <button data-bv="improve"><span data-ic="check" data-ics="20"></span>Diagnosi</button>
   </nav>
 
   <div class="main">
@@ -765,7 +768,6 @@ function demoData(service, path, opts){
     if(path.startsWith('/admin/tasks?')&&path.includes('status=fatta')) return Promise.resolve({persist:true,tasks:[
       {id:'tf1',kind:'audit',scope:'',title:'La console appare prima di essere cliccabile e non lo dice',note:'FATTA · Numero vero in produzione: 1265 ms (in sandbox erano 78 — la misura in laboratorio mentiva).',status:'fatta',created_at:nowIso(10*3600e3),closed_at:nowIso(3600e3),closed_by:'andrea',priorita:'alta'},
       {id:'tf2',kind:'audit',scope:'',title:"Aggiusta l'orb invisibile e il modo vocale che si chiude",note:'FATTA · La voce funziona: provata in produzione, prima sillaba dopo 55 ms.',status:'fatta',created_at:nowIso(12*3600e3),closed_at:nowIso(2*3600e3),closed_by:'andrea',priorita:'alta'}]});
-    if(path.startsWith('/admin/human')) return Promise.resolve({exists:true,path:'andrea-aloia/human/human-evoluzione.md',updated:'2026-08-01 09:30',text:'# Human (DEMO)\n\n## Salute\n- peso: 78 kg (2026-08-01)\n- attività fisica: corsa 2 volte a settimana (2026-07-28)\n- sonno: ~6h30, da portare a 7h (2026-07-30)\n\n## Punti di forza\n- visione di prodotto: vede il sistema intero prima dei dettagli\n- costanza: un\'ora al giorno sul cervello, ogni giorno\n\n## Da migliorare\n- delega: tende a fare invece che affidare (2026-07-25)\n\n## Hobby\n- stampa 3D sperimentale\n- cucina del sud\n\n## Interessi\n- agenti AI e orchestrazione\n- GDPR e sovranità del dato\n\n## Obiettivi\n- portare Divina al primo cliente esterno (2026-08-01)\n- dormire 7 ore per un mese intero (2026-08-01)'});
     if(path.startsWith('/document')) return Promise.resolve({slug:'workspace-potenziamento-divina',title:'(DEMO) Schema di potenziamento — dove sta Divina e cosa manca',path:'forma/workspace/workspace-potenziamento-divina.md',tenant:'forma-core',text:'(DEMO — in produzione qui c\'è la nota vera, letta dal cervello)\n\n# Schema di potenziamento\n\n| Area | Punteggio |\n|---|---|\n| **Affidabilità e controlli** | **9 / 10** | 9 |\n| **Voce** | **8 / 10** | 8 |\n| **Struttura dell\'interfaccia** | **7 / 10** | 5 |\n| **Contenuto del cervello** | **6 / 10** | 5 |\n| **Estetica e resa visiva** | **5 / 10** | area nuova |\n| **Conversazione** | **4 / 10** | 4 |\n| **Vendibilità** | **3 / 10** | 3 |\n\n**Media: 6,0 / 10** (era 6,2 con sei aree).'});
     if(path.startsWith('/admin/brain/graph')){const gts=['forma-core','ats','andrea','ovyon'];const gn=Array.from({length:100},(_,i)=>({slug:'nota-'+i,title:'Nota '+i,tenant:gts[i%4]}));/* M5: stesso numero di stats.notes (100), un dato solo */gn[0]={slug:'listino-2026',title:'Listino servizi 2026',tenant:'forma-core'};gn[1]={slug:'scheda-ats',title:'Scheda cliente ATS',tenant:'ats'};const gl=[];for(let i=1;i<gn.length;i++){gl.push([i,Math.floor(Math.random()*i)]);if(i%3===0)gl.push([i,Math.max(0,i-5)]);}return Promise.resolve({persist:true,nodes:gn,links:gl,generated_at:new Date().toISOString()});}
     if(path.startsWith('/admin/brain/notes')){const BN=[{slug:'doc-divina-vs-zoey',title:'Doc — Divina vs Zoey OS',path:'forma/docs/doc-divina-vs-zoey.md',tenant:'forma-core',updated_at:nowIso(3600e3),tags:['tema/prodotto']},{slug:'scheda-ats',title:'Scheda cliente ATS',path:'forma/clienti/ats/scheda-ats.md',tenant:'ats',updated_at:nowIso(7200e3),tags:['tema/business']},{slug:'cliente-hrh',title:'Cliente — Home Restaurant Hotel',path:'forma/clienti/hrh/cliente-hrh.md',tenant:'hrh',updated_at:nowIso(9800e3),tags:['tema/business']},{slug:'cliente-centioni',title:'Cliente — Centioni',path:'forma/clienti/centioni/cliente-centioni.md',tenant:'centioni',updated_at:nowIso(5*3600e3),tags:['tema/business','tema/marketing']},{slug:'cliente-parbonetti',title:'Cliente — Parbonetti',path:'forma/clienti/parbonetti/cliente-parbonetti.md',tenant:'parbonetti',updated_at:nowIso(30*3600e3)},{slug:'cliente-libero-pensiero',title:'Cliente — Libero Pensiero',path:'forma/clienti/libero-pensiero/cliente-libero-pensiero.md',tenant:'libero-pensiero',updated_at:nowIso(46*3600e3)},{slug:'listino-2026',title:'Listino servizi 2026',path:'forma/docs/listino-2026.md',tenant:'forma-core',updated_at:nowIso(30*3600e3),tags:['tema/business']},{slug:'self-andrea-aloia',title:'Andrea Aloia',path:'andrea-aloia/self-andrea-aloia.md',tenant:'andrea',updated_at:nowIso(50*3600e3),tags:['tema/crescita-personale']},{slug:'doc-ovyon-ember-scope',title:'Doc — Scope a tre livelli',path:'ovyon/docs/doc-ovyon-ember-scope.md',tenant:'ovyon',updated_at:nowIso(70*3600e3),tags:['tema/tecnico']}];const qq=new URLSearchParams(path.split('?')[1]||'').get('q')||'';return Promise.resolve({persist:true,notes:qq?BN.filter(n=>(n.title+n.path).toLowerCase().includes(qq.toLowerCase())):BN.concat(BN.map((n,i)=>({...n,slug:n.slug+'-'+i}))).concat(BN.map((n,i)=>({...n,slug:n.slug+'-b'+i})))});}
@@ -917,7 +919,7 @@ $('#connSave').onclick=()=>{
   state.orchBase=$('#inOrchBase').value.trim();state.orchTok=$('#inOrchTok').value.trim();state.tenant=(v=>v==='forma'?'forma-core':v)($('#inTenant').value.trim()||'forma-core');state.demo=$('#inDemo').checked;
   localStorage.setItem(LS.engBase,state.engBase);localStorage.setItem(LS.engTok,state.engTok);localStorage.setItem(LS.tenantKey,state.tenantKey);
   localStorage.setItem(LS.orchBase,state.orchBase);localStorage.setItem(LS.orchTok,state.orchTok);localStorage.setItem(LS.tenant,state.tenant);localStorage.setItem(LS.demo,state.demo?'1':'0');
-  $('#tenantText').textContent=state.tenant;closeConn();checkConn().then(()=>{refreshBadges();route(state.view);});
+  $('#tenantText').textContent=state.tenant;closeConn();admVisibile();checkConn().then(()=>{refreshBadges();route(state.view);});
 };
 async function checkConn(){
   const chip=$('#connChip');$('#tenantText').textContent=state.tenant;
@@ -1004,8 +1006,8 @@ const VIEWS={
       <canvas id="homeBrain"></canvas>
       <button class="orb-frase" id="orbFrase" aria-live="polite" title="Lo stato dell'orbita, a parole"><span class="stato-dot"></span><span id="orbFraseT">il cervello si sta accendendo…</span></button>
     </div>
-    <div class="grid g-2" id="homeWidgets" style="margin-top:14px"></div>`;
-    caricaHomeWidgets();
+    <div id="homeOggi" style="margin-top:14px"></div>`;
+    oggiTreCose();
     statiHome();
     const sub=$('#homeSub');
     /* M5 · UN numero solo per un dato solo: i neuroni si contano in UN posto
@@ -1124,6 +1126,7 @@ const VIEWS={
     if(!vivo(giro))return; C.innerHTML=`
     <div class="card" style="margin-bottom:14px"><div class="card-head"><div><h3>I tuoi clienti</h3><p>Divina di FORMA vede tutto; ogni cliente vede SOLO la propria sfera — il confine è un filtro sul database, non una preferenza</p></div><button class="btn primary sm" id="cliAdd">+ Aggiungi cliente</button></div>
     ${righe.length?`<div class="grid g-2">${righe.map(c=>`<div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div><h3 style="font-size:15px">${esc(c.label)}</h3><p class="mono small">forma/clienti/${esc(c.id)}/</p></div><span class="pill" title="note nel cervello — il numero che conta, in vista">${c.n} not${c.n===1?'a':'e'}</span></div><div class="small ${c.n<3?'':'muted'}" ${c.n<3?'style="color:var(--orange)"':''}>${c.n<3?'scheda quasi vuota — il valore del cervello si costruisce qui':'scheda viva'}${c.ultimo?' · aggiornata '+timeAgoIso(c.ultimo):''}</div>
+      <div class="small" data-punto="${esc(c.id)}" style="margin-top:7px;color:var(--text-2);line-height:1.6"></div>
       <div class="row" style="margin-top:9px"><button class="btn sm" data-sito="${esc(c.id)}">${icon('link',12)} Proponi dal sito</button></div></div>`).join('')}</div>`
     :emptyBox(icon('key',36),'Nessuna cartella cliente nel cervello','Le schede vivono in forma/clienti/&lt;nome&gt;/ — aggiungi il primo cliente qui sopra, o lancia una ingest se il vault le ha già.')}
     </div>
@@ -1131,6 +1134,13 @@ const VIEWS={
     ${acc.length?`<div class="tbl-wrap"><table><thead><tr><th>Email</th><th>Nome</th><th>Stato</th><th>Ultimo accesso</th></tr></thead><tbody>${acc.map(a2=>`<tr><td>${esc(a2.email)}</td><td>${esc(a2.display_name||'')}</td><td><span class="tag ${a2.locked?'mut':'pos'}">${a2.locked?'bloccato':esc(a2.status||'attivo')}</span></td><td class="small muted">${a2.last_login_at?timeAgoIso(a2.last_login_at):'mai entrato'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="small muted">Nessun accesso cliente ancora creato.</div>'}</div>`;
     $('#cliAdd').onclick=cliAggiungi;
     $$('[data-sito]').forEach(b=>b.onclick=()=>formDalSito(b.dataset.sito));
+    /* V11/D2 · «Cosa sto consegnando e perché»: a che punto è il lavoro con
+       questo cliente, detto in una frase invece che in un cruscotto. Il dato
+       c'era già; mancava che qualcuno lo raccontasse. */
+    $$('[data-punto]').forEach(async el=>{
+      try{const d=await api('engine','/admin/clients/punto?'+q({scope:el.dataset.punto}));
+        if(el.isConnected&&d&&d.racconto)el.textContent=d.racconto;}catch(_){}
+    });
   },
 
   /* ---------- INTEGRAZIONI (Fase 10.3/10.4: catalogo ASTRATTO + consenso) ---------- */
@@ -1271,34 +1281,6 @@ const VIEWS={
     pwaBottone();
   },
 
-  /* ---------- HUMAN · EVOLUZIONE (01-08) ----------
-     Un'altra materia, non il cervello di lavoro. I dati vivono FUORI
-     dall'indice (andrea-aloia/human/ è in SKIP_DIRS): il pannello li legge
-     dal disco via /admin/human (solo owner), nessun retrieval può pescarli
-     e Divina non ci risponde sopra — per costruzione, non per prompt.
-     Qui NIENTE collegamenti a dispositivi o app di salute, NIENTE consigli,
-     NIENTE «valori normali» o punteggi: è uno specchio, non un medico. */
-  async human(giro){
-    if(!vivo(giro))return; C.innerHTML=skeleton(4);
-    let d=null;try{d=await api('engine','/admin/human');}catch(_){}
-    const fig=localStorage.getItem('dv_human_fig')||'uomo';
-    const scheda=(d&&d.exists)?humanScheda(d.text,d.updated)
-      :`<div class="card" style="margin:0"><div class="card-head"><div><h3>La scheda</h3><p>ancora vuota — e lo dice</p></div></div>
-        <div class="small" style="line-height:1.8">La scheda si crea nel vault, in <span class="mono">andrea-aloia/human/human-evoluzione.md</span> — un percorso <b>escluso dall'indice per scelta</b>: i dati sulla salute sono una categoria speciale nel GDPR e non entrano in Qdrant finché il calcolo non è in Europa. Struttura proposta: <b>Salute</b> (peso · attività · sonno · note, con la data) · <b>Punti di forza</b> · <b>Da migliorare</b> · <b>Hobby</b> · <b>Interessi</b> · <b>Obiettivi</b> (con la data in cui li scrivi: senza date questa schermata diventa un poster).</div></div>`;
-    if(!vivo(giro))return; C.innerHTML=`
-    <div class="grid" style="grid-template-columns:minmax(260px,2fr) 3fr;gap:14px;align-items:start" id="humanGrid">
-      <div class="card" style="margin:0">
-        <div class="card-head" style="margin-bottom:4px"><div><h3>La figura</h3><p>trasparente per scelta: si guarda, non si giudica</p></div>
-          <div class="row" style="gap:4px"><button class="orbit-tab ${fig==='uomo'?'active':''}" data-hfig="uomo">Uomo</button><button class="orbit-tab ${fig==='donna'?'active':''}" data-hfig="donna">Donna</button></div></div>
-        <div id="humanFig">${humanFigura(fig)}</div>
-      </div>
-      <div id="humanScheda">${scheda}</div>
-    </div>
-    <div class="small muted" style="margin-top:12px">${icon('lock',12)} Divina non legge e non commenta questa sezione: i dati vivono fuori dall'indice del cervello e nessuna chiave tenant li raggiunge. Niente dispositivi collegati, niente confronti con «valori normali»: non è un ambito da assistente.</div>`;
-    $$('[data-hfig]').forEach(b=>b.onclick=()=>{localStorage.setItem('dv_human_fig',b.dataset.hfig);route('human');});
-    humanParallasse();
-  },
-
   /* ---------- CHAT ---------- */
   async chat(giro){
     /* V2 · Fase 5: 'chat' non è più una vista — è il pannello SEMPRE presente.
@@ -1377,7 +1359,12 @@ const VIEWS={
       const ic=(d.ingest_commit&&d.ingest_commit.vault_commit)||null;
       const disallineato=!!(v.vault_commit&&ic&&v.vault_commit!==ic);
       const cervMeta=ic?`cervello <span class="mono" ${disallineato?'style="color:var(--orange);font-weight:700"':''}>${esc(ic)}</span> · `:'';
-      const vaultMeta=v.vault_commit?`${cervMeta}vault <span class="mono">${esc(v.vault_commit)}</span> · ${disallineato?`<span style="color:var(--orange);font-weight:700">non letto — serve una ingest</span>`:vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`:'<span style="color:var(--orange)">manca il commit del vault — l\'allarme «cervello fermo» è cieco (serve <span class="mono">ingest_meta</span> e una ingest col motore aggiornato)</span>';
+      const vaultMeta=v.vault_commit?`${cervMeta}vault <span class="mono">${esc(v.vault_commit)}</span> · ${disallineato?`<span style="color:var(--orange);font-weight:700">non letto — serve una ingest</span>`:vAgeH!=null&&vAgeH>48?`<span style="color:var(--orange)">fermo da ~${vAgeH}h</span>`:esc(timeAgoIso(v.vault_commit_date))}`/* V10/A1: la causa NON si indovina più qui. Prima questa riga tirava a
+           indovinare («serve ingest_meta e una ingest col motore aggiornato») e
+           dal 2/08 sappiamo che nel caso più frequente è un'altra: dopo un
+           redeploy manca il CLONE. La frase la dice il registro, che ha
+           guardato. */
+        :`<span style="color:var(--orange)">l'allarme «cervello fermo» è cieco — ${esc((d.degrado&&d.degrado.perche)||'manca il commit del vault')}</span>`;
       const noteRow=n=>`<div class="row" style="justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--border)"><div style="min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.title)}</div><div class="small muted mono" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.path||'')}</div></div><div class="row" style="gap:8px;flex-shrink:0"><span class="scope-chip" style="background:${scopeColor(n.tenant)}22;color:${scopeColor(n.tenant)};border-color:${scopeColor(n.tenant)}44">${esc(n.tenant||'')}</span><span class="small muted" style="white-space:nowrap">${timeAgoIso(n.updated_at)}</span></div></div>`;
       if(!vivo(giro))return; C.innerHTML=`
       <!-- R3 (scelta a): le ORBITE vivono qui, a tutta larghezza — la scelta
@@ -1562,6 +1549,13 @@ const VIEWS={
           ${su?`<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:4px">${Object.entries(byDept).map(([d,sk])=>`<div class="dept-title">${esc(d)}</div>${sk.map(s=>`<div class="skill-item" onclick="quickRun('${esc(a.id)}','${esc(s.id)}')"><span style="color:${col};font-size:14px">▸</span><div><div class="skill-role">${esc(s.role||s.id)}</div><div class="skill-desc">${esc(s.desc||'')}</div></div></div>`).join('')}`).join('')}</div>`:''}
         </div>`;};
       if(!vivo(giro))return; C.innerHTML=`
+      <!-- V10/B · Qui è dove uno viene a chiedersi «perché parlano tutti uguale?».
+           La risposta più frequente non è una variabile mancante: è che la
+           lettura ad alta voce è spenta, e finora lo diceva solo un tooltip. -->
+      <div class="card small" id="sqMuto" ${state.tts?'hidden':''} style="margin-bottom:10px;border-color:color-mix(in srgb,var(--orange) 40%,var(--border));display:flex;gap:10px;align-items:center">
+        <span style="color:var(--orange);flex:none">${icon('speakoff',16)}</span>
+        <div style="flex:1;line-height:1.6">Le voci sono impostate qui sotto, ma <b>la lettura ad alta voce è spenta</b>: le risposte arrivano solo scritte, quindi ogni agente «suona» uguale perché non suona affatto.</div>
+        <button class="btn" id="sqTts" style="flex:none">Accendila</button></div>
       <div class="card" style="margin-bottom:10px;border-color:color-mix(in srgb,var(--magenta) 35%,var(--border))"><div class="row" style="gap:12px;align-items:center">
         <div class="agent-avatar" style="background:linear-gradient(135deg,var(--magenta),var(--cyan));width:38px;height:38px">DV</div>
         <div><b style="font-size:15px">Divina</b><div class="small muted">orchestratrice e CEO — smista il lavoro alla squadra, non esegue</div></div></div></div>
@@ -1575,6 +1569,7 @@ const VIEWS={
         </div>`;}).join('')}
       </div>`:''}`;
       $$('[data-sq]').forEach(b=>b.onclick=()=>{aperti[b.dataset.sq]=!aperti[b.dataset.sq];route('agents');});
+      const sqt=$('#sqTts');if(sqt)sqt.onclick=()=>setTts(true);
     }catch(e){if(!vivo(giro))return; C.innerHTML=errBox(e);}
   },
 
@@ -1921,9 +1916,11 @@ async function salvaScrivi(){
    Il bottone compare solo quando c'è una conversazione da cui imparare (due
    turni): prima non avrebbe niente da leggere. ── */
 function imparatoVisibile(){
-  const b=document.getElementById('chatImparato');if(!b)return;
+  const b=document.getElementById('chatImparato'),c=document.getElementById('chatConcl');
+  if(!b)return;
   const turni=state.chat.filter(m=>m.role==='user'||m.role==='bot').length;
   b.hidden=state.clientMode||turni<4;    // due scambi: sotto, non c'è un filo
+  if(c)c.hidden=b.hidden;                // V11/D3: stessa soglia, domanda diversa
 }
 async function chiediImparato(){
   const b=document.getElementById('chatImparato');
@@ -1940,6 +1937,27 @@ async function chiediImparato(){
     if((r.imparato||[]).length)toast(`${r.imparato.length} in coda in Miglioramenti — decidi tu`,'ok');
   }catch(e){toast('✕ '+e.message,'bad');}
   if(b){b.disabled=false;b.innerHTML=`${icon('brain',15)} Cosa abbiamo imparato`;}
+}
+
+/* V11/D3 · «Cosa è emerso e cosa conviene fare». Fratello di chiediImparato e
+   domanda diversa: quello chiede cosa vale la pena RICORDARE, questo cosa
+   conviene FARE — e la seconda non si ricava dalla prima. Stesse due cautele:
+   ogni riga porta la citazione verificata, e niente si scrive. */
+async function chiediConclusioni(){
+  const b=document.getElementById('chatConcl');
+  const history=state.chat.filter(m=>m.role==='user'||m.role==='bot')
+    .map(m=>({role:m.role==='bot'?'assistant':'user',content:m.text}));
+  if(history.length<4){toast('Serve una conversazione un po\' più lunga','info');return;}
+  if(b){b.disabled=true;b.textContent='Sto rileggendo…';}
+  try{
+    const r=await api('engine','/admin/conversazione/conclusioni',{method:'POST',
+      body:{history,scope:(state.focus&&state.focus.scope)||state.tenant||'forma-core'}});
+    const v=r.conclusioni||[];
+    state.chat.push({role:'conclusioni',voci:v});
+    renderChat();
+    if(!v.length)toast('Non è emerso niente di concreto — ed è un esito, non un errore','info');
+  }catch(e){toast('✕ '+e.message,'bad');}
+  if(b){b.disabled=false;b.innerHTML=`${icon('check',15)} Cosa conviene fare`;}
 }
 
 /* ── V6/B1 · Colmare il buco, subito. Il titolo è già la domanda che il
@@ -2012,9 +2030,10 @@ function chatTemplate(){
         <button class="btn" id="voxBtn" title="Modo vocale a tutto schermo — parla con Divina" style="white-space:nowrap">${icon('mic',15)} Parla con Divina</button>
         <button class="btn primary" id="chatSend" style="min-width:52px">${icon('send',18)}</button>
         <button class="btn" id="chatImparato" hidden title="Da zero a tre cose che varrebbe la pena ricordare — proposte, non salvate" style="white-space:nowrap">${icon('brain',15)} Cosa abbiamo imparato</button>
+        <button class="btn" id="chatConcl" hidden title="Cosa è emerso e cosa conviene fare — una domanda diversa da «cosa ricordare»" style="white-space:nowrap">${icon('check',15)} Cosa conviene fare</button>
         <span style="flex:1"></span>
         <button class="icon-btn mic-btn" id="chatMic" title="Detta a voce (italiano)">${icon('mic',18)}</button>
-        <button class="icon-btn" id="chatTts" title="Lettura vocale delle risposte">${icon(state.tts?'speakon':'speakoff',18)}</button>
+        <button class="icon-btn" id="chatTts" data-tts="${state.tts?'on':'off'}" aria-pressed="${state.tts?'true':'false'}" title="${state.tts?'Lettura vocale attiva — le risposte si sentono':'Lettura vocale SPENTA — le risposte arrivano solo scritte'}">${icon(state.tts?'speakon':'speakoff',18)}</button>
       </div></div></div>`;
 }
 function wireChat(){
@@ -2028,6 +2047,7 @@ function wireChat(){
   $('#chatSend').onclick=sendChat;initVoice();   // V1: niente orb in chat — lo stato vive sulla pillola
   const vb=$('#voxBtn');if(vb)vb.onclick=voxOpen;
   const ib=$('#chatImparato');if(ib)ib.onclick=chiediImparato;
+  const cb=$('#chatConcl');if(cb)cb.onclick=chiediConclusioni;
   imparatoVisibile();
   renderFocusBar();
   $$('#orbPicks .orb-pick').forEach(b=>b.onclick=()=>pickComp(b.dataset.oc));
@@ -2151,6 +2171,19 @@ function renderChat(){
         ${voci?`<div class="small" style="margin-bottom:6px"><b>${m.voci.length} cos${m.voci.length===1?'a':'e'} da ricordare</b> — ${icon('lock',11)} in coda, non salvate: diventano cervello solo se le approvi</div>${voci}
           <div class="row" style="margin-top:10px"><button class="btn sm" onclick="route('improve')">Vai a Miglioramenti</button></div>`
         :`<div class="small muted">Da questa conversazione non è emerso niente di stabile da ricordare. È l'esito più frequente, e va bene così: si propone solo ciò che è riutilizzabile e dimostrabile.</div>`}
+      </div></div>`;
+    }
+    /* V11/D3 · Le CONCLUSIONI: cosa è emerso, cosa conviene fare. Stessa forma
+       delle «cose imparate» perché è la stessa promessa — c'è la citazione e
+       non si scrive niente — ma la domanda è un'altra, e si vede: due righe,
+       un fatto e un'azione, non un titolo di nota. */
+    if(m.role==='conclusioni'){
+      const voci=(m.voci||[]).map(v=>`<div class="imparato-voce"><b class="small">${esc(v.emerso||'')}</b>
+        <div class="small" style="margin-top:3px;color:var(--cyan)">→ ${esc(v.conviene||'')}</div>
+        ${v.citazione?`<div class="imparato-cita">«${esc(v.citazione)}»</div>`:''}</div>`).join('');
+      return `<div class="msg bot"><div class="av">DV</div><div class="imparato-box">
+        ${voci?`<div class="small" style="margin-bottom:6px"><b>Cosa è emerso, e cosa conviene fare</b> — ${icon('lock',11)} nessuna di queste è stata scritta da nessuna parte</div>${voci}`
+        :`<div class="small muted">Da questa conversazione non è emerso niente di concreto da proporre. È un esito, non un errore: inventare una conclusione sarebbe peggio che tacere.</div>`}
       </div></div>`;
     }
     /* V8/C2 · La DELEGA si vede dentro il filo. Divina aveva la «Regia live»
@@ -2923,9 +2956,32 @@ function stopVoiceOut(){
   const o=state._orb;if(o){o.out=0;o.outLive=false;o.amp=0;}
 }
 function stopVoice(){if(_vce)_vce.stop();state._dict=null;dictUiOff();stopVoiceOut();}
+/* V10/B · La lettura ad alta voce, in un posto solo.
+   Misurato il 2/08 sera: Andrea diceva «gli agenti parlano tutti con la stessa
+   voce», e la tubatura era giusta da cima a fondo — `speak()` riceveva
+   `agente:"dante"`, il server ha quattro voci diverse. Quello che mancava era
+   che NESSUNA voce partiva: `state.tts` nasce false e l'unico comando era
+   un'icona con un tooltip — invisibile su un telefono, che è dove Divina si
+   mostra. Una funzione che c'è ma non parte si scambia per una funzione rotta,
+   e sono due riparazioni diversissime.
+   Da qui in poi lo stato sta nell'attributo (`data-tts`), non solo nel disegno
+   dell'icona: il guardiano lo legge, e chi usa uno screen reader anche. */
+function setTts(on){
+  state.tts=!!on;localStorage.setItem(LS.tts,state.tts?'1':'0');
+  document.querySelectorAll('#chatTts').forEach(b=>{
+    b.innerHTML=icon(state.tts?'speakon':'speakoff',18);
+    b.setAttribute('data-tts',state.tts?'on':'off');
+    b.setAttribute('aria-pressed',state.tts?'true':'false');
+    b.title=state.tts?'Lettura vocale attiva — le risposte si sentono'
+                     :'Lettura vocale SPENTA — le risposte arrivano solo scritte';
+  });
+  if(!state.tts)stopVoice();
+  const s=$('#sqMuto');if(s)s.hidden=state.tts;
+  toast(state.tts?'Lettura vocale attiva':'Lettura vocale disattivata','info');
+}
 function initVoice(){
   const mic=$('#chatMic'),tts=$('#chatTts');if(!mic)return;
-  tts.onclick=()=>{state.tts=!state.tts;localStorage.setItem(LS.tts,state.tts?'1':'0');tts.innerHTML=icon(state.tts?'speakon':'speakoff',18);if(!state.tts)stopVoice();toast(state.tts?'Lettura vocale attiva':'Lettura vocale disattivata','info');};
+  tts.onclick=()=>setTts(!state.tts);
   mic.onclick=async()=>{
     const e=vce();
     if(!e){toast('Modulo voce non caricato (voce.js)','bad');return;}
@@ -2937,7 +2993,6 @@ function initVoice(){
     toast('Ti ascolto… premi di nuovo il microfono per fermare','info');
   };
 }
-async function askAgent(agentId){route('router');await new Promise(r=>setTimeout(r,60));const ta=$('#rInput');if(ta){ta.placeholder=`Scrivi il compito da affidare a ${agentId}…`;ta.focus();}}
 
 /* Beat di approvazione IN CHAT (spec Brain Motion v2): stessa transizione di
    Proposte audit — decide un umano col suo nome, il rifiuto archivia (mai delete). */
@@ -2965,77 +3020,6 @@ const IMP_ORIGINI={audit:['Audit','var(--orange)'],roadmap:['Roadmap','var(--cya
    opacità e sfumature, non dalla geometria: pesa quasi nulla, funziona
    ovunque, si stampa. three.js + GLTF (strada b) resta aggiungibile dopo —
    il contrario sarebbe più difficile. reduced-motion: figura ferma. ── */
-function humanFigura(sesso){
-  const donna=sesso==='donna';
-  // proporzioni: spalle/fianchi diversi fra le due figure; stesso linguaggio
-  const corpo=donna
-    ?'M100,38 c-11,0 -18,8 -18,19 c0,7 3,13 7,16 c-12,4 -22,10 -24,22 l-8,52 c-1,8 9,10 11,2 l9,-42 c2,20 -2,32 -6,50 c-6,26 -4,54 2,80 l4,68 c1,9 13,9 14,0 l3,-62 l12,0 l3,62 c1,9 13,9 14,0 l4,-68 c6,-26 8,-54 2,-80 c-4,-18 -8,-30 -6,-50 l9,42 c2,8 12,6 11,-2 l-8,-52 c-2,-12 -12,-18 -24,-22 c4,-3 7,-9 7,-16 c0,-11 -7,-19 -18,-19 z'
-    :'M100,36 c-12,0 -19,8 -19,20 c0,7 3,13 7,16 c-14,4 -26,10 -28,24 l-7,50 c-1,8 9,10 11,2 l9,-42 c1,18 0,30 -3,46 c-5,24 -4,56 3,84 l4,66 c1,9 14,9 15,0 l2,-60 l12,0 l2,60 c1,9 14,9 15,0 l4,-66 c7,-28 8,-60 3,-84 c-3,-16 -4,-28 -3,-46 l9,42 c2,8 12,6 11,-2 l-7,-50 c-2,-14 -14,-20 -28,-24 c4,-3 7,-9 7,-16 c0,-12 -7,-20 -19,-20 z';
-  return `<div class="hfig" id="hfigWrap" aria-label="figura umana stilizzata, ${donna?'donna':'uomo'}">
-  <svg viewBox="0 0 200 440" role="img">
-    <defs>
-      <linearGradient id="hgrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="var(--cyan)" stop-opacity=".55"/>
-        <stop offset=".55" stop-color="var(--magenta)" stop-opacity=".30"/>
-        <stop offset="1" stop-color="var(--cyan)" stop-opacity=".15"/>
-      </linearGradient>
-      <radialGradient id="hcore"><stop offset="0" stop-color="var(--cyan)" stop-opacity=".9"/><stop offset="1" stop-color="var(--cyan)" stop-opacity="0"/></radialGradient>
-    </defs>
-    <g class="hstrato" data-prof="1">
-      <path d="${corpo}" fill="url(#hgrad)" fill-opacity=".14" stroke="var(--cyan)" stroke-opacity=".55" stroke-width="1.2"/>
-    </g>
-    <g class="hstrato" data-prof="2" opacity=".5">
-      <path d="M100,74 l0,210" stroke="var(--text-2)" stroke-width="1" stroke-dasharray="2 5"/>
-      <path d="M70,116 q30,${donna?16:12} 60,0 M74,140 q26,${donna?14:10} 52,0 M78,164 q22,10 44,0" fill="none" stroke="var(--text-2)" stroke-width=".8" stroke-opacity=".6"/>
-    </g>
-    <g class="hstrato" data-prof="3">
-      <circle cx="100" cy="55" r="7" fill="url(#hcore)"/>
-      <circle cx="92" cy="128" r="6" fill="url(#hcore)"/>
-      <circle cx="100" cy="196" r="6" fill="url(#hcore)"/>
-    </g>
-  </svg></div>`;
-}
-function humanParallasse(){
-  const w=document.getElementById('hfigWrap');if(!w)return;
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;   // figura ferma
-  w.onmousemove=e=>{
-    const r=w.getBoundingClientRect();
-    const x=(e.clientX-r.left)/r.width-0.5,y=(e.clientY-r.top)/r.height-0.5;
-    w.style.setProperty('--hrx',(y*-6)+'deg');w.style.setProperty('--hry',(x*10)+'deg');
-    w.querySelectorAll('.hstrato').forEach(g=>{const p=+g.dataset.prof;g.style.transform=`translate(${x*p*4}px,${y*p*3}px)`;});
-  };
-  w.onmouseleave=()=>{w.style.setProperty('--hrx','0deg');w.style.setProperty('--hry','0deg');
-    w.querySelectorAll('.hstrato').forEach(g=>g.style.transform='');};
-}
-/* ── H3 · La scheda: si LEGGE, non si compila. Sezioni dalla nota (## Titolo),
-   voci dalle righe `- voce: valore`; le date (YYYY-MM-DD) diventano etichette
-   — un obiettivo con la data si può rileggere fra tre mesi; senza date è un
-   poster. Le sezioni attese che mancano si dicono «da definire». ── */
-function humanScheda(testo,aggiornata){
-  const ATTESE=['Salute','Punti di forza','Da migliorare','Hobby','Interessi','Obiettivi'];
-  const sez={};let cur=null;
-  String(testo).split('\n').forEach(r=>{
-    const h=r.match(/^##\s+(.+?)\s*$/);
-    if(h){cur=h[1];sez[cur]=sez[cur]||[];return;}
-    const v=r.match(/^\s*[-*]\s+(.+)$/);
-    if(v&&cur)sez[cur].push(v[1]);
-  });
-  const voce=t=>{
-    const data=t.match(/\((\d{4}-\d{2}-\d{2})\)\s*$/);
-    const corpo=data?t.slice(0,data.index).trim():t;
-    const kv=corpo.match(/^(.{2,40}?):\s+(.+)$/);
-    return `<div class="imp-riga"><div class="row" style="justify-content:space-between;gap:10px;align-items:baseline">
-      <div style="min-width:0">${kv?`<b style="font-size:12.5px">${esc(kv[1])}</b> <span class="small">${esc(kv[2])}</span>`:`<span class="small">${esc(corpo)}</span>`}</div>
-      ${data?`<span class="pill" title="ultimo aggiornamento">${esc(data[1])}</span>`:''}</div></div>`;
-  };
-  const blocchi=[...new Set([...ATTESE,...Object.keys(sez)])].map(nome=>{
-    const righe=sez[nome];
-    if(nome==='Human'||/^#/.test(nome))return '';
-    return `<div class="card" style="margin:0 0 10px"><div class="card-head" style="margin-bottom:2px"><div><h3 style="font-size:14px">${esc(nome)}</h3></div></div>
-      ${righe&&righe.length?righe.map(voce).join(''):`<div class="small" style="color:var(--orange)">⚠️ da definire — meglio vuoto dichiarato che un valore plausibile</div>`}</div>`;
-  }).join('');
-  return `<div><div class="row small muted" style="justify-content:flex-end;margin-bottom:6px">nota aggiornata: ${esc(aggiornata||'—')}</div>${blocchi}</div>`;
-}
 /* ── Fase 10 · I widget di casa: i VUOTI parlano — dicono cosa ci finirà
    dentro e come farcelo arrivare, mai uno zero muto. ── */
 /* ── V6/A · L'ORBITA CHE SI GUARDA. Erede della colonnina di stato del V5: le
@@ -3141,67 +3125,145 @@ function statiHome(){
   if(state._homeTimer)clearInterval(state._homeTimer);
   state._homeTimer=setInterval(()=>{statoLavora();},15000);
 }
-async function caricaHomeWidgets(){
-  const box=document.getElementById('homeWidgets');if(!box)return;
-  const [ft,disp,contra]=await Promise.all([
-    api('engine','/admin/tasks?status=fatta&limit=3').catch(()=>null),
-    api('orch','/agents/dispatches?limit=3').catch(()=>null),
-    api('orch','/contradictions?'+q({tenant:state.tenant,status:'irrisolto'})).catch(()=>null)]);
-  if(!document.getElementById('homeWidgets'))return;
-  const ora=new Date();
-  const fatte=((ft&&ft.tasks)||[]).filter(t=>t.status==='fatta');
-  const dd=((disp&&disp.dispatches)||[]);
-  const nc=((contra&&contra.contradictions)||[]).length;
-  box.innerHTML=`
-  <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:4px"><div><h3 style="font-size:15px">Adesso</h3><p>${esc(ora.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'}))}</p></div><span class="pill">${esc(ora.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))}</span></div>
-    <div class="small muted">Il calendario si accende quando colleghi il tuo: <a href="#" onclick="route('integrazioni');return false" style="color:var(--cyan)">porta Integrazioni → Google Calendar</a>.</div></div>
-  <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:4px"><div><h3 style="font-size:15px">La squadra</h3><p>Dante · Virgilio · Beatrice</p></div></div>
-    ${dd.length?dd.slice(0,3).map(e2=>`<div class="small" style="margin-top:4px"><b style="color:${AG_COLORS[e2.agent]||'var(--text-2)'}">${esc(e2.agent||'—')}</b> · ${esc(e2.role||e2.skill||'')} <span class="muted">${e2.esito?'· '+esc(e2.esito):''}</span></div>`).join('')
-      :'<div class="small muted">Nessuno al lavoro in questo momento. Si attivano quando affidi loro qualcosa dalla chat — e compaiono lì, come tab.</div>'}</div>
-  <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:4px"><div><h3 style="font-size:15px">Fatte di recente</h3><p>il lavoro che si vede</p></div></div>
-    ${fatte.length?fatte.map(t=>`<div class="small" style="margin-top:4px">✓ ${esc(t.title)} <span class="muted">${t.closed_by?'· '+esc(t.closed_by):''} ${t.closed_at?'· '+timeAgoIso(t.closed_at):''}</span></div>`).join('')
-      :'<div class="small muted">Le task chiuse compariranno qui, con chi le ha chiuse. Si chiudono da Diagnostica → Miglioramenti.</div>'}</div>
-  <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:4px"><div><h3 style="font-size:15px">Contraddizioni</h3><p>il cervello che si controlla</p></div></div>
-    ${nc?`<div class="small" style="color:var(--orange)">${icon('alert',12)} ${nc} da risolvere — le decide un umano, mai l'automatismo. <a href="#" onclick="route('contradictions');return false" style="color:var(--orange)">Vai alla coda</a></div>`
-      :`<div class="small" style="color:var(--cyan)">✓ Nessuna contraddizione da risolvere — è una buona notizia: le note concordano fra loro.</div>`}</div>`;
+/* ── V11/B · LA HOME RISPONDE A UNA DOMANDA SOLA ─────────────────────────────
+   «Cosa conviene fare oggi, e perché.»
+
+   Prima c'erano quattro riquadri — un orologio, gli ultimi dispatch, le task
+   chiuse, le contraddizioni — e alla domanda «cosa faccio oggi» il pannello
+   rispondeva con cinquanta task da fare e venti da verificare. Settanta righe
+   non sono una guida: sono una lista che paralizza, e si allunga a ogni giro.
+
+   TRE COSE, MAI DI PIÙ, e ognuna con la ragione in una riga che parla della
+   sua AZIENDA, non del software. La regola che tiene in piedi il blocco:
+   **se il criterio non c'è, la riga non si mostra.** Meglio due righe vere che
+   tre di cui una inventata — una guida che riempie il terzo posto per simmetria
+   smette di essere una guida al primo giorno in cui va tutto bene. ── */
+const OGGI_SOGLIA_KB = 5;         // note sotto le quali una KB non regge una telefonata
+const OGGI_MAX = 3;
+
+async function oggiTreCose(){
+  const box=document.getElementById('homeOggi');if(!box)return;
+  const [brain,cli,prop]=await Promise.all([
+    api('engine','/admin/brain').catch(()=>null),
+    api('engine','/admin/clients').catch(()=>null),
+    api('engine','/admin/proposals').catch(()=>null)]);
+  if(!document.getElementById('homeOggi'))return;
+  const cose=[];
+
+  /* 1 · Una knowledge base troppo magra per reggere una telefonata. */
+  const perTenant=(brain&&brain.stats&&brain.stats.by_tenant)||null;
+  if(perTenant){
+    const nostri=new Set(['forma-core','andrea','ovyon','altro']);
+    const magre=Object.entries(perTenant).filter(([t,n])=>!nostri.has(t)&&n<OGGI_SOGLIA_KB)
+                      .sort((a,b)=>a[1]-b[1]);
+    if(magre.length)cose.push({peso:3,
+      titolo:`La knowledge base di ${magre[0][0].toUpperCase()} ha ${magre[0][1]===1?'una nota':magre[0][1]+' note'}.`,
+      perche:'Se ti chiamano e il bot non sa rispondere, la brutta figura è tua.',
+      dove:'clienti',azione:'Riempila dal loro sito'});
+  }
+
+  /* 2 · Il cervello non ha letto l'ultima versione del vault. Stessa fonte
+         dell'allarme in alto: due numeri che si confrontano, non le ore. */
+  const vc=(brain&&brain.vault&&brain.vault.vault_commit)||null;
+  const ic=(brain&&brain.ingest_commit&&brain.ingest_commit.vault_commit)||null;
+  const li=brain&&brain.stats&&brain.stats.last_ingest;
+  const gg=li?Math.floor((Date.now()-new Date(li).getTime())/864e5):null;
+  if(vc&&ic&&vc!==ic)cose.push({peso:2,
+    titolo:gg!=null&&gg>=1?`Il cervello non legge il vault da ${gg===1?'un giorno':gg+' giorni'}.`
+                          :'Il cervello non ha letto l\'ultima versione del vault.',
+    perche:'Quello che hai scritto ieri, Divina non lo sa ancora.',
+    dove:'brain',azione:'Lancia una lettura'});
+
+  /* 3 · Proposte in coda: note pronte, ferme perché nessuno le ha guardate. */
+  const np=((prop&&prop.proposals)||[]).length;
+  if(np)cose.push({peso:2,
+    titolo:`${np===1?'C\'è una proposta':'Ci sono '+np+' proposte'} in attesa di uno sguardo.`,
+    perche:'Sono note già scritte: finché non le approvi, il cervello non le sa.',
+    dove:'improve',azione:'Guardale'});
+
+  /* 4 · Il pannello del cliente che nessun cliente ha aperto. È la cosa su cui
+         si sta scommettendo di più, ed è anche la più facile da dimenticare. */
+  const acc=(cli&&cli.clients)||[];
+  if(acc.length&&!acc.some(a=>a.last_login_at))cose.push({peso:1,
+    titolo:'Nessun cliente ha mai aperto il suo pannello.',
+    perche:'È la cosa che stai vendendo, e non l\'ha ancora vista nessuno.',
+    dove:'clienti',azione:'Manda un accesso'});
+
+  cose.sort((a,b)=>b.peso-a.peso);
+  const tre=cose.slice(0,OGGI_MAX);
+  box.innerHTML=tre.length?`
+    <div class="card" style="margin:0"><div class="card-head" style="margin-bottom:6px"><div>
+      <h3 style="font-size:15px">Cosa conviene fare oggi</h3>
+      <p>${tre.length===1?'una cosa sola':tre.length+' cose'} — le altre possono aspettare</p></div></div>
+      ${tre.map(c=>`<div class="imp-riga" style="cursor:pointer" onclick="route('${c.dove}')">
+        <div class="row" style="gap:10px;align-items:baseline">
+          <span style="color:var(--cyan);flex:none">▸</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13.5px;font-weight:600">${esc(c.titolo)}</div>
+            <div class="small muted" style="margin-top:2px;line-height:1.6">${esc(c.perche)}</div></div>
+          <span class="pill" style="flex:none">${esc(c.azione)}</span></div></div>`).join('')}
+      <div class="small muted" style="margin-top:10px">
+        <a href="#" onclick="route('improve');return false" style="color:var(--text-2)">mostrami tutto</a>
+        — la lista completa, quando la vuoi.</div></div>`
+    :`<div class="card" style="margin:0"><div class="card-head" style="margin-bottom:4px"><div>
+      <h3 style="font-size:15px">Cosa conviene fare oggi</h3><p>niente di urgente</p></div></div>
+      <div class="small muted" style="line-height:1.7">Le knowledge base dei clienti reggono, il cervello ha letto
+      l'ultima versione del vault e non ci sono proposte in attesa. Quando una di queste cose cambia, compare qui —
+      ${connesso()?'e questi sono dati veri, non un riempitivo.':'appena la console è connessa a un motore.'}
+      <a href="#" onclick="route('improve');return false" style="color:var(--text-2)">mostrami tutto</a>.</div></div>`;
 }
+function connesso(){return !!(state.engOk||state.demo);}
 /* ── Fase 8 · Aggiungi cliente: crea la SCHEDA nel cervello via /writeback,
    sempre in due tempi (anteprima → conferma umana), mai una scrittura muta. ── */
+/* ── V11/C · IL CLIENTE SI REGISTRA COME AZIENDA ────────────────────────────
+   Oggi un cliente esiste quando qualcuno gli emette una chiave a mano. Deve
+   diventare un percorso che si spiega in una frase, e i pezzi ci sono già
+   tutti tranne il primo:
+
+     1. si registra come AZIENDA — nome, sito, settore. Nient'altro.
+     2. Divina legge il suo sito e propone la prima knowledge base   (V9/B)
+     3. lui la guarda e la CORREGGE — il primo momento in cui capisce
+        cosa sta comprando                                          (V8/B)
+     4. da lì la KB cresce con le conversazioni, sempre come proposte (V6/B3)
+
+   Quindi qui non si aggiunge una funzione: si mettono in fila tre cose che
+   esistevano separate. Il modulo di prima chiedeva «cartella (scope)»,
+   «referente» e «stato» — tre campi che a un imprenditore non dicono niente e
+   che si possono ricavare o rimandare. Il sito invece è la cosa che fa
+   partire tutto il resto, e prima non si chiedeva. ── */
 function cliAggiungi(){
   const back=document.createElement('div');back.className='modal-back open';
-  back.innerHTML=`<div class="modal"><h3>Nuovo cliente</h3><p class="desc">Crea la scheda in <span class="mono">forma/clienti/&lt;cartella&gt;/</span> del cervello. Prima vedi l'anteprima, poi confermi: nessuna scrittura senza di te.</p>
-    <label class="fld"><span class="lt">Nome</span><input id="ncNome" placeholder="Home Restaurant Hotel"></label>
-    <label class="fld"><span class="lt">Cartella (scope)</span><input id="ncSlug" placeholder="home-restaurant-hotel"></label>
-    <label class="fld"><span class="lt">Referente</span><input id="ncRef" placeholder="nome e ruolo"></label>
-    <label class="fld"><span class="lt">Stato</span><select id="ncStato"><option>attivo</option><option>in trattativa</option><option>fermo</option></select></label>
+  back.innerHTML=`<div class="modal" id="ncBox"><h3>Registra un'azienda</h3>
+    <p class="desc">Tre cose, e poi Divina va a leggersi il sito da sola. Niente si scrive nel cervello senza che tu lo confermi.</p>
+    <label class="fld"><span class="lt">Come si chiama</span><input id="ncNome" placeholder="Home Restaurant Hotel"></label>
+    <label class="fld"><span class="lt">Il sito</span><input id="ncSito" placeholder="hrh.it" inputmode="url"></label>
+    <label class="fld"><span class="lt">Di cosa si occupa</span><input id="ncSettore" placeholder="ristorazione e ospitalità"></label>
     <div id="ncOut" class="small" style="margin-top:8px"></div>
-    <div class="modal-foot"><button class="btn ghost" id="ncAnnulla">Annulla</button><button class="btn primary" id="ncAnteprima">Anteprima</button></div></div>`;
+    <div class="modal-foot"><button class="btn ghost" id="ncAnnulla">Annulla</button><button class="btn primary" id="ncAvanti">Crea la scheda</button></div></div>`;
   document.body.appendChild(back);
   const via=()=>back.remove();
   back.onclick=e=>{if(e.target===back)via();};
   back.querySelector('#ncAnnulla').onclick=via;
-  const slugAuto=()=>{const n=back.querySelector('#ncNome').value.trim();const s=back.querySelector('#ncSlug');if(!s.value.trim()&&n)s.value=n.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');};
-  back.querySelector('#ncNome').addEventListener('blur',slugAuto);
-  back.querySelector('#ncAnteprima').onclick=async()=>{
-    slugAuto();
-    const nome=back.querySelector('#ncNome').value.trim(),slug=back.querySelector('#ncSlug').value.trim();
-    const ref=back.querySelector('#ncRef').value.trim(),st=back.querySelector('#ncStato').value;
+  back.querySelector('#ncAvanti').onclick=async()=>{
+    const nome=back.querySelector('#ncNome').value.trim();
+    const sito=back.querySelector('#ncSito').value.trim();
+    const settore=back.querySelector('#ncSettore').value.trim();
     const out=back.querySelector('#ncOut');
-    if(!nome||!slug){out.textContent='Servono nome e cartella.';return;}
-    const corpo=`# Cliente — ${nome}\n\n- Stato: ${st}\n- Referente: ${ref||'da definire'}\n- Creato dal pannello Divina\n\n## Note\n\n(da riempire — questa scheda è il posto dove il valore si accumula)`;
+    if(!nome){out.textContent='Serve almeno il nome.';return;}
+    /* Lo scope si ricava dal nome: è un dettaglio tecnico, e chiederlo
+       significava chiedere a un imprenditore di scegliere un identificatore. */
+    const slug=nome.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const corpo=`# ${nome}\n\n- Sito: ${sito||'da definire'}\n- Di cosa si occupa: ${settore||'da definire'}\n- Registrata dal pannello Divina\n\n## Cosa sappiamo di loro\n\n(la prima versione arriva dal loro sito, come proposta: si approva una voce per volta)`;
+    out.textContent='Creo la scheda…';
     try{
-      const prev=await api('engine','/writeback',{method:'POST',auth:false,tenantKey:true,
-        body:{scope:slug,title:'Cliente — '+nome,body:corpo,origin:'conversazione',confirm:false}});
-      out.innerHTML=`<b>Anteprima</b> — ancora nessuna scrittura:<pre style="white-space:pre-wrap;font-size:11px;max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:4px">${esc(String(prev.preview||corpo).slice(0,1200))}</pre>
-        <div class="row" style="margin-top:8px"><button class="btn sm primary" id="ncScrivi">✓ Confermo: crea la scheda</button></div>`;
-      back.querySelector('#ncScrivi').onclick=async()=>{
-        try{
-          const r=await api('engine','/writeback',{method:'POST',auth:false,tenantKey:true,
-            body:{scope:slug,title:'Cliente — '+nome,body:corpo,origin:'conversazione',confirm:true}});
-          toast('Scheda creata nel cervello ('+(r.path||slug)+') · comparirà qui dopo la prossima ingest','ok');via();route('clienti');
-        }catch(e2){out.innerHTML='<span style="color:var(--neg)">✕ '+esc(e2.message)+'</span> — se lo scope non esiste ancora, la cartella va creata nel vault (o da Cowork) prima della scheda.';}
-      };
-    }catch(e2){out.innerHTML='<span style="color:var(--neg)">✕ '+esc(e2.message)+'</span>';}
+      await api('engine','/writeback',{method:'POST',auth:false,tenantKey:true,
+        body:{scope:slug,title:nome,body:corpo,origin:'conversazione',confirm:true}});
+    }catch(e2){out.innerHTML='<span style="color:var(--neg)">✕ '+esc(e2.message)+'</span> — se la cartella non esiste ancora nel vault, va creata prima.';return;}
+    via();
+    toast('Scheda creata · adesso Divina legge '+(sito||'il sito'),'ok');
+    /* Il passo 2, subito e nella stessa sequenza: è QUESTO che trasforma tre
+       funzioni in un percorso. Senza sito non si può, e lo si dice. */
+    if(sito)formDalSito(slug,sito); else route('clienti');
   };
 }
 /* ── R5 (01-08) · Il CONNETTORE ha un fornitore: COMPOSIO, deciso da Andrea
@@ -3608,16 +3670,16 @@ function newClientForm(){
 }
 
 /* ══════════ ROUTER ══════════ */
-const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],improve:['Miglioramenti','Da fare · in corso · fatte — audit, roadmap, proposte e gap in un posto solo'],proposals:['Miglioramenti','Da fare · in corso · fatte'],roadmap:['Miglioramenti','Da fare · in corso · fatte'],tasks:['Miglioramenti','Da fare · in corso · fatte'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Chiavi tenant','Onboarding & accessi'],agents:['Squadra','Divina e i tre companion — le capacità, la regia, il router'],clienti:['Clienti','Le schede, le note e gli accessi di ogni cliente'],human:['Human · evoluzione','La persona, non il lavoro — dati fuori dall\'indice, letti solo qui'],integrazioni:['Integrazioni','Gli strumenti collegati al tuo mondo'],impostazioni:['Impostazioni','Permessi, connessione, tema, installazione'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore'],
+const TITLES={home:['Il tuo mondo','Divina · un prodotto FORMA'],chat:['Lavora con Divina','Le orbite del cervello, la voce, il focus — il posto dove si lavora'],dashboard:['Dashboard motore',"Colpo d'occhio del cervello"],cruscotto:['Cruscotto FORMA','KPI reali, listino, clienti, OKR — migrato dal portale'],brain:['Cervello vivo','I neuroni del vault che pulsano — note, aree, ricerca'],scopes:['Scope','Metriche per area'],insights:['Segnali','Gap e feedback'],learning:['Apprendimento','Task azionabili'],improve:['Miglioramenti','Da fare · in corso · fatte — audit, roadmap, proposte e gap in un posto solo'],proposals:['Miglioramenti','Da fare · in corso · fatte'],roadmap:['Miglioramenti','Da fare · in corso · fatte'],tasks:['Miglioramenti','Da fare · in corso · fatte'],usage:['Uso & costi','Traffico per tenant'],events:['Eventi','Storico conversazioni'],tenants:['Chiavi tenant','Onboarding & accessi'],agents:['Squadra','Divina e i tre companion — le capacità, la regia, il router'],clienti:['Clienti','Le schede, le note e gli accessi di ogni cliente'],integrazioni:['Integrazioni','Gli strumenti collegati al tuo mondo'],impostazioni:['Impostazioni','Permessi, connessione, tema, installazione'],live:['Regia live','Il dispatch degli agenti mentre accade'],router:['Router / esegui','Instrada una richiesta'],nodes:['Nodi wiki','Contenuto della pipeline'],contradictions:['Contraddizioni','Coda di revisione'],docs:['Documenti','Genera & manutieni'],system:['Stato & audit','Motore + orchestratore'],
   memoria:['Cosa so di te','Quello che il sistema ha imparato — con la fonte, e il bottone per dimenticarlo'],
   ckb:['La vostra knowledge base','Le cose che sappiamo di voi, e come dirci che una è sbagliata'],
   cbuchi:['Cosa non sappiamo','Le domande rimaste senza risposta sui vostri dati']};
-VIEWS.roadmap=VIEWS.tasks=VIEWS.proposals=VIEWS.improve;   // M1: tre nomi, una vista
 /* Le viste che non stanno più nel menu si evidenziano sulla loro PORTA. */
 const VIEW_PORTA={nodes:'brain',docs:'brain',contradictions:'brain',live:'agents',router:'agents',memoria:'agents',
                   tasks:'improve',proposals:'improve',roadmap:'improve',clients:'clienti'};
 /* V8/B · Le porte che esistono anche per il CLIENTE. Fino a ieri ne aveva una
    sola (la chat) e route() ci rimandava qualunque cosa chiedesse. */
+VIEWS.roadmap=VIEWS.tasks=VIEWS.proposals=VIEWS.improve;   // M1: tre nomi, una vista
 const CLIENTE_VIEWS=new Set(['chat','ckb','cbuchi']);
 function route(view){
   if(state.clientMode&&!CLIENTE_VIEWS.has(view))view='chat';   /* modalità cliente: solo le sue porte */
@@ -3674,6 +3736,15 @@ $('#diagToggle').onclick=()=>{
   $('#diagToggle').classList.toggle('active',!g.hidden&&false);
 };
 if(localStorage.getItem('dv_diag')==='1')$('#diagGroup').hidden=false;
+/* V11/A2 · «Amministrazione» esiste solo per chi amministra. Il segno è il
+   token del motore: chi ce l'ha gestisce il servizio, chi non ce l'ha lo usa.
+   Chiusa comunque di default — dieci voci aperte sono di nuovo diciotto. */
+function admVisibile(){
+  const owner=!state.clientMode&&(!!state.engTok||state.demo);
+  $('#diagToggle').hidden=!owner;
+  if(!owner)$('#diagGroup').hidden=true;
+}
+admVisibile();
 $$('.bottombar button').forEach(b=>b.onclick=()=>{
   if(b.dataset.bv==='chat'&&!state.clientMode){document.body.classList.toggle('chat-mobile');const ta=$('#chatMsg');if(ta&&document.body.classList.contains('chat-mobile'))ta.focus();return;}
   document.body.classList.remove('chat-mobile');
@@ -3722,10 +3793,22 @@ async function refreshBadges(){
         }else if(vc&&ic){
           el.hidden=true;                       // commit uguali = cervello allineato
         }else{
+          /* V10/A1 · QUI stava il difetto. Senza uno dei due commit si scendeva
+             sulle ore, e le ore dopo un redeploy sono sempre poche: l'allarme si
+             spegneva DA SOLO. Il 2/08 alle 17:40 il V9 era mergiato da venti
+             minuti, il vault tornava `{}` perché il container era nuovo, e la
+             fascia era vuota — cioè diceva «va tutto bene».
+             Adesso le ore restano una riserva, ma il non-poter-confrontare si
+             dichiara: un allarme cieco lo deve dire, altrimenti è un allarme
+             finto. La frase arriva dal registro del degrado, non da qui. */
           const h=li?(Date.now()-new Date(li).getTime())/36e5:null;
+          const dg=d&&d.degrado;
           if(h!=null&&isFinite(h)&&h>24){
             el.hidden=false;
             el.innerHTML=`${icon('alert',13)} Il cervello non si aggiorna da <b>${h>48?Math.round(h/24)+' giorni':Math.round(h)+' ore'}</b> — le risposte invecchiano con lui. Lancia una ingest.`;
+          }else if(dg&&dg.stato!=='acceso'){
+            el.hidden=false;
+            el.innerHTML=`${icon(dg.stato==='non-so'?'clock':'alert',13)} <b>L'allarme «cervello fermo» non può guardare</b> — ${esc(dg.perche||'')}${dg.come?` <span class="mono" style="opacity:.75">${esc(dg.come)}</span>`:''}`;
           }else el.hidden=true;
         }
       }
@@ -3746,6 +3829,7 @@ async function tryClientMode(){
 function enterClientMode(d){
   state.clientMode=d;state.demo=false;
   document.body.classList.add('clientmode');
+  admVisibile();                          // V11/A2: al cliente, mai
   if(d.kind==='ghost'){
     const b=document.createElement('div');b.className='ghost-banner';
     b.innerHTML=`${icon('key',13)} Stai guardando il pannello di <b>&nbsp;${esc(d.account.email)}&nbsp;</b> come FORMA (sessione 30 min) <button id="ghostExit">Esci</button>`;
@@ -3794,7 +3878,7 @@ addEventListener('pagehide',chiudiConversazione);
 
    Qui NON si scrive niente: ogni voce entra in coda con l'URL della pagina e la
    frase da cui viene, e si approva una per una — anche quando sono dodici. */
-async function formDalSito(scope){
+async function formDalSito(scope,sito){   // V11/C: il sito arriva già dalla registrazione
   const back=document.createElement('div');back.className='modal-back open';
   back.innerHTML=`<div class="modal" style="max-width:640px" id="dsBox">
     <div class="card-head"><div><h3>Proponi la scheda dal sito</h3>
@@ -3804,7 +3888,7 @@ async function formDalSito(scope){
       a chi scrive a quest'azienda. <b>Non scrive niente nel cervello</b>: ogni voce va in coda
       con la pagina e la frase da cui viene, e la approvi tu. Le frasi che non si ritrovano nel
       sito e quelle con dentro dati di persone vengono scartate — non corrette.</div>
-    <label class="fld"><span class="lt">Indirizzo del sito</span><input id="dsUrl" placeholder="es. ats.it"></label>
+    <label class="fld"><span class="lt">Indirizzo del sito</span><input id="dsUrl" placeholder="es. ats.it" value="${esc(sito||'')}"></label>
     <div class="row" style="justify-content:flex-end"><button class="btn ghost" id="dsNo">Annulla</button><button class="btn primary" id="dsGo">Leggi il sito</button></div>
     <div id="dsOut" style="margin-top:14px"></div></div>`;
   document.body.appendChild(back);

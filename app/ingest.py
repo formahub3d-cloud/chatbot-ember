@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import subprocess
+import threading
 import uuid
 from pathlib import Path
 
@@ -83,6 +84,19 @@ def sync_vault(vault_path: str, url: str, token: str = "", ref: str = "main") ->
     """
     if not url:
         return False
+    with _GIT:
+        return _sync_vault_locked(vault_path, url, token, ref)
+
+
+# V10/A2: da adesso due percorsi diversi possono chiedere il vault — la ingest e
+# il recupero del clone all'avvio. `_fresh_clone_swap` rinomina la cartella: due
+# git in parallelo sulla stessa directory sono il modo più veloce di ritrovarsi
+# con mezzo vault. Il lock copre SOLO le operazioni git, non la lettura delle
+# note: serializzare un ingest intero bloccherebbe l'avvio del motore.
+_GIT = threading.RLock()
+
+
+def _sync_vault_locked(vault_path: str, url: str, token: str, ref: str) -> bool:
     vp = Path(vault_path)
     safe = _redact_url(url)
     if (vp / ".git").exists():
@@ -149,6 +163,41 @@ def _fresh_clone_swap(vp: Path, url: str, token: str, safe: str, ref: str = "mai
     tmp.rename(vp)
     shutil.rmtree(stale, ignore_errors=True)
     log.info("vault: clone pulito + swap ok (%s)", safe)
+
+
+def procura_clone() -> dict:
+    """V10/A2 · All'avvio: se il clone del vault non c'è, prenderlo.
+
+    Ritorna `{fatto, motivo, vault_commit}` — mai un'eccezione: è chiamata dal
+    boot, e un motore che non parte perché non è riuscito a clonare sarebbe un
+    rimedio peggiore del guasto. Chi vuole sapere com'è andata lo legge da
+    `degrado.per("allarme-commit")`, che guarda il risultato e non il tentativo.
+
+    Non fa la ingest. Il perché sta in `main._startup_clone_vault`."""
+    if not settings.vault_boot_clone:
+        return {"fatto": False, "motivo": "spento (VAULT_BOOT_CLONE)", "vault_commit": ""}
+    if not settings.vault_path or not settings.vault_git_url:
+        return {"fatto": False, "motivo": "nessun repo del vault configurato",
+                "vault_commit": ""}
+    if vault_info().get("vault_commit"):
+        return {"fatto": False, "motivo": "il clone c'era già",
+                "vault_commit": vault_info()["vault_commit"]}
+    if _GIT.acquire(blocking=False):    # una ingest sta già clonando: non due volte
+        try:
+            sync_vault(settings.vault_path, settings.vault_git_url,
+                       settings.vault_git_token, settings.vault_git_ref)
+        except Exception as e:
+            log.warning("vault: recupero del clone all'avvio fallito (%s)", type(e).__name__)
+            return {"fatto": False, "motivo": f"clone fallito: {type(e).__name__}",
+                    "vault_commit": ""}
+        finally:
+            _GIT.release()
+    else:
+        return {"fatto": False, "motivo": "una sincronizzazione è già in corso",
+                "vault_commit": ""}
+    sha = vault_info().get("vault_commit", "")
+    log.info("vault: clone recuperato all'avvio (%s)", sha or "?")
+    return {"fatto": True, "motivo": "", "vault_commit": sha}
 
 
 def vault_info(vault_path: str | None = None) -> dict:

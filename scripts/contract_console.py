@@ -129,6 +129,80 @@ def check(service: str = "engine") -> list[dict]:
     return report
 
 
+# ── V11/A4 · Il contratto AL CONTRARIO: chi chiama questa rotta? ─────────────
+# Andrea, il 2/08 sera: «più cose aggiungiamo, più c'è vulnerabilità». Ogni
+# endpoint che nessuna schermata chiama è superficie d'attacco che nessuno
+# guarda — e che nessuno noterà quando smetterà di funzionare.
+#
+# Il contratto storico va in una direzione sola (il pannello chiama una rotta
+# che non esiste → CI rossa). Questa è l'altra: una rotta che non chiama
+# nessuno. Non tutte sono un difetto — alcune hanno un chiamante che sta fuori
+# dal repo — ma **il chiamante va DICHIARATO**, con un nome, e una rotta nuova
+# senza dichiarazione fa fallire la CI. È la differenza fra tenere una cosa e
+# dimenticarsela.
+CHIAMANTI_FUORI: dict[str, str] = {
+    "POST /search": "connettore MCP (ovy_search) — mcp-connector/server.py",
+    "GET /document": "connettore MCP (ovy_get_document)",
+    "GET /context": "connettore MCP (ovy_list_context)",
+    "POST /writeback": "connettore MCP (ovy_create_document / ovy_update_document)",
+    "POST /billing/webhook": "Stripe, che chiama noi: non lo chiama nessuno di nostro",
+    "POST /billing/checkout": "il link di pagamento, generato fuori dalla console",
+    "GET /admin/gdpr/export": "obbligo di legge (art. 15), si esegue a mano su richiesta",
+    "POST /admin/gdpr/erase": "obbligo di legge (art. 17), si esegue a mano su richiesta",
+    "POST /admin/retention/run": "pulizia periodica, si lancia a mano (non c'è uno schedulato)",
+    "POST /admin/tenants/brand": "provisioning di un tenant, a mano",
+    "POST /admin/tasks/claim": "usato dal worker dell'orchestratore, non dalla console",
+    "POST /upload": "il widget OCR: caricamento documento → estrazione",
+    "POST /upload/confirm": "conferma umana dell'estrazione OCR",
+    "GET /contracts/templates": "generazione contratti: nessuna schermata, si usa via API",
+    "POST /contracts/fill": "generazione contratti: nessuna schermata, si usa via API",
+    "POST /contracts/pdf": "generazione contratti: nessuna schermata, si usa via API",
+    "POST /contracts/sign": "firma elettronica: nessuna schermata, si usa via API",
+    # Generate da FastAPI, non da noi. Restano perché /docs è il modo in cui si
+    # prova un endpoint a mano; vale la pena sapere che espongono l'elenco
+    # completo delle rotte a chiunque, ed è una decisione, non una svista.
+    "GET /openapi.json": "FastAPI: lo schema che alimenta /docs e /redoc",
+    "GET /docs": "FastAPI: la pagina per provare un endpoint a mano",
+    "GET /docs/oauth2-redirect": "FastAPI: parte di /docs",
+    "GET /redoc": "FastAPI: la stessa cosa, in un'altra veste",
+}
+
+
+def _sorgenti() -> str:
+    """Tutto ciò che, nel repo, può chiamare il motore."""
+    testo = []
+    for f in ["panel/index.html", "panel/voce.js", "widget/embed.js", "widget/voce.js"]:
+        pf = _ROOT / f
+        if pf.exists():
+            testo.append(pf.read_text("utf-8"))
+    for d in ["scripts", "mcp-connector"]:
+        for pf in (_ROOT / d).rglob("*"):
+            if pf.suffix in (".py", ".js", ".md") and pf.name != "contract_console.py":
+                testo.append(pf.read_text("utf-8", errors="ignore"))
+    return "\n".join(testo)
+
+
+def orfane() -> list[str]:
+    """Le rotte del motore che nessuno chiama, e che nessuno ha dichiarato."""
+    routes, _ = backend_routes()
+    src = _sorgenti()
+    fuori = set()
+    for k in CHIAMANTI_FUORI:
+        me, p = k.split(" ", 1)
+        fuori.add((me, p))
+    out = []
+    for me, path in sorted(set(routes)):
+        if path.startswith("/panel") or path.startswith("/widget") or path == "/health":
+            continue
+        base = path.split("{")[0].rstrip("/")
+        if base and base in src:
+            continue
+        if (me, path) in fuori:
+            continue
+        out.append(f"{me} {path}")
+    return out
+
+
 def referto(service: str = "engine") -> str:
     rows = check(service)
     ok = sum(1 for r in rows if r["found"])
