@@ -78,6 +78,39 @@ _ANAFORA = re.compile(
 # rumore al retrieval.
 SOGLIA_AUTONOMA = 90
 
+# V12/B · Un nome proprio o una sigla: il SOGGETTO che una domanda porta con sé.
+# Si ignora la prima parola, che in italiano è maiuscola d'obbligo e non dice
+# niente.
+_PROPRIO = re.compile(r"\b([A-ZÀ-Þ][\wÀ-ÿ'’]{2,}|[A-Z]{2,})\b")
+
+
+def ha_soggetto(testo: str) -> bool:
+    """La frase nomina qualcuno o qualcosa di preciso?"""
+    for m in _PROPRIO.finditer(testo or ""):
+        if m.start() == 0:
+            continue
+        return True
+    return False
+
+
+# Un articolo NUDO introduce un soggetto suo («quanto costa **la** stampa 3D?»);
+# una preposizione articolata («al mese») no — è un complemento, non il soggetto.
+_ARTICOLO = re.compile(r"(?i)(?:^|\s)(?:il|lo|la|i|gli|le|un|una|uno)\s")
+_INTERROGATIVA = re.compile(r"(?i)^\W*(?:e\s+)?(?:quanto|quanta|quanti|quante|quando|"
+                            r"dove|come|perch[eé]|chi|che|quale|quali|cosa)\b")
+
+
+def _ellittica(d: str) -> bool:
+    """Una domanda che non porta NESSUN soggetto: né un nome proprio, né un
+    sintagma introdotto da un articolo. «E quanto paga al mese?» è così; «quanto
+    costa la stampa 3D?» no, e infatti quella si regge da sola.
+
+    Deve anche essere una domanda: senza il punto interrogativo (o una parola
+    interrogativa in testa) si finirebbe a espandere «ciao»."""
+    if ha_soggetto(d) or _ARTICOLO.search(d):
+        return False
+    return d.rstrip().endswith("?") or bool(_INTERROGATIVA.match(d))
+
 
 def normalizza(history) -> list[dict]:
     """History del client → turni {role, content} puliti, entro la finestra.
@@ -113,13 +146,34 @@ def finestra(turni: list[dict]) -> list[dict]:
 
 
 def e_di_seguito(domanda: str, turni: list[dict]) -> bool:
-    """La domanda si appoggia al turno precedente invece di reggersi da sola?"""
+    """La domanda si appoggia al turno precedente invece di reggersi da sola?
+
+    Due modi, e il secondo è nato da un difetto visto in produzione il 3/08.
+
+    1. **Un marcatore anaforico** («e quello?», «torna a prima»): il caso
+       classico, che c'era dal V7.
+    2. **Una domanda corta SENZA un soggetto suo**, quando nel filo un soggetto
+       c'è. È il caso che mancava, ed è il più comune di tutti: *«Parlami del
+       cliente HRH»* → *«E quanto paga al mese?»*. Il vecchio riconoscitore
+       accettava «e» solo se seguita da un articolo o una preposizione («e il
+       contratto?»), quindi tutte le domande di seguito che cominciano con una
+       parola interrogativa cadevano fuori — e finivano nel retrieval **senza
+       soggetto**. Il risultato non era una risposta sbagliata sul cliente
+       giusto: era la NOTA sbagliata, perché «quanto paga al mese» somiglia a
+       qualunque nota che parli di pagamenti, e la scheda del cliente — dove sta
+       la cifra — non è la più somigliante.
+
+    Il compromesso resta quello dichiarato dal modulo: un falso positivo costa
+    una query più lunga, un falso negativo costa una risposta sbagliata."""
     d = (domanda or "").strip()
     if not d or not turni:
         return False
     if len(d) > SOGLIA_AUTONOMA:
         return False
-    return bool(_ANAFORA.search(d))
+    if _ANAFORA.search(d):
+        return True
+    return _ellittica(d) and any(ha_soggetto(t["content"])
+                                 for t in turni if t["role"] == "user")
 
 
 def query_retrieval(domanda: str, turni: list[dict]) -> str:
