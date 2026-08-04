@@ -691,6 +691,34 @@ function trovaChromium() {
   await page.reload();
   await page.waitForTimeout(900);
 
+  // 1b-quaterdecies · V13/A · LA PRIMA PORTA.
+  //   Il 3/08 il browser ha dimenticato le credenziali e la console si è aperta
+  //   chiedendo SEI campi, due dei quali segreti, prima di far vedere qualunque
+  //   cosa. Era l'unica porta che il criterio del V11 non aveva mai incontrato,
+  //   ed è la prima che si apre. Qui si CONTA quanti campi chiede — un numero,
+  //   non un'impressione — e si preme il bottone che deve esistere perché il
+  //   percorso sia «guardo → capisco → collego» e non «muro → sei campi → forse».
+  const porta = await page.evaluate(async () => {
+    openConn();
+    await new Promise(r => setTimeout(r, 300));
+    const m = document.getElementById("connModal");
+    const visibili = [...m.querySelectorAll("input")]
+      .filter(i => i.type !== "checkbox" && !i.closest("details"));
+    const av = m.querySelector("details");
+    const out = {
+      campi: visibili.length,
+      quali: visibili.map(i => i.id),
+      avanzateChiuse: !!av && !av.open,
+      dietroAvanzate: av ? av.querySelectorAll("input").length : 0,
+      guarda: !!document.getElementById("connGuarda"),
+    };
+    // e il bottone «guarda» deve PORTARE DENTRO, non solo esistere (V12/A2)
+    document.getElementById("connGuarda").click();
+    await new Promise(r => setTimeout(r, 700));
+    out.entrato = !m.classList.contains("open") && !!state.demo;
+    return out;
+  });
+
   // 1c · R2: la barra di scrittura sta DENTRO il pannello col suo respiro —
   //      niente testo tagliato dal bordo (il difetto visto in produzione).
   const composer = await page.evaluate(() => {
@@ -1019,6 +1047,15 @@ function trovaChromium() {
                     " · " + JSON.stringify(percorso)); ko = 1;
     } else console.log("[percorso] registra → legge il sito (" + percorso.proposte +
                        " proposte con la fonte) → coda → il cliente la vede");
+  }
+  if (porta.campi !== 1) {
+    console.error("FAIL (V13-A1): la prima porta chiede " + porta.campi + " campi invece di UNO — " + JSON.stringify(porta.quali)); ko = 1;
+  } else console.log("[prima porta] 1 campo · " + porta.dietroAvanzate + " dietro «avanzate», chiuse");
+  if (!porta.avanzateChiuse) {
+    console.error("FAIL (V13-A1): le impostazioni avanzate non nascono chiuse"); ko = 1;
+  }
+  if (!porta.guarda || !porta.entrato) {
+    console.error("FAIL (V13-A2): non si può guardare Divina prima di collegarla " + JSON.stringify(porta)); ko = 1;
   }
   if (!regV11.modulo || !regV11.sito || !regV11.niScope || regV11.campi !== 3) {
     console.error("FAIL (V11-C): la registrazione azienda non chiede nome/sito/settore " + JSON.stringify(regV11)); ko = 1;
