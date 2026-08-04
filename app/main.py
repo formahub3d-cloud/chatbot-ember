@@ -1749,7 +1749,13 @@ class ClientLoginIn(BaseModel):
 class ClientNewIn(BaseModel):
     email: str
     name: str = ""
-    tenant_key: str        # resta server-side: il cliente non la vedrà mai
+    # V13/A3 · UNO dei due, e il primo è quello giusto.
+    # `scope`: la cartella del cliente (`ats`, `hrh`…). La chiave la conia il
+    # server e non la vede nessuno — né chi crea l'accesso, né gli appunti, né
+    # lo schermo. `tenant_key`: la via vecchia, che resta per chi una chiave
+    # ce l'ha già; ma creare un cliente non deve più passare da lì.
+    scope: str = ""
+    tenant_key: str = ""   # resta server-side: il cliente non la vedrà mai
     password: str          # password del primo accesso (min 8)
 
 
@@ -1963,8 +1969,21 @@ def admin_clients_new(body: ClientNewIn, authorization: str = Header(default="")
     password del primo accesso. La chiave master è rifiutata."""
     _require_admin(authorization)
     _client_feature_on()
+    chiave = (body.tenant_key or "").strip()
+    if not chiave:
+        # V13/A3 · Un'azione sola. Prima erano tre — emetti la chiave, copiala
+        # al volo perché «si vede UNA sola volta», incollala in un altro
+        # modulo — e in mezzo un segreto passava per gli appunti e per lo
+        # schermo. Adesso nasce qui e resta qui: meno passaggi e meno
+        # superficie sono la stessa cosa.
+        scope = (body.scope or "").strip().lower()
+        if not scope:
+            raise HTTPException(422, "Indica il cliente (scope) oppure una chiave tenant.")
+        _require_apikeys()
+        chiave = manage_apikeys.create_key(f"cliente-{scope}", None, [scope], None,
+                                           None, 0, {"tenant_code": scope})
     try:
-        acc = clientauth.create(body.email, body.name, body.tenant_key, body.password)
+        acc = clientauth.create(body.email, body.name, chiave, body.password)
     except ValueError as e:
         raise HTTPException(422, str(e))
     tenants.log_access("client:" + acc["email"], "client-create")

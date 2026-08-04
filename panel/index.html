@@ -530,25 +530,41 @@ body.chat-mobile .sidechat .composer{padding-bottom:calc(22px + env(safe-area-in
 </div>
 <button id="chatRiapri" title="Apri la chat con Divina">💬</button>
 
+<!-- V13/A · LA PRIMA PORTA. Il 3/08 il browser ha dimenticato le credenziali e
+     questa finestra chiedeva SEI campi, due dei quali segreti, prima di far
+     vedere qualunque cosa. Per chi conosce il sistema è mezzo minuto; per
+     «l'imprenditore appena partito» del criterio del V11 è un muro — ed era
+     l'unica porta che quel criterio non aveva mai incontrato, oltre a essere
+     la prima che si apre.
+     Adesso il percorso è: **guardo → capisco → collego.** Si entra con un
+     bottone (la demo, che esisteva già ma era una spunta in fondo), e il
+     collegamento vero chiede UNA cosa: la chiave del tenant. Tutto il resto ha
+     un valore giusto che il pannello sa da sé — l'URL vuoto è lo stesso
+     dominio, e l'orchestratore vive nello stesso progetto — e sta sotto
+     «avanzate», chiuso: serve a un'installazione separata o a un collaudo su
+     un altro ambiente, non alla prima schermata. -->
 <div class="modal-back" id="connModal"><div class="modal">
-  <h3>Connessione a Divina</h3>
-  <p class="desc">Divina è composta da due servizi. Inserisci gli URL e i token: restano solo nel browser. <b>URL vuoto = stesso dominio</b> (usa il campo vuoto per il servizio che serve questa pagina).</p>
+  <h3>Benvenuto in Divina</h3>
+  <p class="desc">Puoi guardare com'è fatta prima di collegarci qualcosa: i dati d'esempio bastano a capire se ti serve.</p>
+
+  <button class="btn primary" id="connGuarda" style="width:100%;justify-content:center;margin-bottom:14px">Guarda Divina con dati d'esempio</button>
 
   <div class="svc-block">
-    <div class="st" style="color:var(--cyan)"><span>◆</span> Motore (chat + cervello)</div>
-    <label class="fld"><span class="lt">URL motore</span><input id="inEngBase" placeholder="(stesso dominio) — es. https://divina.formahub.it" autocomplete="off"></label>
-    <label class="fld"><span class="lt">Admin token (ADMIN_TOKEN)</span><input id="inEngTok" type="password" placeholder="per dashboard/analytics/tenant" autocomplete="off"></label>
-    <label class="fld" style="margin-bottom:0"><span class="lt">Chiave tenant (X-Tenant-Key) — per la Chat</span><input id="inTenantKey" type="password" placeholder="chiave del tenant per chattare" autocomplete="off"></label>
+    <div class="st" style="color:var(--cyan)"><span>◆</span> …oppure collega il tuo</div>
+    <label class="fld" style="margin-bottom:0"><span class="lt">La tua chiave</span><input id="inTenantKey" type="password" placeholder="la chiave che ti abbiamo dato" autocomplete="off"></label>
   </div>
 
-  <div class="svc-block">
-    <div class="st" style="color:var(--magenta)"><span data-ic="sparks" data-ics="14"></span> Orchestratore (agenti)</div>
-    <label class="fld"><span class="lt">URL orchestratore</span><input id="inOrchBase" placeholder="es. https://divina-orchestra.formahub.it" autocomplete="off"></label>
-    <label class="fld"><span class="lt">Admin token (DIVINA_ADMIN_TOKEN)</span><input id="inOrchTok" type="password" placeholder="per agenti/router/contraddizioni" autocomplete="off"></label>
-    <label class="fld" style="margin-bottom:0"><span class="lt">Tenant code (RLS)</span><input id="inTenant" placeholder="forma-core" autocomplete="off"></label>
-  </div>
+  <details id="connAvanzate" style="margin:12px 0 16px">
+    <summary class="small muted" style="cursor:pointer">Impostazioni avanzate — un'altra installazione, o un collaudo</summary>
+    <div class="svc-block" style="margin-top:10px">
+      <label class="fld"><span class="lt">URL motore <span class="muted">(vuoto = stesso dominio)</span></span><input id="inEngBase" placeholder="https://divina.formahub.it" autocomplete="off"></label>
+      <label class="fld"><span class="lt">Admin token del motore</span><input id="inEngTok" type="password" placeholder="serve solo per Amministrazione" autocomplete="off"></label>
+      <label class="fld"><span class="lt">URL orchestratore <span class="muted">(vuoto = quello del progetto)</span></span><input id="inOrchBase" placeholder="https://divina-orchestra.formahub.it" autocomplete="off"></label>
+      <label class="fld"><span class="lt">Admin token dell'orchestratore</span><input id="inOrchTok" type="password" autocomplete="off"></label>
+      <label class="fld" style="margin-bottom:0"><span class="lt">Tenant code (RLS)</span><input id="inTenant" placeholder="forma-core" autocomplete="off"></label>
+    </div>
+  </details>
 
-  <label class="row small muted" style="margin:2px 0 16px;cursor:pointer"><input type="checkbox" id="inDemo" style="width:auto;min-height:auto;margin-right:8px"> Modalità demo (dati d'esempio, nessuna chiamata)</label>
   <div class="modal-foot"><button class="btn ghost" id="connCancel">Annulla</button><button class="btn primary" id="connSave">Connetti</button></div>
 </div></div>
 <div class="toasts" id="toasts"></div>
@@ -903,13 +919,27 @@ function demoData(service, path, opts){
 function toast(msg,kind='info'){const t=document.createElement('div');t.className='toast '+kind;t.innerHTML=`<span>${kind==='ok'?'✓':kind==='bad'?'✕':'ℹ'}</span><span>${esc(msg)}</span>`;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(20px)';setTimeout(()=>t.remove(),300)},4200);}
 function setTheme(t){document.documentElement.dataset.theme=t;localStorage.setItem(LS.theme,t);$('#themeBtn').innerHTML=icon(t==='dark'?'moon':'sun',17);}
 $('#themeBtn').onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
-function openConn(){$('#inEngBase').value=state.engBase;$('#inEngTok').value=state.engTok;$('#inTenantKey').value=state.tenantKey;$('#inOrchBase').value=state.orchBase;$('#inOrchTok').value=state.orchTok;$('#inTenant').value=state.tenant;$('#inDemo').checked=state.demo;$('#connModal').classList.add('open');}
+function openConn(){$('#inEngBase').value=state.engBase;$('#inEngTok').value=state.engTok;$('#inTenantKey').value=state.tenantKey;$('#inOrchBase').value=state.orchBase;$('#inOrchTok').value=state.orchTok;$('#inTenant').value=state.tenant;
+  /* V13/A2 · Se qualcosa di avanzato è già impostato, il cassetto si apre da
+     solo: nasconderglielo a chi lo ha configurato sarebbe peggio che mostrarlo
+     a chi non gli serve. */
+  const av=$('#connAvanzate');if(av)av.open=!!(state.engBase||state.engTok||state.orchBase||state.orchTok);
+  $('#connModal').classList.add('open');}
 function closeConn(){$('#connModal').classList.remove('open');}
 $('#connChip').onclick=openConn;$('#tenantChip').onclick=openConn;$('#connCancel').onclick=closeConn;
+/* V13/A2 · La demo diventa LA PORTA. Esisteva già, ma era una spunta in fondo a
+   sei campi: cioè si poteva guardare Divina solo dopo aver deciso di collegarla.
+   Adesso è il primo bottone, ed è quello che fa capire cosa si sta collegando. */
+$('#connGuarda').onclick=()=>{
+  state.demo=true;localStorage.setItem(LS.demo,'1');
+  closeConn();admVisibile();
+  checkConn().then(()=>{refreshBadges();route('home');});
+  toast("Stai guardando Divina con dati d'esempio — collega la tua chiave quando vuoi",'info');
+};
 $('#connModal').onclick=e=>{if(e.target===$('#connModal'))closeConn();};
 $('#connSave').onclick=()=>{
   state.engBase=$('#inEngBase').value.trim();state.engTok=$('#inEngTok').value.trim();state.tenantKey=$('#inTenantKey').value.trim();
-  state.orchBase=$('#inOrchBase').value.trim();state.orchTok=$('#inOrchTok').value.trim();state.tenant=(v=>v==='forma'?'forma-core':v)($('#inTenant').value.trim()||'forma-core');state.demo=$('#inDemo').checked;
+  state.orchBase=$('#inOrchBase').value.trim();state.orchTok=$('#inOrchTok').value.trim();state.tenant=(v=>v==='forma'?'forma-core':v)($('#inTenant').value.trim()||'forma-core');state.demo=false;
   localStorage.setItem(LS.engBase,state.engBase);localStorage.setItem(LS.engTok,state.engTok);localStorage.setItem(LS.tenantKey,state.tenantKey);
   localStorage.setItem(LS.orchBase,state.orchBase);localStorage.setItem(LS.orchTok,state.orchTok);localStorage.setItem(LS.tenant,state.tenant);localStorage.setItem(LS.demo,state.demo?'1':'0');
   $('#tenantText').textContent=state.tenant;closeConn();admVisibile();checkConn().then(()=>{refreshBadges();route(state.view);});
@@ -3680,7 +3710,7 @@ async function resolveContra(id,status){const by=($('#rb-'+id)||{}).value?.trim(
 function newTenantForm(){
   C.insertAdjacentHTML('afterbegin',`<div class="card" id="ntCard" style="border-color:var(--cyan)"><div class="card-head"><div><h3>＋ Nuovo tenant</h3><p>La chiave è mostrata UNA sola volta</p></div></div><div class="grid g-2"><label class="fld"><span class="lt">Nome</span><input id="ntName" placeholder="Cliente ACME"></label><label class="fld"><span class="lt">Scope (virgola)</span><input id="ntScopes" placeholder="ats"></label><label class="fld"><span class="lt">Org</span><input id="ntOrgs" placeholder="forma"></label><label class="fld"><span class="lt">Quota/gg</span><input id="ntQuota" type="number" placeholder="2000"></label></div><div class="row"><button class="btn primary" id="ntSave">Crea chiave</button><button class="btn ghost" id="ntCancel">Annulla</button></div></div>`);
   $('#ntCancel').onclick=()=>$('#ntCard').remove();
-  $('#ntSave').onclick=async()=>{const body={name:$('#ntName').value.trim(),tenants:$('#ntScopes').value.split(',').map(s=>s.trim()).filter(Boolean),orgs:$('#ntOrgs').value.split(',').map(s=>s.trim()).filter(Boolean),subs:[],origins:[],quota:$('#ntQuota').value?Number($('#ntQuota').value):null,branding:{}};if(!body.name){toast('Nome obbligatorio','bad');return;}try{const r=await api('engine','/admin/tenants',{method:'POST',body});state._lastKey={name:body.name,key:r.key||''};$('#ntCard').innerHTML=`<div class="card-head"><h3 style="color:var(--green)">✓ Tenant creato</h3></div><p class="small muted" style="margin-bottom:8px">Copia la chiave ora:</p><div class="mono" style="padding:12px;background:var(--surface-2);border:1px solid var(--cyan);border-radius:10px;word-break:break-all;user-select:all">${esc(r.key||'—')}</div><div class="row" style="margin-top:12px"><button class="btn" onclick="navigator.clipboard.writeText('${esc(r.key||'')}').then(()=>toast('Copiata','ok'))">Copia</button><button class="btn ghost" onclick="route('tenants')">Chiudi</button></div>`;toast('Tenant creato','ok');}catch(e){toast(e.message,'bad');}};
+  $('#ntSave').onclick=async()=>{const body={name:$('#ntName').value.trim(),tenants:$('#ntScopes').value.split(',').map(s=>s.trim()).filter(Boolean),orgs:$('#ntOrgs').value.split(',').map(s=>s.trim()).filter(Boolean),subs:[],origins:[],quota:$('#ntQuota').value?Number($('#ntQuota').value):null,branding:{}};if(!body.name){toast('Nome obbligatorio','bad');return;}try{const r=await api('engine','/admin/tenants',{method:'POST',body});$('#ntCard').innerHTML=`<div class="card-head"><h3 style="color:var(--green)">✓ Tenant creato</h3></div><p class="small muted" style="margin-bottom:8px">Copia la chiave ora:</p><div class="mono" style="padding:12px;background:var(--surface-2);border:1px solid var(--cyan);border-radius:10px;word-break:break-all;user-select:all">${esc(r.key||'—')}</div><div class="row" style="margin-top:12px"><button class="btn" onclick="navigator.clipboard.writeText('${esc(r.key||'')}').then(()=>toast('Copiata','ok'))">Copia</button><button class="btn ghost" onclick="route('tenants')">Chiudi</button></div>`;toast('Tenant creato','ok');}catch(e){toast(e.message,'bad');}};
 }
 async function revokeTenant(name){if(!confirm(`Revocare le chiavi di "${name}"?`))return;try{const r=await api('engine','/admin/tenants/revoke',{method:'POST',body:{name}});toast(`Revocate ${r.revoked??0} chiavi`,'ok');route('tenants');}catch(e){toast(e.message,'bad');}}
 /* Form inline «Nuovo accesso cliente» (fix collaudo 23-07): niente prompt() —
@@ -3688,20 +3718,23 @@ async function revokeTenant(name){if(!confirm(`Revocare le chiavi di "${name}"?`
    chiave chiede esplicitamente il VALORE (non il nome della chiave). */
 function newClientForm(){
   if(document.getElementById('caCard'))return;
-  C.insertAdjacentHTML('afterbegin',`<div class="card" id="caCard" style="border-color:var(--magenta)"><div class="card-head"><div><h3>＋ Nuovo accesso cliente</h3><p>Serve il VALORE della chiave tenant (ovy_… / ember_…), non il nome — resterà sul server</p></div></div><div class="grid g-2"><label class="fld"><span class="lt">Email del cliente</span><input id="caEmail" type="email" placeholder="nome@azienda.it" autocomplete="off"></label><label class="fld"><span class="lt">Nome (opzionale)</span><input id="caName" placeholder="ATS Reception"></label><label class="fld"><span class="lt">Chiave tenant (VALORE completo)</span><input id="caKey" type="password" placeholder="ovy_… / ember_…" autocomplete="off"></label><label class="fld"><span class="lt">Password del primo accesso (min 8)</span><input id="caPw" type="password" autocomplete="new-password"></label></div><div class="row"><button class="btn primary" id="caSave">Crea accesso</button><button class="btn ghost" id="caCancel">Annulla</button></div><p class="small muted" style="margin-top:10px;line-height:1.6">Non hai il valore della chiave? Creane una nuova con «＋ Nuovo» qui sopra e incollala subito: si vede UNA sola volta.</p></div>`);
-  /* P2 (collaudo Cowork): un select delle chiavi NON è possibile per design —
-     dei valori esiste solo l'hash sul server. La scorciatoia onesta: se una
-     chiave è appena stata creata in QUESTA pagina, la si può riusare al volo. */
-  if(state._lastKey&&state._lastKey.key){
-    $('#caSave').insertAdjacentHTML('beforebegin',`<button class="btn sm" id="caUseLast" type="button">Usa la chiave appena creata («${esc(state._lastKey.name)}»)</button> `);
-    const ul=document.getElementById('caUseLast');
-    if(ul)ul.onclick=()=>{$('#caKey').value=state._lastKey.key;toast('Chiave inserita (resta solo in questa pagina)','info');};
-  }
+  /* V13/A3 · Prima chiedeva «il VALORE della chiave tenant (ovy_… / ember_…),
+     non il nome», con la nota «si vede UNA sola volta». Cioè: emetti la chiave,
+     copiala al volo, incollala qui — tre passaggi in cui un segreto passa per
+     gli appunti e per lo schermo. Adesso si indica il CLIENTE e la chiave la
+     conia il server: meno passaggi e meno superficie sono la stessa cosa. */
+  C.insertAdjacentHTML('afterbegin',`<div class="card" id="caCard" style="border-color:var(--magenta)"><div class="card-head"><div><h3>＋ Nuovo accesso cliente</h3><p>La chiave la crea il server e non la vede nessuno — nemmeno tu</p></div></div><div class="grid g-2"><label class="fld"><span class="lt">Email del cliente</span><input id="caEmail" type="email" placeholder="nome@azienda.it" autocomplete="off"></label><label class="fld"><span class="lt">Nome (opzionale)</span><input id="caName" placeholder="ATS Reception"></label><label class="fld"><span class="lt">Cliente (la sua cartella nel cervello)</span><input id="caScope" placeholder="ats" autocomplete="off"></label><label class="fld"><span class="lt">Password del primo accesso (min 8)</span><input id="caPw" type="password" autocomplete="new-password"></label></div><div class="row"><button class="btn primary" id="caSave">Crea accesso</button><button class="btn ghost" id="caCancel">Annulla</button></div><p class="small muted" style="margin-top:10px;line-height:1.6">Il cliente vedrà SOLO le note di quella cartella: il confine è un filtro sul database, non una preferenza.</p></div>`);
+  /* V13/A3 · La scorciatoia «usa la chiave appena creata» non serve più: non c'è
+     più una chiave da riusare. Si indica il cliente e il server conia. */
   $('#caCancel').onclick=()=>$('#caCard').remove();
   $('#caSave').onclick=async()=>{
-    const email=$('#caEmail').value.trim(),name=$('#caName').value.trim(),tk=$('#caKey').value.trim(),pw=$('#caPw').value;
-    if(!email||!tk||pw.length<8){toast('Servono email, chiave tenant e una password di almeno 8 caratteri','bad');return;}
-    try{await api('engine','/admin/clients',{method:'POST',body:{email,name,tenant_key:tk,password:pw}});toast('Accesso creato: il cliente entra su /panel/#cliente','ok');route('tenants');}catch(e){toast(e.message,'bad');}
+    const email=$('#caEmail').value.trim(),name=$('#caName').value.trim();
+    const scope=$('#caScope').value.trim().toLowerCase(),pw=$('#caPw').value;
+    if(!email||!scope||pw.length<8){toast('Servono email, cliente e una password di almeno 8 caratteri','bad');return;}
+    try{
+      await api('engine','/admin/clients',{method:'POST',body:{email,name,scope,password:pw}});
+      toast('Accesso creato: il cliente entra su /panel/#cliente','ok');route('tenants');
+    }catch(e){toast(e.message,'bad');}
   };
 }
 
