@@ -1,11 +1,39 @@
-# Divina — il chatbot e il suo cervello
+# Divina — il motore (`divina-motore`)
 
 Motore RAG **multi-tenant** che risponde attingendo al cervello di Divina (un vault Obsidian),
 con **accessi per settore**: ogni tenant (FORMA, ATS, HRH…) vede solo le aree consentite
 dalla sua chiave. Provider-agnostico: LLM **Mistral** o **Claude**, embeddings **Mistral**.
 
-> Questa è la **base Fase 0** (vedi `forma/docs/doc-chatbot-cervello` nel cervello).
-> È pensata per diventare un **repo a sé** e girare come servizio separato su Railway.
+Oltre al RAG, qui vivono: ingest del vault, voce (STT/TTS), upload e OCR, accessi
+cliente, coda task, e la console `/panel/`. Gira su `divina.formahub.it`.
+
+## L'ecosistema in quattro repo
+
+| Repo | Cos'è | Dove gira |
+|---|---|---|
+| [`v4-forma`](https://github.com/formahub3d-cloud/v4-forma) | sito + CRM + (in arrivo) **area cliente Divina** | `www.formahub.it` · `api.formahub.it` |
+| **`divina-motore`** (qui) | motore RAG, cervello, voce, console | `divina.formahub.it` |
+| [`divina-agenti`](https://github.com/formahub3d-cloud/divina-agenti) | orchestratore: i 3 companion, nodi, documenti | servizio Railway |
+| [`divina-cervello`](https://github.com/formahub3d-cloud/divina-cervello) | il vault Obsidian: la sorgente delle note | repo (privato) |
+
+Nomi storici ancora vivi nei **contratti** e da NON rinominare: `MONGO_DB=ember`,
+`EMBER_URL`/`EMBER_ADMIN_TOKEN`, logger `ember`, tool MCP `ovy_*`, schema e GUC
+SQL `ovyon.*`, cartella `ovyon/` del vault (è uno scope, cioè un permesso).
+
+## Direzione: rebuild Divina v3.1
+
+Divina diventa un prodotto vendibile: l'area cliente si costruisce dentro
+`v4-forma` (`app.divina.formahub.it`) con identità FORMA unica e uso misurato in
+**token**. Questo servizio **resta** — è qui che vivono chat, fonti, memoria,
+documenti e voce — e continua a rispondere su `divina.formahub.it` finché la
+console non va in pensione (S7.3). Documenti vincolanti (super prompt v3.1 ·
+piano sprint v1.1) fuori repo; qui dentro:
+
+- `docs/stato-reale-divina-motore.md` — cos'è oggi questo servizio, in una pagina.
+- `docs/diario-problemi.md` — **si parte da qui**: problemi trovati, risolti o da decidere.
+- `docs/mappa-dati-postgres-railway.md` — S1.1: perché il Postgres storico si può spegnere.
+- `scripts/snapshot_postgres_legacy.sh` — S1.4: lo snapshot prima di spegnerlo.
+- Il contratto con il backend FORMA sta in `divina-agenti/openapi.yaml`.
 
 ## Architettura
 
@@ -47,7 +75,7 @@ in `db/` (`schema.sql`, `README.md`). Setup completo di produzione: `SETUP-PRODU
 ## Setup
 
 ```bash
-cd chatbot-ember
+cd divina-motore
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 

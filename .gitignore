@@ -11,3 +11,8 @@ backup/
 # Playwright installato a mano per il guardiano headless — mai nel repo
 node_modules/
 package-lock.json
+
+# S1.4 — dump del Postgres storico: contiene le chiavi-tenant IN CHIARO
+# (colonna `key` della tabella `tenants`, forma precedente ad api_keys).
+# Si custodisce fuori dal repo; in repo resta postgres-legacy-inventario.md.
+postgres-legacy-snapshot.sql

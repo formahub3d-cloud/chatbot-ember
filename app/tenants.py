@@ -1,8 +1,12 @@
 """Gestione tenant (chiavi → scope permessi).
 
 Sorgenti, in ordine di precedenza a runtime:
-  1) Database Postgres (se DATABASE_URL è impostata) — gestibile senza re-deploy.
-  2) Variabile TENANTS_JSON (cloud senza DB).
+  1) Database Postgres — SOLO se DATABASE_URL è impostata **e** la tabella
+     `tenants` ha la forma storica `key/name/allowed_scopes` (`tenants_legacy()`).
+     È la forma che creava questo modulo quando il tenant store era il Postgres
+     allegato su Railway; su Supabase la tabella `tenants` è quella dello schema
+     OVYON e questa strada resta chiusa, di proposito.
+  2) Variabile TENANTS_JSON (cloud senza DB) — la sorgente attuale in produzione.
   3) File tenants.json (sviluppo locale).
 
 Il risultato è in cache in memoria per 60s per non interrogare il DB ad ogni richiesta.
@@ -65,10 +69,59 @@ def init_and_seed(seed: dict) -> int:
     return len(seed)
 
 
+_LEGACY: dict = {"noto": False, "valore": False}
+
+
+def tenants_legacy() -> bool:
+    """La tabella `tenants` ha la forma STORICA (`key`/`allowed_scopes`)?
+
+    S1.1 (05-08-2026) · Quella forma la creava questo modulo, quando il tenant
+    store era il Postgres allegato al servizio su Railway. Su Supabase la
+    tabella `tenants` è quella dello schema OVYON (tenant_id/org_id/code/…) e la
+    colonna `key` non esiste: la query storica di `load_db()` solleva
+    un'eccezione, che finisce nel `except` di `get_tenants()` e fa ripiegare
+    sulla sorgente statica. Funziona — per la via di un errore, a ogni scadenza
+    di cache (60 s), con uno stack trace nei log ogni volta.
+
+    Con questa domanda, invece, il ripiego è una decisione: si guarda la forma
+    della tabella una volta sola e si sceglie la sorgente giusta.
+
+    Il risultato è in cache per tutta la vita del processo: lo schema di un
+    database non cambia sotto i piedi di un container.
+    """
+    if _LEGACY["noto"]:
+        return _LEGACY["valore"]
+    valore = False
+    try:
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute(
+                    "SELECT 1 FROM information_schema.columns "
+                    "WHERE table_name = 'tenants' AND column_name = 'key' LIMIT 1"
+                )
+                valore = cur.fetchone() is not None
+    except Exception:
+        # Non sapere non è come sapere di no: si riproverà al prossimo giro.
+        log.warning("forma della tabella tenants non verificabile", exc_info=True)
+        return False
+    _LEGACY.update(noto=True, valore=valore)
+    log.info("sorgente tenant: %s", "tabella tenants (storica)" if valore
+             else "TENANTS_JSON / file (la tabella `tenants` è quella OVYON)")
+    return valore
+
+
 def ensure_seeded() -> None:
-    """Allo startup: se c'è un DB, crea la tabella `tenants` e — solo se vuota —
-    la popola dalla sorgente statica (TENANTS_JSON/file). Idempotente: non tocca
-    dati già presenti, così puoi gestire i tenant direttamente nel DB."""
+    """Allo startup: se c'è un DB *con la tabella storica*, popola i tenant
+    mancanti dalla sorgente statica. Idempotente: non tocca dati già presenti.
+
+    S1.1 · Questa funzione NON crea più la tabella. La creava — con la forma
+    storica `tenants(key, name, allowed_scopes)` — su qualunque database
+    puntato da DATABASE_URL: su un Supabase vuoto avrebbe occupato il nome
+    `tenants` con lo schema sbagliato, e l'orchestratore (che si aspetta
+    tenant_id/org_id) avrebbe risposto «tenant sconosciuto» a ogni richiesta,
+    senza che niente dicesse perché. Il Postgres storico esce di scena con
+    S1.6: da qui in poi la tabella o c'è già, o non è compito nostro crearla.
+    """
     if _mongo_enabled():
         try:
             n = mongo_seed()
@@ -77,15 +130,11 @@ def ensure_seeded() -> None:
         except Exception:
             log.exception("mongo_seed fallito")
         return
-    if not settings.database_url.strip():
+    if not settings.database_url.strip() or not tenants_legacy():
         return
     static = load_static()
     with _conn() as c:
         with c.cursor() as cur:
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS tenants ("
-                "key TEXT PRIMARY KEY, name TEXT, allowed_scopes JSONB NOT NULL)"
-            )
             cur.execute("SELECT COUNT(*) FROM tenants")
             count = cur.fetchone()[0]
             if count == 0 and static:
@@ -117,7 +166,10 @@ def get_tenants() -> dict:
     now = time.time()
     if _CACHE["data"] is not None and now - _CACHE["ts"] < _TTL:
         return _CACHE["data"]
-    if settings.database_url.strip():
+    # S1.1 · Il DB si interroga solo se la tabella ha la forma storica: altrimenti
+    # la query fallirebbe ogni 60 s e il "fallback" sarebbe un errore ripetuto
+    # travestito da comportamento normale.
+    if settings.database_url.strip() and tenants_legacy():
         try:
             data = load_db()
         except Exception:
