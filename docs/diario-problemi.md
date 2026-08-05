@@ -9,6 +9,74 @@
 
 ---
 
+## 2026-08-05 (notte) · CORREZIONE MIA — «porta aperta oggi» era esagerato
+
+Avevo scritto che le tre chiavi segnaposto erano «una porta aperta oggi».
+Verificando la produzione, Kimi ha trovato il pezzo che mi mancava: il motore
+gira con `GRANTS_BACKEND=supabase`, quindi `get_tenant_by_key` risolve da
+`api_keys` per hash — e le tre segnaposto in `api_keys` **non c'erano** (0/4,
+coerente con `chiavi_storiche_attive.py`). Per `/chat` erano già morte.
+
+Il codice conferma il perché: `resolve_key_apikeys` che non trova la chiave
+ritorna `None` e la richiesta finisce lì; si ripiega su `TENANTS_JSON` **solo se
+la chiamata solleva**, cioè se Supabase è irraggiungibile.
+
+Quindi la porta esisteva, ma stretta: **durante un guasto del database**. Che è
+poi la stessa famiglia del fail-open già annotato più sotto — quando il DB non
+risponde il sistema diventa più permissivo, non meno. Vale la pena chiuderla lo
+stesso (una chiave nota non deve autenticare in nessuno scenario), ma la
+gravità era quella di un caso degradato, non del percorso normale.
+
+Lezione, per me più che per il codice: avevo dedotto la conseguenza («autentica
+in produzione») da due fatti veri («è nel repo» + «è in TENANTS_JSON») senza
+verificare il terzo, cioè quale sorgente la produzione usa davvero. Due fatti
+veri non fanno una conclusione vera.
+
+---
+
+## 2026-08-05 (notte) · RISOLTO — Il ramo del vault, dichiarato
+
+Segnalazione OPS: `VAULT_GIT_REF` non è mai stata impostata sul motore.
+**Nessuna azione necessaria sull'env**: il default nel codice è già `main`
+(`config.vault_git_ref`), messo lì dal fix A0 proprio perché il default di
+questo repo vault è `feature/wave-01` e la produzione aveva fotografato il ramo
+sbagliato. L'ingest del ripuntamento conferma: `vault_commit 64a7bceb9127`, che
+è la testa di `main`.
+
+Due bordi chiusi lo stesso, perché erano gli unici modi di riaprire quel difetto:
+
+1. **Un ramo vuoto non arriva a git.** `VAULT_GIT_REF=` su Railway avrebbe
+   passato una stringa vuota a `git fetch`, e il fallimento sarebbe arrivato
+   travestito da «clone non riuscito» — lontano dalla causa. Ora
+   `config.ramo_vault()` normalizza: vuoto → `main`.
+2. **`vault_info()` dichiara il RAMO**, non solo il commit. Il difetto originale
+   non era «un commit vecchio», era «il branch sbagliato»: due sha sembrano
+   uguali finché non si sa da dove vengono. Ora `/ingest` e `/admin/brain`
+   dicono anche `vault_ref`.
+
+Si dichiara il ramo *chiesto*, non quello del clone: uno shallow clone resta in
+HEAD staccato e chiedere al git locale «su che branch sei» risponderebbe «HEAD».
+
+**Prove:** `tests/test_a0_vault_stantio.py` (2 casi nuovi).
+
+---
+
+## 2026-08-05 (notte) · CHIUSO — S1.5b, il motore è sul Qdrant interno
+
+Eseguita da Kimi con la sequenza (b): pre-check del vault (commit < 48h, quindi
+la guardia anti-stantio non blocca), cambio env, redeploy, `POST /ingest`,
+verifica. Esito: **105 note · 389 chunk · 428 link**, commit `64a7bceb9127`.
+
+La verifica che vale più delle altre non è il conteggio dell'ingest ma la
+**parità indipendente**: un clone locale del vault contato a mano con le regole
+di `is_note_included` dà 105 = 105. Un ingest che dichiara un numero è una
+misura di sé stesso; due conteggi diversi che coincidono sono una prova.
+
+Rollback intatto: il Qdrant Cloud esterno non è stato toccato. La sua chiusura è
+una decisione del titolare (costi), non un passo tecnico rimasto.
+
+---
+
 ## 2026-08-05 (notte) · RISOLTO — Tre chiavi pubblicate nel repo autenticavano davvero
 
 **Come è saltata fuori.** Cercando le chiavi del Postgres storico si era visto

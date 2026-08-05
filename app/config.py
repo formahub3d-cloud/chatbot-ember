@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     # ovy-cervello è feature/wave-01, NON main. La produzione ha quindi
     # fotografato il branch sbagliato. Ora il ramo è esplicito e configurabile.
     vault_git_ref: str = "main"
+    # `VAULT_GIT_REF=` (vuota) su Railway passerebbe una stringa vuota a
+    # `git fetch`, che fallisce: un ramo non impostato deve ricadere sul default
+    # del codice, non su niente. Normalizzata in fondo al file.
     # V10/A2 (02-08 sera): dopo ogni redeploy il container è NUOVO e la cartella
     # del vault non c'è. Non è l'indice a sparire — Qdrant è fuori e sopravvive —
     # ma la copia locale, e con lei l'unico modo di sapere a che punto è il vault:
@@ -249,3 +252,17 @@ settings = Settings()
 if not settings.git_sha.strip():
     import os as _os
     settings.git_sha = _os.getenv("RAILWAY_GIT_COMMIT_SHA", "")
+
+def ramo_vault(valore: str) -> str:
+    """Il ramo del vault, mai vuoto.
+
+    `VAULT_GIT_REF=` (vuota) su Railway passerebbe una stringa vuota a
+    `git fetch`, che fallisce — e il fallimento arriverebbe travestito da
+    «clone non riuscito», cioè lontano dalla causa. Il default è `main` perché
+    il default di QUESTO repo vault è `feature/wave-01`: è il difetto che il
+    fix A0 aveva chiuso, e un ramo non impostato non deve poterlo riaprire.
+    """
+    return (valore or "").strip() or "main"
+
+
+settings.vault_git_ref = ramo_vault(settings.vault_git_ref)

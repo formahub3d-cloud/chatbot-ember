@@ -201,9 +201,18 @@ def procura_clone() -> dict:
 
 
 def vault_info(vault_path: str | None = None) -> dict:
-    """Commit e data del vault locale — la SPIA del fix A0: senza questi due campi
-    in /ingest e /admin/brain nessuno può accorgersi di un cervello stantio
-    guardando. Dict vuoto se la cartella non è un repo git (dev locale)."""
+    """Commit, data e RAMO del vault locale — la SPIA del fix A0.
+
+    Il ramo (05-08-2026): il difetto originale non era «un commit vecchio», era
+    «il branch sbagliato» — il default di questo repo vault è `feature/wave-01`,
+    non `main`, e la produzione aveva fotografato quello. Il commit da solo non
+    lo dice: due sha diversi sembrano uguali finché non si sa da dove vengono.
+    Qui si dichiara il ramo CHIESTO (`VAULT_GIT_REF`), che è ciò che governa
+    fetch e clone; il clone shallow resta in HEAD staccato, quindi chiedere al
+    git locale «su che branch sei» risponderebbe «HEAD» e non aiuterebbe nessuno.
+
+    Dict vuoto se la cartella non è un repo git (dev locale).
+    """
     vp = Path(vault_path or settings.vault_path)
     if not (vp / ".git").exists():
         return {}
@@ -211,7 +220,8 @@ def vault_info(vault_path: str | None = None) -> dict:
         out = subprocess.run(["git", "-C", str(vp), "log", "-1", "--format=%H|%cI"],
                              check=True, capture_output=True, text=True).stdout.strip()
         sha, date = out.split("|", 1)
-        return {"vault_commit": sha[:12], "vault_commit_date": date}
+        return {"vault_commit": sha[:12], "vault_commit_date": date,
+                "vault_ref": settings.vault_git_ref}
     except Exception:
         return {}
 

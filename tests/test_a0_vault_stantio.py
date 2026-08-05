@@ -140,3 +140,44 @@ def test_vault_info_su_repo_vero(tmp_path):
     info = ingest.vault_info(str(vp))
     assert len(info["vault_commit"]) == 12
     assert "T" in info["vault_commit_date"]
+
+
+# ── Il ramo del vault (05-08-2026) ───────────────────────────────────────────
+
+def test_ref_vuoto_ricade_su_main():
+    """`VAULT_GIT_REF=` su Railway non deve arrivare vuota a `git fetch`.
+
+    Il fallimento sarebbe «clone non riuscito», cioè lontano dalla causa vera —
+    e la causa vera è che il default del repo vault è `feature/wave-01`, non
+    `main`: è il difetto che il fix A0 aveva chiuso una volta."""
+    from app.config import ramo_vault, settings
+
+    assert ramo_vault("") == "main"
+    assert ramo_vault("   ") == "main"
+    assert ramo_vault(None) == "main"
+    assert ramo_vault("staging") == "staging"
+    # e il valore vivo non è mai vuoto
+    assert settings.vault_git_ref.strip()
+
+
+def test_vault_info_dichiara_il_ramo(tmp_path, monkeypatch):
+    """Il commit da solo non dice da QUALE ramo viene: due sha sembrano uguali
+    finché non si sa la provenienza. La spia del fix A0 lo dichiara."""
+    import subprocess
+
+    from app import ingest
+    from app.config import settings
+
+    vp = tmp_path / "vault"
+    vp.mkdir()
+    subprocess.run(["git", "init", "-q", str(vp)], check=True)
+    (vp / "nota.md").write_text("# nota\n", "utf-8")
+    subprocess.run(["git", "-C", str(vp), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(vp), "-c", "user.email=t@t", "-c", "user.name=T",
+                    "commit", "-qm", "prima"], check=True)
+
+    monkeypatch.setattr(settings, "vault_git_ref", "main")
+    info = ingest.vault_info(str(vp))
+
+    assert info["vault_ref"] == "main"
+    assert len(info["vault_commit"]) == 12
