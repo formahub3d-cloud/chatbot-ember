@@ -60,11 +60,41 @@ dump) e si ferma se i conti non tornano.
 
 ---
 
-## 2026-08-05 · DA DECIDERE — Piano di rotazione delle 4 chiavi storiche
+## 2026-08-05 (sera) · Le chiavi storiche sono TRE segnaposto e UNA vera
 
-**Istruzione ricevuta:** verificare quali delle quattro sono ancora attive in
-`api_keys`; ruotare subito le **inattive**; per le **attive** proporre un piano e
-lasciare decidere il titolare (impatta i clienti).
+**L'inventario è arrivato** (`divina-agenti/docs/postgres-legacy-inventario.md`,
+prodotto da Kimi con S1.4). Confrontando i suoi sha256 con le stringhe d'esempio
+committate nel repo, tre delle quattro combaciano:
+
+| Hash | Nome | Cos'è davvero |
+|---|---|---|
+| `a204987b…` | FORMA (interno / dogfood) | `CHIAVE_FORMA_INTERNO` — **segnaposto** di `tenants.example.json` |
+| `78fa2bc9…` | Al Tuo Servizio (ATS) | `CHIAVE_ATS` — **segnaposto** |
+| `f7be4c28…` | Home Restaurant Hotel | `CHIAVE_HRH` — **segnaposto** |
+| `67c115be…` | **OVY Master** — scope `*` | **non è un segnaposto noto** |
+
+Le prime tre non sono segreti: sono le stringhe letterali di
+`db/seed.example.sql` / `tenants.example.json`, pubbliche nel repo da sempre.
+`ensure_seeded()` le ha copiate dalla sorgente statica al Postgres quando quello
+era il tenant store — il fossile è fatto di esempi. **Per loro non c'è niente da
+ruotare**, e il dump non è il segreto che temevamo.
+
+**La quarta sì, ed è la peggiore delle quattro.** Non combacia con nessun
+segnaposto del repo, e ha `allowed_scopes = ['*']`: è una **chiave master**, che
+`ovyon.is_master()` fa passare attraverso ogni filtro RLS e ogni scope Qdrant —
+tutti i clienti insieme. Fino a ieri stava in chiaro in un database secondario.
+
+Il piano sotto vale quindi **per una chiave sola**, e la sua priorità sale:
+prima di ogni altra cosa.
+
+Attenuante (verificata nel codice, non sperata): `_reject_master_browser` in
+`app/main.py` rifiuta con 403 qualunque uso di una chiave master che arrivi da
+un browser. Chi l'avesse in mano dovrebbe usarla server-side — resta grave, ma
+non è esposta dal widget.
+
+**Istruzione ricevuta:** verificare quali sono ancora attive in `api_keys`;
+ruotare subito le **inattive**; per le **attive** proporre un piano e lasciare
+decidere il titolare (impatta i clienti).
 
 **Cosa serve per eseguirla, e perché non l'ho eseguita io.** Il confronto ha
 bisogno di due cose che questo ambiente non ha: l'inventario prodotto dallo

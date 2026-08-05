@@ -20,14 +20,25 @@ Nomi storici ancora vivi nei **contratti** e da NON rinominare: `MONGO_DB=ember`
 `EMBER_URL`/`EMBER_ADMIN_TOKEN`, logger `ember`, tool MCP `ovy_*`, schema e GUC
 SQL `ovyon.*`, cartella `ovyon/` del vault (è uno scope, cioè un permesso).
 
+Corrispondenza da tenere a mente leggendo le env (S0.2d, decisione registrata in
+`divina-agenti/docs/diario-problemi.md`): **`EMBER_URL` = URL di questo servizio**
+e **`EMBER_ADMIN_TOKEN` = il suo token admin**. Si rinominano alla fase 6,
+insieme allo scambio di dominio: prima si aggiungono i nomi nuovi come alias,
+poi si spostano le env, poi si tolgono i vecchi — mai il contrario.
+
 ## Direzione: rebuild Divina v3.1
 
 Divina diventa un prodotto vendibile: l'area cliente si costruisce dentro
 `v4-forma` (`app.divina.formahub.it`) con identità FORMA unica e uso misurato in
 **token**. Questo servizio **resta** — è qui che vivono chat, fonti, memoria,
 documenti e voce — e continua a rispondere su `divina.formahub.it` finché la
-console non va in pensione (S7.3). Documenti vincolanti (super prompt v3.1 ·
-piano sprint v1.1) fuori repo; qui dentro:
+console non va in pensione (S7.3).
+
+I **documenti vincolanti** vivono in `divina-agenti/docs/`:
+[super prompt v3.1](https://github.com/formahub3d-cloud/divina-agenti/blob/main/docs/SUPER-PROMPT-divina-redesign.md)
+· [piano sprint v1.1](https://github.com/formahub3d-cloud/divina-agenti/blob/main/docs/PIANO-SPRINT-divina.md)
+· [contratto API](https://github.com/formahub3d-cloud/divina-agenti/blob/main/openapi.yaml).
+Qui dentro:
 
 - `docs/stato-reale-divina-motore.md` — cos'è oggi questo servizio, in una pagina.
 - `docs/diario-problemi.md` — **si parte da qui**: problemi trovati, risolti o da decidere.
