@@ -60,7 +60,42 @@ dump) e si ferma se i conti non tornano.
 
 ---
 
-## 2026-08-05 (sera) · Le chiavi storiche sono TRE segnaposto e UNA vera
+## 2026-08-05 (sera) · CHIUSO — Le chiavi storiche non aprono più niente
+
+**Verifica eseguita** (Kimi, `scripts/chiavi_storiche_attive.py` contro Supabase,
+pooler eu-west-1): **0 attive su 4**. Nessuna delle quattro è presente in
+`api_keys` — né come riga revocata: proprio assenti.
+
+Quindi **non c'è niente da ruotare**, né subito né con un piano. Le chiavi in
+chiaro nel dump non aprono nessuna porta, master compresa. Il dump resta
+custodito fuori dai repo per il suo valore di archivio, non perché sia pericoloso.
+
+Resta scritto **come** ci siamo arrivati, perché è la parte riusabile:
+
+| Hash | Nome | Cos'era |
+|---|---|---|
+| `a204987b…` | FORMA (interno / dogfood) | `CHIAVE_FORMA_INTERNO` — segnaposto di `tenants.example.json` |
+| `78fa2bc9…` | Al Tuo Servizio (ATS) | `CHIAVE_ATS` — segnaposto |
+| `f7be4c28…` | Home Restaurant Hotel | `CHIAVE_HRH` — segnaposto |
+| `67c115be…` | OVY Master, scope `*` | non un segnaposto noto — **ma non attiva** |
+
+Tre erano le stringhe letterali di `db/seed.example.sql`, pubbliche nel repo da
+sempre: `ensure_seeded()` le aveva copiate nel Postgres quando quello era il
+tenant store, e il fossile era fatto di esempi. La quarta era una master vera, e
+per qualche ora è stata la cosa più preoccupante del progetto — poi il dato ha
+detto che non è installata da nessuna parte.
+
+**Le due lezioni, che valgono anche senza questo caso.**
+1. Un segreto trovato non è un segreto in uso: prima di progettare una
+   rotazione, si guarda se apre qualcosa. Qui la differenza era fra un piano in
+   quattro fasi e zero lavoro.
+2. Un inventario di hash **troncati** non è confrontabile con niente
+   (il primo aveva 16 caratteri). Gli hash si conservano interi o non si
+   conservano: `snapshot_postgres_legacy.sh` li scrive interi apposta.
+
+---
+
+## (storico) 2026-08-05 (sera) · Le chiavi storiche sono TRE segnaposto e UNA vera
 
 **L'inventario è arrivato** (`divina-agenti/docs/postgres-legacy-inventario.md`,
 prodotto da Kimi con S1.4). Confrontando i suoi sha256 con le stringhe d'esempio
