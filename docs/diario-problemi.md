@@ -101,10 +101,12 @@ Fail-closed di default, con una finestra dichiarata: `CHIAVI_SEGNAPOSTO_AMMESSE=
 riapre per il tempo di sostituire i valori, e il motore lo scrive nel log a ogni
 richiesta che la usa — così non resta accesa per dimenticanza.
 
-**Ordine di esecuzione, importante:** questa PR **spegne i tre tenant dogfood al
-primo deploy**. Prima si sostituiscono i valori in `TENANTS_JSON`
-(`python -m app.manage_apikeys` genera chiavi vere), poi si mergia. Al contrario,
-il dogfood resta al buio finché qualcuno non se ne accorge.
+**Ordine di esecuzione** — ~~questa PR spegne i tre tenant dogfood al primo
+deploy~~ **superato**: le tre chiavi sono state sostituite da Kimi in entrambi
+gli store (TENANTS_JSON e `api_keys`) **prima** del merge, con lo stesso formato
+e gli stessi scope. Il merge non spegne più niente. La precauzione resta valida
+come regola generale: un controllo che rifiuta credenziali va sempre dopo la
+loro sostituzione, mai prima.
 
 **Prove:** `tests/test_chiavi_segnaposto.py` (7 casi). Uno di questi legge
 `tenants.example.json` e pretende che **ogni** chiave d'esempio sia fra quelle
