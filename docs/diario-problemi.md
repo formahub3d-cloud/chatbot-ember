@@ -60,16 +60,51 @@ dump) e si ferma se i conti non tornano.
 
 ---
 
-## 2026-08-05 · DA DECIDERE — Le 4 chiavi del Postgres storico vanno riemesse?
+## 2026-08-05 · DA DECIDERE — Piano di rotazione delle 4 chiavi storiche
 
-Quelle chiavi sono state in chiaro in un database senza rotazione per mesi. Se
-una è ancora attiva in `api_keys`, custodire meglio il dump non basta: andrebbe
-riemessa (`scripts/reset_chiavi.py`, FORMA per prima, poi le altre — con il
-freno già previsto dallo script).
+**Istruzione ricevuta:** verificare quali delle quattro sono ancora attive in
+`api_keys`; ruotare subito le **inattive**; per le **attive** proporre un piano e
+lasciare decidere il titolare (impatta i clienti).
 
-Non l'ho fatto perché revocare una chiave è un'azione con effetto sui clienti e
-non spetta a me deciderlo. Da valutare **dopo** lo snapshot (S1.4) e **prima**
-di far entrare clienti paganti (Sprint 5).
+**Cosa serve per eseguirla, e perché non l'ho eseguita io.** Il confronto ha
+bisogno di due cose che questo ambiente non ha: l'inventario prodotto dallo
+snapshot (S1.4, lo esegue Kimi) e una connessione a Supabase. Ho quindi scritto
+lo strumento invece di indovinare il risultato:
+
+```bash
+export DATABASE_URL='postgresql://…'          # Supabase, NON il Postgres storico
+python3 scripts/chiavi_storiche_attive.py postgres-legacy-inventario.md
+```
+
+Confronta gli sha256 dell'inventario con `api_keys.key_hash` e divide l'elenco
+in ATTIVE e INATTIVE. **Le chiavi in chiaro non entrano mai nello script**: si
+confrontano hash, non segreti.
+
+### Piano proposto per le ATTIVE (serve l'ok del titolare)
+
+Il principio: una chiave in chiaro in un database secondario per mesi va
+considerata compromessa, ma revocarla si vede dal cliente. Quindi si sostituisce
+prima e si revoca dopo — mai il contrario.
+
+1. **FORMA per prima** (`forma-core`/`andrea`): è l'unico tenant dove un errore
+   lo paghiamo noi. Emissione della nuova, aggiornamento dove è configurata,
+   verifica che risponda, poi revoca della vecchia. Se qualcosa va storto, si è
+   rotto un nostro strumento e non il servizio di un cliente.
+2. **Finestra di sovrapposizione**: vecchia e nuova valide insieme per il tempo
+   di aggiornare le configurazioni. `api_keys` regge due righe attive per lo
+   stesso scope — non serve nessuna modifica al codice.
+3. **Un cliente alla volta**, con avviso prima e verifica dopo: si guarda
+   `key_usage`/`access_logs` per confermare che il traffico è passato sulla
+   nuova, e solo allora si revoca la vecchia (`reset_chiavi.py` ha già il freno).
+4. **Se una chiave attiva non ha traffico** da settimane, il caso è più semplice:
+   è di fatto inattiva e si tratta come tale — ma questo lo dice il dato, non noi.
+
+### Perché non basta aspettare
+
+Nessuna di queste chiavi è installata presso un cliente pagante oggi (verificato
+l'1/08 e scritto in `CLAUDE.md`). Il che rende la rotazione **facile adesso** e
+scomoda dopo: dallo Sprint 5 entrano clienti veri, e quella finestra di
+sovrapposizione diventerà una cosa da concordare con qualcuno.
 
 ---
 
