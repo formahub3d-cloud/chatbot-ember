@@ -76,6 +76,37 @@ def new_key(prefix: str = "ember") -> str:
     return f"{prefix}_{secrets.token_urlsafe(24)}"
 
 
+# ── Chiavi SEGNAPOSTO: pubbliche nel repo, quindi non sono chiavi ────────────
+# 05-08-2026. Cercando le chiavi del Postgres storico è venuto fuori che tre
+# delle quattro erano `CHIAVE_FORMA_INTERNO`, `CHIAVE_ATS` e `CHIAVE_HRH` — cioè
+# le stringhe di esempio di `tenants.example.json` e `db/seed.example.sql`,
+# committate nel repo. Verificando `TENANTS_JSON` su Railway si è scoperto che
+# quelle stesse tre **autenticano davvero** come tenant dogfood.
+#
+# La peggiore è la prima: dà `forma-core` **e `andrea`** — le note personali —
+# e non ha `allowed_origins`, quindi vale da qualunque browser. Chiunque legga il
+# repo ha in mano una chiave d'ingresso.
+#
+# Qui si tengono gli SHA-256, non le stringhe: non serve una quarta copia in
+# chiaro, e l'hash rende evidente che sono valori noti da rifiutare — stessa
+# forma con cui `_WEAK_ADMIN_TOKENS` protegge il token admin.
+CHIAVI_SEGNAPOSTO = {
+    "a204987bc7bcde4811ac262f43bdf7f55cdb32a6789f900ede900a7bbe3f2dbc",  # CHIAVE_FORMA_INTERNO
+    "78fa2bc96b92c317b4b4a0cf9ff2c2dec55adf7fccd3699c03c43070a771d6d0",  # CHIAVE_ATS
+    "f7be4c2867b5cb6cbcb65abed5947c491bd9217f700132622dfcdfe67deef9ce",  # CHIAVE_HRH
+}
+
+
+def e_segnaposto(key: str) -> bool:
+    """La chiave è una di quelle pubblicate nel repo come esempio?
+
+    Una chiave che chiunque può leggere non è una chiave: è una porta aperta con
+    un cartello sopra. Il chiamante la rifiuta come se non esistesse (401), che
+    è anche la risposta giusta verso l'esterno — chi prova non impara niente.
+    """
+    return bool(key) and hash_key(key) in CHIAVI_SEGNAPOSTO
+
+
 def origin_allowed(origin: str, allowed) -> bool:
     """True se l'Origin del browser è tra quelli consentiti per il tenant.
     `allowed` vuoto o contenente '*' = tutti (comportamento pilota)."""

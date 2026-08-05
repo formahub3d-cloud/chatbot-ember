@@ -9,6 +9,42 @@
 
 ---
 
+## 2026-08-05 (notte) · RISOLTO — Tre chiavi pubblicate nel repo autenticavano davvero
+
+**Come è saltata fuori.** Cercando le chiavi del Postgres storico si era visto
+che tre delle quattro erano i segnaposto di `tenants.example.json`. Sembrava una
+buona notizia — «non sono segreti, niente da ruotare». Poi la verifica di
+`TENANTS_JSON` su Railway ha aggiunto il pezzo mancante: **quelle stesse tre
+stringhe sono la configurazione viva dei tenant dogfood.** Erano contemporaneamente
+pubbliche e valide.
+
+La peggiore è `CHIAVE_FORMA_INTERNO`: concede `forma-core` **e `andrea`** — le
+note personali, la stessa area che `learned.py` esclude a priori perché
+sensibile — e in `tenants.example.json` non ha `allowed_origins`, quindi vale da
+qualunque browser. Chiunque avesse letto il repo aveva in mano quella porta.
+
+**Cosa è stato fatto.** `security.CHIAVI_SEGNAPOSTO` (gli sha256 dei tre valori,
+non una quarta copia in chiaro) e `e_segnaposto()`; `tenants.get_tenant_by_key`
+li rifiuta **prima di ogni backend** — il problema non è dove la chiave è
+scritta, è che sia nota, quindi si chiude in un punto solo. Verso l'esterno è un
+401 come per una chiave inventata: chi prova non impara niente.
+
+Fail-closed di default, con una finestra dichiarata: `CHIAVI_SEGNAPOSTO_AMMESSE=true`
+riapre per il tempo di sostituire i valori, e il motore lo scrive nel log a ogni
+richiesta che la usa — così non resta accesa per dimenticanza.
+
+**Ordine di esecuzione, importante:** questa PR **spegne i tre tenant dogfood al
+primo deploy**. Prima si sostituiscono i valori in `TENANTS_JSON`
+(`python -m app.manage_apikeys` genera chiavi vere), poi si mergia. Al contrario,
+il dogfood resta al buio finché qualcuno non se ne accorge.
+
+**Prove:** `tests/test_chiavi_segnaposto.py` (7 casi). Uno di questi legge
+`tenants.example.json` e pretende che **ogni** chiave d'esempio sia fra quelle
+rifiutate: se domani qualcuno ne aggiunge una senza registrarla, il test lo dice
+prima che diventi una porta.
+
+---
+
 ## 2026-08-05 · RISOLTO — La sorgente dei tenant si sceglieva sbagliando
 
 **Dove:** `app/tenants.py` (`get_tenants`, `ensure_seeded`) · trovato in S1.1.

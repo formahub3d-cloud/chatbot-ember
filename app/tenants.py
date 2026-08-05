@@ -366,6 +366,20 @@ def get_tenant_by_key(key: str) -> dict | None:
     """
     if not key:
         return None
+    # Una chiave pubblicata nel repo non apre niente (05-08-2026). Il controllo
+    # sta PRIMA di ogni backend perché il problema non è dove la chiave è
+    # scritta, ma che sia nota: rifiutarla in un solo posto la chiude ovunque.
+    # `CHIAVI_SEGNAPOSTO_AMMESSE=true` la riapre per il tempo di sostituire i
+    # valori in TENANTS_JSON, e lo dice nel log ogni volta.
+    from .security import e_segnaposto
+    if e_segnaposto(key):
+        if not settings.chiavi_segnaposto_ammesse:
+            log.warning("chiave SEGNAPOSTO rifiutata: è pubblica nel repo "
+                        "(tenants.example.json). Sostituiscila in TENANTS_JSON — "
+                        "chiave nuova con `python -m app.manage_apikeys`.")
+            return None
+        log.warning("chiave SEGNAPOSTO accettata perché CHIAVI_SEGNAPOSTO_AMMESSE "
+                    "è acceso: è una finestra temporanea, non una configurazione.")
     if _apikeys_enabled():
         try:
             return resolve_key_apikeys(key)

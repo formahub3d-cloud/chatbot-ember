@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     # il write-back. Non fa git pull (indicizza la copia locale appena scritta).
     auto_reingest: bool = False
 
+    # Finestra di grazia per le chiavi SEGNAPOSTO pubblicate nel repo
+    # (app/security.CHIAVI_SEGNAPOSTO). SPENTA di default: una chiave che
+    # chiunque può leggere non deve autenticare niente. Si accende SOLO per il
+    # tempo di sostituire i valori in TENANTS_JSON, e il motore lo dice nel log
+    # a ogni richiesta che la usa — così non resta accesa per dimenticanza.
+    chiavi_segnaposto_ammesse: bool = False
+
     # sicurezza — NESSUN default: senza un ADMIN_TOKEN forte gli endpoint
     # /admin/* restano chiusi (503, fail-closed). Il vecchio default "change-me"
     # rendeva gli admin di fatto pubblici su un deploy non configurato
