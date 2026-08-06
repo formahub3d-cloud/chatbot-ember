@@ -643,11 +643,18 @@ def _retrieve(question: str, grants, k: int = 6, focus_slugs=None, vec=None):
 
 def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "it",
                   tier: str | None = None, web: bool = False, web_enabled: bool = False,
-                  focus_slugs=None, free: bool = False, memoria=None, capacita=None):
+                  focus_slugs=None, free: bool = False, memoria=None, capacita=None,
+                  misura=None):
     """Come answer(), ma genera eventi SSE (stringhe già formattate).
 
     Sequenza: `event: sources` (fonti+scope, subito dopo retrieval/web),
     poi tanti `data: {"delta": ...}` con i token, infine `event: done`.
+
+    **S5.1c · `misura`** è un `uso.UsoInStream` che il CHIAMANTE tiene: qui si
+    passa al provider e basta. Il conto lo legge e lo scrive chi sa di quale
+    tenant si tratta (`do_chat`), che è anche l'unico che può farlo dopo che la
+    risposta è uscita — scrivere il registro da dentro il generatore vorrebbe
+    dire farlo mentre l'utente sta ancora leggendo.
     In caso di errore a stream avviato: `event: error`.
 
     `tier`: archetipo OVYON → SOLO stile della risposta; non tocca il filtro/scope.
@@ -668,7 +675,8 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
         yield sse("sources", {"sources": auto["sources"], "scopes": scopes, "autodoc": True})
         try:
             for delta in chat_stream(_system(lang, tier, memoria=memoria),
-                                     f"CONTENUTO:\n{auto['content']}\n\nDOMANDA: {question}"):
+                                     f"CONTENUTO:\n{auto['content']}\n\nDOMANDA: {question}",
+                                     misura=misura):
                 yield sse(None, {"delta": delta})
         except Exception:  # pragma: no cover
             yield sse("error", {"message": "Errore del provider durante la risposta."})
@@ -743,7 +751,8 @@ def answer_stream(question: str, grants, k: int = 6, history=None, lang: str = "
             f"{_build_web_context(web_results)}DOMANDA: {question}")
     try:
         for delta in chat_stream(_system(lang, tier, web=bool(web_results), free=free,
-                                         memoria=memoria, capacita=capacita, mossa=mv), user):
+                                         memoria=memoria, capacita=capacita, mossa=mv), user,
+                                 misura=misura):
             yield sse(None, {"delta": delta})
     except Exception:  # pragma: no cover - errore del provider a stream avviato
         yield sse("error", {"message": "Errore del provider durante la risposta."})

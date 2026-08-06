@@ -52,7 +52,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import autodoc, ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti
+from . import autodoc, ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti, uso, ledger
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -599,11 +599,18 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     qvec = rag.vettore(body.message) if agents_bridge.enabled() else None
     cap = agents_bridge.trova(body.message, qvec=qvec) if agents_bridge.enabled() else None
     if body.stream:
+        # S5.1c · Il misuratore lo tiene QUI chi sa di che tenant si tratta: il
+        # generatore lo passa al provider e basta. La riga del registro si
+        # scrive a stream finito — scriverla da dentro vorrebbe dire farlo
+        # mentre l'utente sta ancora leggendo.
+        misura = uso.UsoInStream(settings.mistral_llm_model
+                                 if settings.llm_provider == "mistral"
+                                 else settings.claude_llm_model)
         try:
             gen = rag.answer_stream(body.message, _grants(tenant), history=turni,
                                     lang=lang, tier=tier, web=body.web, web_enabled=web_enabled,
                                     focus_slugs=focus_slugs, free=free, memoria=ricordi,
-                                    capacita=cap)
+                                    capacita=cap, misura=misura)
             first = next(gen)  # forza retrieval/validazione PRIMA degli header 200
         except HTTPException:
             raise
@@ -618,6 +625,21 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
             except Exception:
                 log.exception("chat stream interrotto")
                 yield 'event: error\ndata: {"message": "Stream interrotto."}\n\n'
+            finally:
+                # Anche se il browser se ne va a metà: quei token sono stati
+                # consumati davvero, e il `finally` è l'unico posto che li vede
+                # in tutti e tre i casi (finito, interrotto, abbandonato).
+                #
+                # Il try è una seconda difesa e non un doppione: `addebita()`
+                # promette di non sollevare, ma **una promessa dentro un
+                # `finally` non basta**. Qui la risposta è già stata letta, e
+                # un'eccezione a questo punto la troncherebbe per un problema
+                # di contabilità — il difetto peggiore possibile, perché
+                # colpisce l'utente per una cosa che non lo riguarda.
+                try:
+                    ledger.addebita(tenant, "chat", misura.finale())
+                except Exception:
+                    log.exception("registro token: addebito della chat non scritto")
 
         return StreamingResponse(
             _stream(),
