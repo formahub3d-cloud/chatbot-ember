@@ -9,6 +9,48 @@
 
 ---
 
+## 2026-08-06 · RISOLTO — «tenant=None»: la stessa parola per due cose diverse
+
+**Dove:** `app/ledger.py` (mio, di stamattina) · trovato **in produzione** da
+Kimi con due chat di prova, prima di accendere la misurazione.
+
+```
+ERROR ember.ledger: registro token non scritto (tenant=None op=chat token=2529)
+```
+
+**Cosa avevo sbagliato.** Nel motore «tenant» è una **chiave API**: scope,
+origini ammesse, `branding`, quota. Nell'orchestratore è una **riga di
+`tenants`**: `tenant_id`, `org_code`, `code`. Ho scritto il registro del motore
+usando la forma dell'orchestratore — `tenant["code"]`, `tenant["tenant_id"]` —
+e in produzione `code` non esiste: da lì il `None` nel log e il `KeyError`
+inghiottito dal `try` generico.
+
+**Perché i test non l'hanno visto: erano sbagliati con me.** Avevo scritto la
+fixture `TENANT` con la forma dell'orchestratore, così il test confermava la mia
+idea invece del prodotto. È la stessa famiglia del `TestClient` che leggeva gli
+header CORS e del `set role` annullato dal rollback: **lo strumento di misura
+che non sta nella posizione del consumatore vero.** Tre volte in due giorni, e
+tutte e tre trovate fuori dalla suite.
+
+Fatto:
+
+- il codice si legge da **`branding.tenant_code`**, che è dove lo scrive
+  `POST /admin/tenants` quando FORMA conia la chiave di un cliente;
+- **gli scope non diventano un tenant.** La chiave dogfood ne ha due
+  (`forma-core`, `andrea`): sceglierne uno vorrebbe dire attribuire il consumo a
+  caso, e meglio non scrivere che scrivere sul cliente sbagliato;
+- senza codice **non si prova nemmeno**, e lo si dichiara una volta per chiave
+  con dentro gli scope che aveva: prima si provava e si falliva dentro, con un
+  errore che non diceva qual era il problema;
+- `tenant_id` e `org_code` si risolvono dall'anagrafica (`select … from tenants
+  where code=…`), e un codice che il database non conosce non si scrive: quelle
+  colonne sono NOT NULL con una FK, e una riga con un'identità inventata è
+  peggio di una riga mancante;
+- la fixture dei test adesso ha la forma vera, e cinque prove nuove coprono i
+  casi (chiave senza codice, scope che non diventano tenant, anagrafica assente).
+
+---
+
 ## 2026-08-06 · DA DECIDERE — Il motore parla con Supabase da PRIVILEGIATO
 
 **Dove:** `app/tenants.py::_conn()` (`settings.database_url`) ·

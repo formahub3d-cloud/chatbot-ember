@@ -20,15 +20,23 @@ import pytest
 from app import ledger, tariffa, uso
 from app.config import settings
 
-TENANT = {"tenant_id": "uuid-ats", "org_code": "forma", "code": "ats",
-          "allowed_scopes": ["ats"]}
+# La forma VERA di un tenant nel motore: una CHIAVE con scope e branding.
+# Non ha `tenant_id`/`org_code`/`code` — quella è la forma dell'orchestratore, e
+# confonderle è il difetto del 6/08 (tenant=None nei log di produzione).
+TENANT = {"name": "ATS", "allowed_scopes": ["ats"], "allowed_origins": [],
+          "branding": {"tenant_code": "ats"}, "quota_day": 0}
+
+SENZA_CODICE = {"name": "dogfood FORMA", "allowed_scopes": ["forma-core", "andrea"],
+                "branding": {}, "quota_day": 0}
 
 
 class _Cur:
     """Cursore finto: registra e risponde ai due SELECT che il modulo fa."""
 
-    def __init__(self, saldi=(("mensile", 1_000_000),)):
+    def __init__(self, saldi=(("mensile", 1_000_000),),
+                 anagrafica=("uuid-ats", "forma")):
         self.saldi = list(saldi)
+        self.anagrafica = anagrafica
         self.eseguiti = []
 
     def execute(self, sql, params=None):
@@ -38,7 +46,8 @@ class _Cur:
         return self.saldi
 
     def fetchone(self):
-        return None
+        # l'anagrafica: (tenant_id, org_code) dalla tabella `tenants`
+        return self.anagrafica
 
     def inserimenti(self):
         return [(s, p) for s, p in self.eseguiti if s.startswith("INSERT INTO token_ledger")]
@@ -58,6 +67,7 @@ def sessione_finta(monkeypatch):
     monkeypatch.setattr(ledger, "_sessione", _finta)
     monkeypatch.setattr(ledger, "_senza_misura", False)
     monkeypatch.setattr(ledger, "_spento_detto", False)
+    monkeypatch.setattr(ledger, "_senza_tenant_detto", set())
     return cur
 
 
@@ -219,3 +229,55 @@ def test_l_ordine_dei_borselli_e_lo_stesso():
 
 def test_il_listino_copre_le_operazioni_del_registro():
     assert set(tariffa.CONSUMI) | set(tariffa.ACCREDITI) == set(ledger.OPERAZIONI)
+
+
+# ── l'identità del tenant: il difetto del 6/08 ───────────────────────────────
+
+def test_il_codice_si_legge_dal_BRANDING_non_dagli_scope():
+    """La stessa parola per due cose diverse. Di là un tenant è una riga di
+    `tenants`; di qua è una chiave API con dentro gli scope."""
+    assert ledger.codice_tenant(TENANT) == "ats"
+    assert ledger.codice_tenant(SENZA_CODICE) == ""
+    assert ledger.codice_tenant({}) == ""
+
+
+def test_una_chiave_SENZA_tenant_code_non_prova_nemmeno_a_scrivere(sessione_finta, caplog):
+    """È il caso della chiave dogfood: due scope, nessun codice.
+
+    Prima si provava e si falliva dentro, con un errore generico che non diceva
+    che il problema era l'identità mancante. Adesso si dichiara PRIMA.
+    """
+    import logging
+    with caplog.at_level(logging.ERROR):
+        esito = ledger.addebita(SENZA_CODICE, "chat", uso.Uso(1000, 500))
+
+    assert esito == {"scritto": False, "motivo": "senza-tenant", "token": 0}
+    assert sessione_finta.inserimenti() == []
+    detto = " ".join(r.getMessage() for r in caplog.records)
+    assert "tenant_code" in detto and "forma-core" in detto
+
+
+def test_gli_scope_NON_diventano_un_tenant(sessione_finta):
+    """Una chiave può avere più scope: sceglierne uno vorrebbe dire attribuire
+    il consumo a caso. Meglio non scrivere che scrivere sul cliente sbagliato."""
+    ledger.addebita(SENZA_CODICE, "chat", uso.Uso(10, 5))
+    scritti = [p[2] for _, p in sessione_finta.inserimenti()]
+    assert "forma-core" not in scritti and "andrea" not in scritti
+
+
+def test_un_codice_che_l_anagrafica_non_conosce_non_si_scrive(sessione_finta):
+    """`tenant_id` e `org_code` sono NOT NULL con una FK: un codice che il
+    database non conosce è un dato sbagliato, non una riga da scrivere lo
+    stesso."""
+    sessione_finta.anagrafica = None
+    esito = ledger.addebita(TENANT, "chat", uso.Uso(10, 5))
+    assert esito["scritto"] is False and esito["motivo"] == "tenant-sconosciuto"
+    assert sessione_finta.inserimenti() == []
+
+
+def test_l_anagrafica_riempie_tenant_id_e_org_code(sessione_finta):
+    ledger.addebita(TENANT, "chat", uso.Uso(10, 5))
+    _, params = sessione_finta.inserimenti()[0]
+    assert params[0] == "uuid-ats"      # tenant_id dall'anagrafica
+    assert params[1] == "forma"         # org_code dall'anagrafica
+    assert params[2] == "ats"           # tenant_code dal branding

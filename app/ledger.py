@@ -44,6 +44,25 @@ OPERAZIONI = ("chat", "ulisse", "caronte", "bozza-email", "documento",
 
 _senza_misura = False
 _spento_detto = False
+_senza_tenant_detto = set()
+
+
+def codice_tenant(tenant: dict) -> str:
+    """Il `tenant_code` di una chiave del motore. Vuoto se non ce l'ha.
+
+    **Qui «tenant» vuol dire una cosa diversa dall'orchestratore, ed è il
+    difetto che ha fatto scrivere `tenant=None` nei log del 6/08.** Di là un
+    tenant è una riga di `tenants` (`tenant_id`, `org_code`, `code`); di qua è
+    una CHIAVE API, con dentro gli scope che può leggere e un `branding`. La
+    stessa parola per due cose, e io ho preso la forma sbagliata.
+
+    Il codice sta in `branding.tenant_code` — lo scrive `POST /admin/tenants`
+    quando FORMA conia la chiave di un cliente — e **non si deduce dagli
+    scope**: una chiave può averne più d'uno (la dogfood ha `forma-core` e
+    `andrea`), e scegliere il primo vorrebbe dire attribuire il consumo a caso.
+    Meglio non scrivere che scrivere sul cliente sbagliato.
+    """
+    return str((tenant.get("branding") or {}).get("tenant_code") or "").strip()
 
 
 def attivo() -> bool:
@@ -145,6 +164,20 @@ def addebita(tenant: dict, operazione: str, uso_chiamata, *,
                       "connessione privilegiata: scavalcherebbe append-only e RLS.")
         return {"scritto": False, "motivo": "spento", "token": 0}
 
+    codice = codice_tenant(tenant)
+    if not codice:
+        # Si dichiara PRIMA di provare, e una volta per chiave: il giro del 6/08
+        # ci provava e falliva dentro, e un errore generico non diceva che il
+        # problema era l'identità mancante.
+        nome = str(tenant.get("name") or "?")
+        if nome not in _senza_tenant_detto:
+            _senza_tenant_detto.add(nome)
+            log.error("chiave «%s» senza branding.tenant_code: il consumo non è "
+                      "attribuibile a nessun tenant e NON viene scritto. Gli scope "
+                      "(%s) non sono un tenant: una chiave può averne più d'uno.",
+                      nome, ",".join(tenant.get("allowed_scopes") or []) or "—")
+        return {"scritto": False, "motivo": "senza-tenant", "token": 0}
+
     if operazione not in OPERAZIONI:
         log.error("operazione non ammessa dal registro: %r", operazione)
         return {"scritto": False, "motivo": "operazione-ignota", "token": 0}
@@ -159,26 +192,46 @@ def addebita(tenant: dict, operazione: str, uso_chiamata, *,
     quanti = costo(uso_chiamata, molt)
     try:
         with _sessione(tenant) as cur:
+            anagrafica = _anagrafica(cur, codice)
+            if anagrafica is None:
+                log.error("tenant «%s» non è nell'anagrafica: consumo non scritto. "
+                          "La chiave dichiara un codice che il database non conosce.",
+                          codice)
+                return {"scritto": False, "motivo": "tenant-sconosciuto", "token": quanti}
+            riga_tenant = {"tenant_id": anagrafica[0], "org_code": anagrafica[1],
+                           "code": codice}
             if quanti <= 0:
-                _riga(cur, tenant, operazione, uso_chiamata, molt, "mensile", 0,
+                _riga(cur, riga_tenant, operazione, uso_chiamata, molt, "mensile", 0,
                       misura, conversation_id)
                 return {"scritto": True, "token": 0, "misura": misura, "righe": []}
 
-            pezzi = ripartisci(quanti, saldi(cur, tenant["code"]))
+            pezzi = ripartisci(quanti, saldi(cur, codice))
             scoperto = quanti - sum(t for _, t in pezzi)
             if scoperto > 0:
                 log.error("consumo SCOPERTO tenant=%s op=%s token=%s scoperti=%s",
-                          tenant["code"], operazione, quanti, scoperto)
+                          codice, operazione, quanti, scoperto)
                 pezzi.append(("extra", scoperto))
             for bucket, token in pezzi:
-                _riga(cur, tenant, operazione, uso_chiamata, molt, bucket, token,
+                _riga(cur, riga_tenant, operazione, uso_chiamata, molt, bucket, token,
                       misura, conversation_id)
             return {"scritto": True, "token": quanti, "misura": misura,
                     "righe": pezzi, "scoperto": scoperto}
     except Exception:
         log.exception("registro token non scritto (tenant=%s op=%s token=%s)",
-                      tenant.get("code"), operazione, quanti)
+                      codice, operazione, quanti)
         return {"scritto": False, "motivo": "errore", "token": quanti}
+
+
+def _anagrafica(cur, codice: str):
+    """`(tenant_id, org_code)` dalla tabella `tenants`, o `None` se non c'è.
+
+    Il motore non li ha: la sua chiave porta scope e branding, non l'anagrafica.
+    Le colonne del registro sono NOT NULL con una FK, quindi vanno risolte —
+    e un codice che il database non conosce è un dato sbagliato, non una riga
+    da scrivere lo stesso.
+    """
+    cur.execute("SELECT tenant_id, org_code FROM tenants WHERE code=%s", (codice,))
+    return cur.fetchone()
 
 
 def _riga(cur, tenant: dict, operazione: str, uso_chiamata, moltiplicatore: float,
