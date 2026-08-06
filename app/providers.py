@@ -8,6 +8,7 @@ import time
 
 import httpx
 
+from . import uso
 from .config import settings
 
 log = logging.getLogger("ember.providers")
@@ -59,6 +60,16 @@ def embed(texts: list[str]) -> list[list[float]]:
 
 def chat(system: str, user: str) -> str:
     """Una risposta dal modello di dialogo selezionato."""
+    return chat_con_uso(system, user)[0]
+
+
+def chat_con_uso(system: str, user: str) -> tuple[str, uso.Uso | None]:
+    """Come `chat()`, ma dice anche quanti token è costata (S5.1a).
+
+    Il secondo valore è `None` quando il provider non l'ha detto: **non è
+    zero**. Da quando i token diventano denaro, «non misurato» e «gratis» sono
+    due fatti diversi, e confonderli si vede in fattura.
+    """
     if settings.llm_provider == "mistral":
         r = _post_with_retry(
             f"{MISTRAL_BASE}/chat/completions",
@@ -74,7 +85,9 @@ def chat(system: str, user: str) -> str:
             timeout=120,
         )
         r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"]
+        corpo = r.json()
+        return (corpo["choices"][0]["message"]["content"],
+                uso.da_risposta(corpo, settings.mistral_llm_model))
 
     if settings.llm_provider == "claude":
         r = _post_with_retry(
@@ -92,17 +105,24 @@ def chat(system: str, user: str) -> str:
             timeout=120,
         )
         r.raise_for_status()
-        return r.json()["content"][0]["text"]
+        corpo = r.json()
+        return (corpo["content"][0]["text"],
+                uso.da_risposta(corpo, settings.claude_llm_model))
 
     raise ValueError(f"LLM_PROVIDER non supportato: {settings.llm_provider}")
 
 
-def chat_stream(system: str, user: str):
+def chat_stream(system: str, user: str, misura: "uso.UsoInStream | None" = None):
     """Come chat(), ma in streaming: genera i token man mano che arrivano.
 
     Ritorna un generatore di stringhe (delta di testo). Usato dall'endpoint
     SSE /chat con {"stream": true}. Niente retry qui: lo stream o parte o
     fallisce subito (gli errori pre-stream sollevano httpx.HTTPStatusError).
+
+    **S5.1a · `misura`** è un `uso.UsoInStream` che il chiamante tiene e
+    interroga a stream finito. Non si restituisce l'uso come ultimo elemento
+    generato: cambierebbe il tipo di quello che esce dal generatore, e ogni
+    consumatore dovrebbe imparare a distinguere un delta di testo da un conto.
     """
     if settings.llm_provider == "mistral":
         with httpx.stream(
@@ -117,6 +137,10 @@ def chat_stream(system: str, user: str):
                 ],
                 "temperature": 0.2,
                 "stream": True,
+                # Spento di default: vedi `settings.mistral_stream_usage`. Da
+                # spento il consumo dello stream resta dichiarato non misurato.
+                **({"stream_options": {"include_usage": True}}
+                   if settings.mistral_stream_usage else {}),
             },
             timeout=120,
         ) as r:
@@ -129,8 +153,14 @@ def chat_stream(system: str, user: str):
                 if payload == "[DONE]":
                     break
                 try:
-                    delta = _json.loads(payload)["choices"][0]["delta"].get("content")
-                except (KeyError, IndexError, ValueError):
+                    blocco = _json.loads(payload)
+                except ValueError:
+                    continue
+                if misura is not None:
+                    misura.aggiungi(blocco)
+                try:
+                    delta = blocco["choices"][0]["delta"].get("content")
+                except (KeyError, IndexError, TypeError):
                     continue
                 if delta:
                     yield delta
@@ -162,6 +192,8 @@ def chat_stream(system: str, user: str):
                     ev = _json.loads(line[5:].strip())
                 except ValueError:
                     continue
+                if misura is not None:
+                    misura.aggiungi(ev)
                 if ev.get("type") == "content_block_delta":
                     delta = ev.get("delta", {}).get("text")
                     if delta:

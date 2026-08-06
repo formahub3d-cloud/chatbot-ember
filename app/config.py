@@ -15,6 +15,13 @@ class Settings(BaseSettings):
 
     # modelli
     mistral_llm_model: str = "mistral-small-latest"
+    # S5.1a · Chiede a Mistral di mandare `usage` nell'ultimo blocco dello
+    # stream (`stream_options.include_usage`). **Spento di default, apposta**:
+    # è un campo in più nella richiesta della chat in produzione, e non l'ho
+    # verificato contro l'API vera. Il codice che lo legge c'è già ed è testato;
+    # si accende dopo una prova su staging, non su un'ipotesi. Da spento, il
+    # consumo dello stream Mistral risulta NON MISURATO — dichiarato, non zero.
+    mistral_stream_usage: bool = False
     mistral_embed_model: str = "mistral-embed"
     claude_llm_model: str = "claude-haiku-4-5"
 
