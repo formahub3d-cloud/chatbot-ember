@@ -91,6 +91,28 @@ function trovaChromium() {
     await page.waitForTimeout(350);
   }
 
+  // 1-ter · S4.3 · Le quattro viste che un contatore fantasma teneva spente.
+  //   V11 ha tolto voci dalla barra, e i contatori delle voci tolte sono
+  //   rimasti a scrivere su elementi spariti: `$('#b-contra').textContent=…`
+  //   su null LANCIA, prima del disegno, e la vista intera diventava «Errore di
+  //   caricamento». Il collettore di `pageerror` qui sopra non poteva vederlo —
+  //   l'eccezione la prende il `catch` della vista e la trasforma in un
+  //   riquadro rosso — e il giro di navigazione qui sopra nemmeno: queste
+  //   quattro viste stanno nelle sotto-voci, e nessuno le apriva.
+  const s43 = await page.evaluate(async () => {
+    const out = {};
+    for (const v of ["contradictions", "proposals", "roadmap", "tasks"]) {
+      route(v);
+      await new Promise(r => setTimeout(r, 500));
+      const c = document.getElementById("content");
+      out[v] = {
+        errore: !!c.querySelector(".err-box"),
+        caratteri: (c.textContent || "").trim().length,
+      };
+    }
+    return out;
+  });
+
   // 1-bis · V8/D1 · «Il menu si illumina e non cambia pagina».
   //   Riproduzione del difetto visto in produzione il 2/08, con la rete
   //   rallentata a mano: la vista A è lenta, la B veloce, si clicca A e subito
@@ -999,6 +1021,12 @@ function trovaChromium() {
   }
   if (!allarmeV10.visibile || !allarmeV10.dice) {
     console.error("FAIL (V10-A1): senza il commit del vault l'allarme si SPEGNE invece di dichiararsi cieco — è lo stato delle 17:40 del 2/08 " + JSON.stringify(allarmeV10)); ko = 1;
+  }
+  {
+    const rotte = Object.entries(s43).filter(([, r]) => r.errore || r.caratteri < 40);
+    if (rotte.length) {
+      console.error("FAIL (S4.3): viste che non si aprono — " + JSON.stringify(Object.fromEntries(rotte))); ko = 1;
+    } else console.log("[sotto-voci] " + Object.keys(s43).join(" · ") + ": si aprono, nessun riquadro rosso");
   }
   if (v11.porte.length !== 6) {
     console.error("FAIL (V11-A1): la barra non ha SEI destinazioni ma " + v11.porte.length + " — " + JSON.stringify(v11.porte)); ko = 1;
