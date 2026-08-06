@@ -9,6 +9,55 @@
 
 ---
 
+## 2026-08-06 · DA DECIDERE — Il motore parla con Supabase da PRIVILEGIATO
+
+**Dove:** `app/tenants.py::_conn()` (`settings.database_url`) ·
+`SETUP-PRODUZIONE.md` §35 · trovato prima di scrivere il ledger nel motore
+(S5.2), come promesso.
+
+**Cosa ho verificato.** Il motore si connette con la `DATABASE_URL` che il
+runbook fa raccogliere dal pannello Supabase — la *connection string* del
+progetto, non un ruolo applicativo. La prova che non è il ruolo `divina` sta nel
+codice stesso: `init_and_seed()` esegue `CREATE TABLE IF NOT EXISTS tenants`, e
+`divina` non ha `CREATE` (db/002 gli dà `usage` sugli schemi e `select/insert`
+sulle tabelle, nient'altro).
+
+**Perché conta adesso e non prima.** Le due garanzie che Kimi ha appena
+verificato su `token_ledger` — `UPDATE` e `DELETE` negati, RLS che isola i
+tenant — **sono grant sul ruolo `divina`**. Il proprietario del database le
+scavalca entrambe per costruzione. Se il motore scrivesse il registro con la
+connessione di oggi:
+
+- l'append-only smetterebbe di essere vero **per metà del traffico** (la chat,
+  che è il consumo grosso) e resterebbe vero per l'orchestratore: la stessa
+  tabella con due regole diverse a seconda di chi scrive;
+- un errore nel calcolo del tenant scriverebbe la riga sul cliente sbagliato
+  **senza che il database lo fermi** — cioè il difetto di S1.3 in una tabella
+  che diventa una fattura.
+
+Nessuna delle due si vedrebbe in un test: i test girano su un cursore finto, e
+in produzione l'INSERT riuscirebbe. È il difetto che passa la suite e muore in
+bolletta.
+
+**Le due strade.**
+
+1. **Il motore usa il ruolo `divina` per il registro** — una seconda variabile
+   (`DATABASE_URL_LEDGER`) usata SOLO dal modulo del ledger, con la connessione
+   privilegiata che resta per tutto il resto. Nessun ruolo nuovo da creare, i
+   grant sono già quelli verificati, e la superficie del cambiamento è un
+   modulo. È quella che consiglio.
+2. **Il motore non scrive**: restituisce l'uso e lo scrive l'orchestratore. La
+   ragione per cui `openapi.yaml` aveva scelto la scrittura diretta era «niente
+   hop di rete nel percorso della risposta» — ma l'uso della chat si conosce
+   **a stream finito**, quando la risposta è già arrivata all'utente, quindi
+   quella ragione qui non si applica. Costa un giro di rete in più e un
+   contratto nuovo fra i due servizi.
+
+Non ho scritto il ledger nel motore prima di questa decisione, perché la
+decisione È quale connessione scrive.
+
+---
+
 ## 2026-08-05 (notte) · CORREZIONE MIA — «porta aperta oggi» era esagerato
 
 Avevo scritto che le tre chiavi segnaposto erano «una porta aperta oggi».
