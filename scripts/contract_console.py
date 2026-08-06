@@ -152,6 +152,7 @@ CHIAMANTI_FUORI: dict[str, str] = {
     "POST /admin/retention/run": "pulizia periodica, si lancia a mano (non c'è uno schedulato)",
     "POST /admin/tenants/brand": "provisioning di un tenant, a mano",
     "POST /admin/tasks/claim": "usato dal worker dell'orchestratore, non dalla console",
+    "POST /documents/testo": "backend FORMA (S4.1): documento → testo, poi ingest nell'orchestratore",
     "POST /upload": "il widget OCR: caricamento documento → estrazione",
     "POST /upload/confirm": "conferma umana dell'estrazione OCR",
     "GET /contracts/templates": "generazione contratti: nessuna schermata, si usa via API",

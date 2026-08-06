@@ -1581,6 +1581,86 @@ def do_writeback(body: WritebackIn, x_tenant_key: str = Header(default=""), orig
     return {"consolidato": res.get("created", False), **res}
 
 
+# S4.1 · Estrazione testo per l'area cliente. I limiti stanno qui e non nel
+# chiamante: un tetto che vive solo nel client è un tetto che il secondo client
+# non ha.
+DOC_MIME = {
+    "application/pdf",
+    "image/png", "image/jpeg", "image/webp", "image/heic",
+    "text/plain", "text/markdown", "text/csv",
+}
+DOC_MAX_BYTE = 20 * 1024 * 1024      # oltre non è un documento, è un archivio
+# I formati di testo NON passano dall'OCR: leggerli è decodificare dei byte, e
+# mandarli a un modello costerebbe soldi e un giro di rete per niente.
+DOC_TESTUALI = ("text/",)
+
+
+@app.post("/documents/testo")
+async def documents_testo(file: UploadFile = File(...),
+                          x_tenant_key: str = Header(default=""),
+                          origin: str = Header(default="")):
+    """S4.1 · Un documento → il suo TESTO. Nient'altro.
+
+    Fratello generico di `/upload`, e la differenza è tutta nel mestiere:
+    `/upload` è dei contratti UNILAV (OCR → `extract_unilav` → campi da
+    confermare). Serviva una rotta che leggesse un documento qualunque e basta,
+    perché nell'area cliente il documento non diventa un modulo compilato: il
+    testo va all'orchestratore, che ne ricava nodi **in bozza** (`wiki_nodes`
+    vive lì, e ci resta).
+
+    L'OCR sta qui — con la chiave Mistral e `app/ocr.py` — perché qui sta
+    l'ingestione. Un secondo punto di ingestione nell'orchestratore sarebbe la
+    stessa famiglia di «due copie della stessa cosa» che stiamo togliendo
+    ovunque.
+
+    ⚠️ **Un 200 non vuol dire che il documento è leggibile.** Un PDF scansionato
+    male torna `testo` vuoto o quasi: l'estrazione è riuscita, il documento no.
+    La soglia di «troppo poco per farci qualcosa» la mette il chiamante, che sa
+    cosa deve farci; qui si dice quanti caratteri sono usciti.
+    """
+    tenant = tenant_or_401(x_tenant_key)
+    _guard(tenant, x_tenant_key, origin)
+
+    mime = (file.content_type or "application/octet-stream").split(";")[0].strip().lower()
+    if mime not in DOC_MIME:
+        raise HTTPException(415, f"Formato non supportato: {mime}.")
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(422, "File vuoto.")
+    if len(raw) > DOC_MAX_BYTE:
+        raise HTTPException(413, "File troppo grande (massimo 20 MB).")
+
+    nome = Path(file.filename or "documento").name
+    if mime.startswith(DOC_TESTUALI):
+        # `errors="replace"`: un byte sbagliato in fondo a un .txt non deve
+        # buttare via il documento intero.
+        testo = raw.decode("utf-8", errors="replace")
+    else:
+        if not settings.mistral_api_key.strip():
+            # Come per la voce: «non configurato» non è «rotto». Un 502 farebbe
+            # riprovare all'infinito una cosa che non esiste su questo deploy.
+            raise HTTPException(501, "Estrazione testo non attiva su questo ambiente.")
+        suffix = Path(nome).suffix or ".pdf"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(raw)
+            tmp_path = tmp.name
+        try:
+            testo = ocr.ocr_document(tmp_path, mime=mime)
+        except Exception:
+            log.exception("estrazione testo fallita")
+            raise HTTPException(502, "Non sono riuscita a leggere il documento.")
+        finally:
+            try:
+                Path(tmp_path).unlink()
+            except OSError:
+                pass
+
+    testo = (testo or "").strip()
+    tenants.log_access(tenant.get("key_hash"), "read",
+                       detail=f"documents/testo {nome} {len(testo)}c")
+    return {"titolo": nome, "mime": mime, "testo": testo, "caratteri": len(testo)}
+
+
 @app.post("/upload")
 async def do_upload(file: UploadFile = File(...), x_tenant_key: str = Header(default=""), origin: str = Header(default="")):
     """Carica un documento → OCR → estrazione campi → ANTEPRIMA da confermare.
