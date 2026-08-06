@@ -231,6 +231,13 @@ class Settings(BaseSettings):
     # invece che da TENANTS_JSON. Railway inietta DATABASE_URL quando colleghi un
     # database al servizio. Vuoto = si usa TENANTS_JSON / tenants.json.
     database_url: str = ""
+    # S5.1b · La connessione del RUOLO `divina` (minimo privilegio), usata SOLO
+    # dal registro dei token. Separata da `database_url` — che è la connection
+    # string del progetto, cioè un ruolo privilegiato — perché append-only e RLS
+    # su `token_ledger` sono grant su `divina`, e il proprietario del database
+    # li scavalca per costruzione. Vuota = registro spento e dichiarato: mai il
+    # ripiego sulla connessione privilegiata.
+    database_url_ledger: str = ""
 
     # MongoDB (opzionale, consigliato in produzione): store tenant robusto con
     # chiavi HASHATE (mai in chiaro), quote giornaliere e revoca (campo active).
