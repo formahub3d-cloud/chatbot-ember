@@ -229,8 +229,17 @@ def _anagrafica(cur, codice: str):
     Le colonne del registro sono NOT NULL con una FK, quindi vanno risolte —
     e un codice che il database non conosce è un dato sbagliato, non una riga
     da scrivere lo stesso.
+
+    **`tenants` non ha `org_code`: ha `org_id`**, e il codice testuale
+    dell'organizzazione sta in `organizations.code`. Serve la JOIN — la stessa
+    che fa `db.resolve_tenant()` nell'orchestratore, dove l'avevo sotto gli
+    occhi e non l'ho copiata (difetto del 7/08, trovato in produzione).
     """
-    cur.execute("SELECT tenant_id, org_code FROM tenants WHERE code=%s", (codice,))
+    cur.execute(
+        "SELECT t.tenant_id, o.code FROM tenants t "
+        "JOIN organizations o ON o.org_id = t.org_id WHERE t.code=%s",
+        (codice,),
+    )
     return cur.fetchone()
 
 

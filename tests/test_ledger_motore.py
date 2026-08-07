@@ -281,3 +281,17 @@ def test_l_anagrafica_riempie_tenant_id_e_org_code(sessione_finta):
     assert params[0] == "uuid-ats"      # tenant_id dall'anagrafica
     assert params[1] == "forma"         # org_code dall'anagrafica
     assert params[2] == "ats"           # tenant_code dal branding
+
+
+def test_l_anagrafica_fa_la_JOIN_con_organizations(sessione_finta):
+    """`tenants` ha `org_id`, non `org_code`: il codice testuale sta in
+    `organizations.code`. Senza la JOIN è un `UndefinedColumn` in produzione, ed
+    è successo il 7/08 — perché il test guardava il RISULTATO del finto invece
+    della FORMA della query. Un cursore finto risponde a qualunque SQL, anche a
+    uno che il database rifiuterebbe: qui si guarda la query."""
+    ledger.addebita(TENANT, "chat", uso.Uso(10, 5))
+    letture = [s for s, _ in sessione_finta.eseguiti if "FROM tenants" in s]
+    assert letture, "l'anagrafica non è stata chiesta"
+    assert "JOIN organizations" in letture[0]
+    assert "o.org_id = t.org_id" in letture[0]
+    assert "org_code FROM tenants" not in letture[0]
