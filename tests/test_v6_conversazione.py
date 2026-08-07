@@ -56,7 +56,7 @@ def test_risposta_con_contenuto_non_ha_gap(monkeypatch):
         score = 0.9
         payload = {"slug": "nota", "title": "Nota", "text": "il contenuto"}
     monkeypatch.setattr(rag, "_retrieve", lambda *a, **k: [H()])
-    monkeypatch.setattr(rag, "chat", lambda s, u: "la risposta")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("la risposta", None))
     assert "gap" not in rag.answer("q", ["ats"])
 
 

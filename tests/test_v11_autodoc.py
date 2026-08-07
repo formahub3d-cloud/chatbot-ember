@@ -55,7 +55,7 @@ def test_risponde_citando_le_note_del_vault(vault, monkeypatch):
     Prima veniva da istruzioni nel codice, che nessuno può citare."""
     monkeypatch.setattr(rag, "_retrieve",
                         lambda *a, **k: pytest.fail("le note si leggono dal disco"))
-    monkeypatch.setattr(rag, "chat", lambda s, u: "Rispondo con le note della tua azienda.")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("Rispondo con le note della tua azienda.", None))
     r = rag.answer("Cosa puoi fare per la mia azienda?", ["ats"])
     assert r["autodoc"] is True
     assert [s["path"] for s in r["sources"]] == ["ovyon/divina/01-cosa-so-fare.md",
@@ -67,7 +67,7 @@ def test_le_note_arrivano_anche_a_un_tenant_senza_lo_scope_ovyon(vault, monkeypa
     canale è in sola lettura e su UNA cartella fissa — non passa dal filtro e
     non lo tocca, perché spostare una decisione di sicurezza dentro un problema
     di prodotto è il modo in cui i permessi si allargano per sbaglio."""
-    monkeypatch.setattr(rag, "chat", lambda s, u: "ok")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("ok", None))
     assert rag.answer("Chi sei?", ["ats"]).get("autodoc") is True
     assert rag.answer("Chi sei?", ["forma-core"]).get("autodoc") is True
 

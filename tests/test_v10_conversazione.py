@@ -82,7 +82,7 @@ def test_prova2_non_indovina_e_non_cerca(monkeypatch):
     soltanto è improbabile che lo faccia."""
     monkeypatch.setattr(rag, "_retrieve",
                         lambda *a, **k: pytest.fail("non deve cercare: deve chiedere"))
-    monkeypatch.setattr(rag, "chat", lambda *a, **k: pytest.fail("non serve il modello"))
+    monkeypatch.setattr(rag, "chat_con_uso", lambda *a, **k: (pytest.fail("non serve il modello"), None))
     r = rag.answer("E l'altro?", ["forma-core"], history=FILO_DUE)
     assert r["mossa"] == "ambiguo" and r["sources"] == []
     assert set(r["chiarimento"]) == {"ATS", "Centioni"}
@@ -102,7 +102,7 @@ def test_prova3_abbandonare_taglia_il_filo():
 def test_prova3_abbandonare_senza_niente_dopo_non_risponde_lo_stesso(monkeypatch):
     monkeypatch.setattr(rag, "_retrieve",
                         lambda *a, **k: pytest.fail("l'argomento è stato abbandonato"))
-    monkeypatch.setattr(rag, "chat", lambda *a, **k: pytest.fail("non serve il modello"))
+    monkeypatch.setattr(rag, "chat_con_uso", lambda *a, **k: (pytest.fail("non serve il modello"), None))
     r = rag.answer("Lascia stare", ["forma-core"], history=FILO_DUE)
     assert r["mossa"] == "abbandono" and r["sources"] == []
     assert "lascio stare" in r["answer"].lower()
@@ -123,7 +123,7 @@ def test_prova4_il_dubbio_ricerca_la_domanda_di_prima():
 def test_prova4_il_dubbio_arriva_con_le_fonti(monkeypatch):
     visto = {}
     monkeypatch.setattr(rag, "_retrieve", lambda q, *a, **k: (visto.update(q=q), [_hit()])[1])
-    monkeypatch.setattr(rag, "chat", lambda s, u: (visto.update(sys=s), "300 euro, sta scritto qui.")[1])
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ((visto.update(sys=s), "300 euro, sta scritto qui.")[1], None))
     r = rag.answer("Ma sei sicura?", ["forma-core"], history=FILO_UNO)
     assert visto["q"] == "Quanto costa il listino 2026?"
     assert r["sources"] and r["mossa"] == "dubbio"
@@ -198,7 +198,7 @@ def test_c2_una_domanda_sul_mondo_riceve_una_risposta(monkeypatch):
     che lo coprisse: la domanda non riguarda il cervello, quindi la risposta
     giusta non è né il muro né la porta — è rispondere."""
     monkeypatch.setattr(rag, "_retrieve", lambda *a, **k: [])
-    monkeypatch.setattr(rag, "chat", lambda s, u: "⟦fuori⟧A New York sono le 8.⟦/fuori⟧")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("⟦fuori⟧A New York sono le 8.⟦/fuori⟧", None))
     r = rag.answer("Che ore sono a New York?", ["forma-core"], free=True)
     assert "New York" in r["answer"] and r.get("free") is True
     assert "gap" not in r                       # niente offerta di annotarlo nel vault
@@ -206,7 +206,7 @@ def test_c2_una_domanda_sul_mondo_riceve_una_risposta(monkeypatch):
 
 def test_c2_non_si_offre_di_annotare_l_ora_di_new_york(monkeypatch):
     monkeypatch.setattr(rag, "_retrieve", lambda *a, **k: [])
-    monkeypatch.setattr(rag, "chat", lambda s, u: "x")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("x", None))
     for d in ("Che ore sono a New York?", "Come si scrive un'email di sollecito?",
               "Cosa significa churn?"):
         assert conversa.generica(d), d
@@ -219,7 +219,7 @@ def test_c2_una_domanda_sul_cervello_travestita_resta_una_domanda_sul_cervello(m
     buco esiste e nessuno lo saprebbe."""
     assert conversa.generica("Come si fa a fatturare ad ATS?", ["ats"]) is False
     monkeypatch.setattr(rag, "_retrieve", lambda *a, **k: [])
-    monkeypatch.setattr(rag, "chat", lambda s, u: "x")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("x", None))
     r = rag.answer("Come si fa a fatturare ad ATS?", ["forma-core", "ats"], free=True)
     assert r.get("gap")
 
@@ -240,7 +240,7 @@ def test_c3_il_limite_non_si_muove(monkeypatch):
     inventare sul cliente, e questa è l'unica cosa che non si baratta per
     nessuna fluidità."""
     monkeypatch.setattr(rag, "_retrieve", lambda *a, **k: [])
-    monkeypatch.setattr(rag, "chat", lambda s, u: pytest.fail("senza `libera` non si risponde"))
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: (pytest.fail("senza `libera` non si risponde"), None))
     r = rag.answer("Che ore sono a New York?", ["ats"], free=False)
     assert r["answer"] == rag.NO_ANSWER and r["sources"] == []
 
@@ -251,7 +251,7 @@ def test_le_mosse_non_allargano_i_permessi(monkeypatch):
     visti = {}
     monkeypatch.setattr(rag, "_retrieve",
                         lambda q, grants, *a, **k: (visti.update(g=grants), [])[1])
-    monkeypatch.setattr(rag, "chat", lambda s, u: "x")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("x", None))
     storia = [{"role": "user", "content": "Parlami di andrea-aloia e dei suoi obiettivi"},
               {"role": "assistant", "content": "Non ho accesso a quell'area."}]
     rag.answer("Ma sei sicura?", ["ats"], history=storia)

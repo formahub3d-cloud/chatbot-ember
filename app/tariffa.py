@@ -46,6 +46,10 @@ ACCREDITI = ("rinnovo", "pacchetto", "regalo", "rettifica")
 # già è un altro mestiere dal trovarne di nuovi, e costa come una chat.
 BOZZA_LISTA_PROPRIA = 1
 
+# I due sub-agenti che hanno una riga tutta loro nel listino (§3.1). Gli altri
+# agenti costano «altre azioni».
+AGENTI_CON_RIGA_PROPRIA = ("ulisse", "caronte")
+
 
 class OperazioneSconosciuta(ValueError):
     """Un'operazione che nessuno sa prezzare. Meglio fermarsi che indovinare."""
@@ -68,6 +72,28 @@ def moltiplicatore(operazione: str, *, lista_propria: bool = False) -> float:
     if chiave not in CONSUMI:
         raise OperazioneSconosciuta(f"operazione senza tariffa: {operazione!r}")
     return CONSUMI[chiave]
+
+
+def operazione_di_agente(agente: str) -> str:
+    """L'operazione del listino per una skill eseguita da un agente.
+
+    Non è una mappa da inventare: **Ulisse e Caronte sono i nomi di due
+    sub-agenti** (`agents.SUBAGENTS`) e sono le stesse due parole che §3.1 usa
+    per le due righe più care del listino. Chi esegue è l'operazione: una
+    ricerca clienti fatta da Ulisse *è* «trova clienti», un primo contatto
+    firmato da Caronte *è* «email».
+
+    Tutti gli altri — Dante, Virgilio, Beatrice e i sub-agenti senza una riga
+    propria — ricadono su «altre azioni» (2×). Non è un ripiego: è la riga che
+    §3.1 prevede per tutto il resto.
+
+    L'elenco è ESPLICITO e non «tutte le chiavi del listino che sembrano un
+    nome»: `documento` e `voce` sono righe del listino e non saranno mai un
+    agente, e una corrispondenza per somiglianza le farebbe diventare tali il
+    giorno che qualcuno passa la stringa sbagliata.
+    """
+    chiave = (agente or "").strip().lower()
+    return chiave if chiave in AGENTI_CON_RIGA_PROPRIA else "azione"
 
 
 def e_inclusa(operazione: str) -> bool:

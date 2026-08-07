@@ -15,7 +15,7 @@ import logging
 from qdrant_client.models import Filter, FieldCondition, MatchAny, MatchValue
 
 from .config import settings
-from .providers import embed, chat, chat_stream
+from .providers import embed, chat_con_uso, chat_stream
 from .ingest import client
 from .security import sanitize_context, redact_pii
 from . import autodoc, conversa, events, filo, metrics, websearch
@@ -287,6 +287,27 @@ def _clean_answer(text: str) -> str:
     return t.strip()
 
 
+def _chat(system: str, user: str, misura=None) -> str:
+    """La chiamata al modello del percorso NON in streaming, misurata.
+
+    Il percorso non-stream non contava niente fino a oggi, e `stream` nel corpo
+    di `/chat` è `false` di default: chi non chiede lo streaming — il connettore
+    MCP, uno script, un curl — consumava a gratis. Il freno sul saldo di uno
+    così non sarebbe mai scattato, perché il suo saldo non scendeva mai.
+
+    **Una cucitura sola.** Si passa SEMPRE da `chat_con_uso`, anche senza un
+    `misura` da riempire: `providers.chat()` era già `chat_con_uso()[0]`, quindi
+    non si perde niente, e in cambio non esistono due strade — una provata dai
+    test e una percorsa dalla produzione. Era il difetto che stava per nascere
+    qui: i test agganciavano `rag.chat`, che dopo questa modifica nessuna
+    richiesta vera avrebbe più attraversato.
+    """
+    testo, u = chat_con_uso(system, user)
+    if misura is not None:
+        misura.somma_uso(u)
+    return testo
+
+
 def _build_context(hits) -> str:
     """Testo del contesto con sanitizzazione anti prompt-injection sui chunk."""
     return "\n\n".join(
@@ -451,7 +472,8 @@ def _maybe_web(question: str, hits, web: bool, web_enabled: bool) -> list:
 
 def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
            tier: str | None = None, web: bool = False, web_enabled: bool = False,
-           focus_slugs=None, free: bool = False, memoria=None, capacita=None) -> dict:
+           focus_slugs=None, free: bool = False, memoria=None, capacita=None,
+           misura=None) -> dict:
     """Risposta vincolata al contenuto visibile ai `grants` del tenant.
 
     `grants`: lista storica (`allowed_scopes`) o dict con org/tenant/sub_tenant.
@@ -471,8 +493,9 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     # aggiorna senza toccare una riga di Python.
     auto = autodoc.contesto(question)
     if auto:
-        out = _clean_answer(chat(_system(lang, tier, memoria=memoria), 
-                                 f"CONTENUTO:\n{auto['content']}\n\nDOMANDA: {question}"))
+        out = _clean_answer(_chat(_system(lang, tier, memoria=memoria),
+                                  f"CONTENUTO:\n{auto['content']}\n\nDOMANDA: {question}",
+                                  misura))
         metrics.bump_chat(scopes_of(grants))
         events.record("chat", scopes_of(grants))
         return {"answer": out, "sources": auto["sources"], "scopes": scopes_of(grants),
@@ -545,8 +568,9 @@ def answer(question: str, grants, k: int = 6, history=None, lang: str = "it",
     context = _build_context(hits)
     user = (f"{_hist_block(turni)}CONTENUTO:\n{context}\n\n"
             f"{_build_web_context(web_results)}DOMANDA: {question}")
-    out = _clean_answer(chat(_system(lang, tier, web=bool(web_results), free=free,
-                                     memoria=memoria, capacita=capacita, mossa=mv), user))
+    out = _clean_answer(_chat(_system(lang, tier, web=bool(web_results), free=free,
+                                      memoria=memoria, capacita=capacita, mossa=mv),
+                              user, misura))
     sources = _merge_sources(hits, web_results)
     metrics.bump_chat(scopes)
     events.record("chat", scopes)

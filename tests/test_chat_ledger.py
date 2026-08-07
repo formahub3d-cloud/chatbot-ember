@@ -33,9 +33,15 @@ def chat_finta(monkeypatch):
     monkeypatch.setattr(tenants, "get_tenant_by_key",
                         lambda k: FAKE_TENANT if k == "K_ATS" else None)
     monkeypatch.setattr(main, "rate_ok", lambda k: True)
-    monkeypatch.setattr(ledger, "addebita",
-                        lambda tenant, op, u, **kw: scritte.append(
-                            {"tenant": tenant.get("code"), "op": op, "uso": u, **kw}))
+    def _addebita(tenant, op, u, **kw):
+        scritte.append({"tenant": tenant.get("code"), "op": op, "uso": u, **kw})
+        # La forma VERA del ritorno: da S5.1c/2 chi chiama ci legge `righe` per
+        # scalare il saldo che il freno tiene in mente. Un finto che restituisce
+        # `None` manderebbe il chiamante nel ramo dell'errore senza dirlo — il
+        # test resterebbe verde provando la strada sbagliata.
+        return {"scritto": True, "token": 0, "misura": "misurato", "righe": []}
+
+    monkeypatch.setattr(ledger, "addebita", _addebita)
     return scritte
 
 

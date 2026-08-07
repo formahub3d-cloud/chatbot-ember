@@ -145,6 +145,20 @@ def saldi(cur, tenant_code: str) -> dict[str, int]:
     return fuori
 
 
+def mai_visto(cur, tenant_code: str) -> bool:
+    """Il registro non ha NESSUNA riga per questo tenant.
+
+    Serve al freno (S5.1c/2): un cliente a zero perché ha consumato tutto e uno
+    a zero perché non gli è mai stata data una dotazione sono situazioni
+    opposte, e `saldi()` le restituisce identiche. Nessun filtro di scadenza,
+    apposta: la domanda è «è mai esistito qui dentro», e un accredito scaduto è
+    comunque la prova che il cliente era stato aperto.
+    """
+    cur.execute("SELECT 1 FROM token_ledger WHERE tenant_code=%s LIMIT 1",
+                (tenant_code,))
+    return cur.fetchone() is None
+
+
 def addebita(tenant: dict, operazione: str, uso_chiamata, *,
              lista_propria: bool = False, conversation_id: str | None = None) -> dict:
     """Scrive il consumo di un'operazione della chat. **Non solleva mai.**

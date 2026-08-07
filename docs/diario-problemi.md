@@ -9,6 +9,55 @@
 
 ---
 
+## 2026-08-07 · RISOLTO — La chat senza streaming non contava niente
+
+**Dove:** `app/main.py` (`do_chat`), `app/rag.py` · trovato costruendo il freno,
+chiedendomi su quale saldo scendesse il credito di chi non usa la console.
+
+`stream` è **`false` di default** nel corpo di `/chat`. Il pannello e il widget
+chiedono lo streaming, quindi la riga del registro si scriveva sempre e il buco
+non si vedeva; ma il connettore MCP, uno script, un `curl` — e chiunque
+integrasse il motore leggendo la documentazione — passavano dal percorso
+non-stream, che **non scriveva niente**. Conseguenza doppia: consumo non
+contato, e un freno sul saldo che per quei tenant non sarebbe mai scattato,
+perché quel saldo non scendeva mai.
+
+Adesso anche `rag.answer` accetta il misuratore, e `do_chat` scrive la riga
+dopo. Con una distinzione che non è formale: **una risposta che non passa dal
+modello** (un saluto, un chiarimento, un «lascia stare») **costa zero per
+davvero**, e si scrive `Uso(0, 0)` — non `None`. `None` finisce nel registro
+come `ignoto`, e sono proprio quelle righe che dovranno dirci se il consumo non
+misurato è un problema: contarci dentro le risposte gratuite vorrebbe dire
+inseguire un numero fatto da noi. Il conteggio delle chiamate vive dentro
+`providers.chat_stream`/`UsoInStream.somma_uso`, cioè accanto alla chiamata
+vera: da un'altra parte, un giorno, si dimenticherebbe.
+
+**Effetto collaterale voluto:** `rag` non importa più `chat`, solo
+`chat_con_uso` (che era già l'unica implementazione — `chat()` era il suo
+`[0]`). Una cucitura sola: i test agganciavano `rag.chat`, che dopo questa
+modifica nessuna richiesta vera avrebbe più attraversato. Trenta patch di test
+spostate; una che restasse indietro fallisce forte (`AttributeError`), non in
+silenzio.
+
+---
+
+## 2026-08-07 · RISOLTO — Il finto di `addebita` restituiva `None` e nascondeva il ramo d'errore
+
+**Dove:** `tests/test_chat_ledger.py`, fixture `chat_finta`.
+
+Il finto era `lambda …: scritte.append(…)`, cioè `None`. Da S5.1c/2 chi chiama
+legge `esito["righe"]` per scalare il saldo tenuto in mente: col `None` la
+chiamata sollevava, l'eccezione finiva nel `try` di difesa e i sei test
+restavano **verdi provando il percorso dell'errore**. Adesso il finto ha la
+forma vera del ritorno.
+
+Terza volta in tre giorni che il problema è lo strumento di misura fuori
+posizione (il `TestClient` che leggeva header CORS, la fixture col tenant
+dell'altro servizio, e ora questo). Il segno è sempre lo stesso: **il test non
+fallisce, si sposta**.
+
+---
+
 ## 2026-08-06 · RISOLTO — «tenant=None»: la stessa parola per due cose diverse
 
 **Dove:** `app/ledger.py` (mio, di stamattina) · trovato **in produzione** da

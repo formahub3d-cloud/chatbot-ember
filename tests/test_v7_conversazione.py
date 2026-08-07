@@ -78,7 +78,7 @@ def indice(monkeypatch):
     monkeypatch.setattr(rag, "embed", lambda testi: [testi[0]])
     monkeypatch.setattr(settings, "retrieval_min_score", 0.0)
     monkeypatch.setattr(settings, "retrieval_rel_score", 0.0)
-    monkeypatch.setattr(rag, "chat", lambda s, u: "risposta dal contenuto")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("risposta dal contenuto", None))
     filo.dimentica()
     yield idx
     filo.dimentica()

@@ -78,9 +78,9 @@ def test_la_domanda_di_seguito_trova_la_scheda_col_prezzo(monkeypatch):
     """IL caso del 3/08. Se torna rosso, Divina ha ricominciato a dire che non
     lo sa mentre nel vault la cifra c'è."""
     visti = _indice_finto(monkeypatch)
-    monkeypatch.setattr(rag, "chat",
-                        lambda s, u: "HRH paga 200 €/mese." if "200" in u
-                        else "Non lo trovo.")
+    monkeypatch.setattr(rag, "chat_con_uso",
+                        lambda s, u: ("HRH paga 200 €/mese." if "200" in u
+                                      else "Non lo trovo.", None))
     r = rag.answer("E quanto paga al mese?", ["hrh"], history=FILO_HRH)
     assert "HRH" in visti["q"], "la query è partita senza il soggetto"
     assert [f["slug"] for f in r["sources"]] == ["cliente-hrh"], \
@@ -93,7 +93,7 @@ def test_senza_l_espansione_pescherebbe_la_kb(monkeypatch):
     """Il controfattuale, per essere sicuri che sia la QUERY a fare la
     differenza e non un caso fortunato dell'indice finto."""
     visti = _indice_finto(monkeypatch)
-    monkeypatch.setattr(rag, "chat", lambda s, u: "x")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("x", None))
     r = rag.answer("E quanto paga al mese?", ["hrh"], history=[])   # niente filo
     assert visti["q"] == "E quanto paga al mese?"
     assert [f["slug"] for f in r["sources"]] == ["kb-hrh"]
@@ -139,7 +139,7 @@ def test_il_filo_non_allarga_i_permessi_nemmeno_adesso(monkeypatch):
     visti = {}
     monkeypatch.setattr(rag, "_retrieve",
                         lambda q, grants, *a, **k: (visti.update(g=grants), [])[1])
-    monkeypatch.setattr(rag, "chat", lambda s, u: "x")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("x", None))
     rag.answer("Quanto paga al mese?", ["ats"],
                history=[{"role": "user", "content": "Parlami di andrea-aloia e HRH"}])
     assert visti["g"] == ["ats"]

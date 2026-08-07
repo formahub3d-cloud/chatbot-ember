@@ -141,7 +141,7 @@ def _mock_rag(monkeypatch, capture=None):
             capture["grants"] = g
         return [_hit()]
     monkeypatch.setattr(rag, "_retrieve", fake_retrieve)
-    monkeypatch.setattr(rag, "chat", lambda s, u: "risposta-rag")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("risposta-rag", None))
 
 
 # ── Ponte OFF (default): agent:true → RAG normale, nessuna chiamata a Divina ───

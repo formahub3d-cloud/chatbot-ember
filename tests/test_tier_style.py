@@ -78,10 +78,10 @@ def test_answer_inietta_stile_ma_lascia_i_grant_invariati(monkeypatch):
 
     def fake_chat(system, user):
         seen["system"] = system            # cattura il system prompt passato all'LLM
-        return "risposta"
+        return "risposta", None            # (testo, uso) — S5.1c
 
     monkeypatch.setattr(rag, "_retrieve", fake_retrieve)
-    monkeypatch.setattr(rag, "chat", fake_chat)
+    monkeypatch.setattr(rag, "chat_con_uso", fake_chat)
 
     grants = {"allowed_scopes": ["ats"], "allowed_orgs": [], "allowed_sub_tenants": []}
     out = rag.answer("quanto costa la stampa?", grants, tier="virgilio")
@@ -100,7 +100,7 @@ def test_answer_scope_identico_a_prescindere_dal_tier(monkeypatch):
     grants = {"allowed_scopes": ["ats"]}
     captured = []
     monkeypatch.setattr(rag, "_retrieve", lambda q, g, k, focus_slugs=None: (captured.append(g), [_fake_hit()])[1])
-    monkeypatch.setattr(rag, "chat", lambda s, u: "ok")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("ok", None))
     for tier in (None, "dante", "virgilio", "beatrice", "sconosciuto"):
         rag.answer("q", grants, tier=tier)
     # tutti i retrieval hanno visto gli stessi identici grant
@@ -125,7 +125,7 @@ def test_chat_applica_il_tier_dal_branding_senza_toccare_lo_scope(monkeypatch):
         return [_fake_hit()]
 
     monkeypatch.setattr(rag, "_retrieve", fake_retrieve)
-    monkeypatch.setattr(rag, "chat", lambda system, user: seen.setdefault("system", system) or "ok")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda system, user: (seen.setdefault("system", system) or "ok", None))
 
     r = client.post("/chat", json={"message": "quanto costa la stampa?"}, headers={"X-Tenant-Key": "K"})
     assert r.status_code == 200
@@ -144,7 +144,7 @@ def test_chat_senza_tier_prompt_come_prima(monkeypatch):
     _mock_tenant(monkeypatch, {})            # nessun tier nel branding
     seen = {}
     monkeypatch.setattr(rag, "_retrieve", lambda q, g, k, focus_slugs=None: [_fake_hit()])
-    monkeypatch.setattr(rag, "chat", lambda system, user: seen.setdefault("system", system) or "ok")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda system, user: (seen.setdefault("system", system) or "ok", None))
 
     r = client.post("/chat", json={"message": "quanto costa la stampa?"}, headers={"X-Tenant-Key": "K"})
     assert r.status_code == 200

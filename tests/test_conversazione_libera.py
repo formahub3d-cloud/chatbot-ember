@@ -77,7 +77,7 @@ def test_answer_free_supera_il_muro_ma_traccia_il_gap(monkeypatch):
     col gap comunque tracciato e la risposta marcata free."""
     seen = {}
     monkeypatch.setattr(rag, "_retrieve", lambda q, g, k, focus_slugs=None: [])
-    monkeypatch.setattr(rag, "chat", lambda s, u: (seen.update(sys=s), "⟦fuori⟧ragioniamo⟦/fuori⟧")[1])
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ((seen.update(sys=s), "⟦fuori⟧ragioniamo⟦/fuori⟧")[1], None))
     out = rag.answer("domanda nuova", {"allowed_scopes": ["forma-core"]}, free=True)
     assert out["answer"] != rag.NO_ANSWER
     assert out.get("free") is True

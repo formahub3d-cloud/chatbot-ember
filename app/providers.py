@@ -124,6 +124,11 @@ def chat_stream(system: str, user: str, misura: "uso.UsoInStream | None" = None)
     generato: cambierebbe il tipo di quello che esce dal generatore, e ogni
     consumatore dovrebbe imparare a distinguere un delta di testo da un conto.
     """
+    if misura is not None:
+        # Segnato QUI, nella stessa funzione che fa la chiamata: da un'altra
+        # parte, un giorno, si dimenticherebbe — e una chiamata non contata si
+        # scriverebbe nel registro come costo zero invece che come non misurata.
+        misura.chiamata()
     if settings.llm_provider == "mistral":
         with httpx.stream(
             "POST",

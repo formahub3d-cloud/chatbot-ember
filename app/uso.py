@@ -103,6 +103,36 @@ class UsoInStream:
         self.modello = modello
         self._input: int | None = None
         self._output: int | None = None
+        # Quante volte il modello è stato DAVVERO chiamato. Serve a distinguere
+        # «chiamato e non misurato» da «mai chiamato»: un saluto, un
+        # chiarimento o un «lascia stare» non passano dal modello e costano
+        # zero per davvero. Scriverli come `ignoto` sporcherebbe l'unico numero
+        # con cui decideremo se il consumo non misurato è un problema.
+        self.chiamate = 0
+
+    def chiamata(self) -> None:
+        """Una chiamata al modello è partita (la misura arriverà, o non arriverà)."""
+        self.chiamate += 1
+
+    @property
+    def nessuna_chiamata(self) -> bool:
+        """Nessuna chiamata al modello: il costo è zero, e lo sappiamo."""
+        return self.chiamate == 0
+
+    def somma_uso(self, u: "Uso | None") -> None:
+        """Registra una chiamata NON in streaming, col suo uso (o senza).
+
+        Somma invece di sostituire: qui gli usi arrivano da chiamate distinte e
+        complete, mentre negli eventi di stream lo stesso numero viene ridetto
+        aggiornato — sommare quelli farebbe pagare due volte.
+        """
+        self.chiamate += 1
+        if u is None:
+            return
+        self._input = (self._input or 0) + int(u.input or 0)
+        self._output = (self._output or 0) + int(u.output or 0)
+        if not self.modello and u.modello:
+            self.modello = u.modello
 
     def aggiungi(self, evento: dict | None) -> None:
         if not isinstance(evento, dict):

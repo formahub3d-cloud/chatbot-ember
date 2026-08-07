@@ -52,7 +52,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import autodoc, ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti, uso, ledger
+from . import autodoc, ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti, uso, ledger, freno
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -515,6 +515,18 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
     body.message = security.cap_input(body.message, settings.max_message_chars)
     if not body.message:
         raise HTTPException(422, "Messaggio vuoto.")
+    # S5.1c/2 · Il freno sul saldo, PRIMA di qualunque lavoro: prima del
+    # retrieval, prima della memoria, prima del modello. Un rifiuto dopo aver
+    # speso è una spesa fatta e una risposta buttata via.
+    #
+    # 402 «Payment Required», che è esattamente questo caso e non è usato per
+    # nient'altro qui dentro. Il corpo porta il codice macchina per i nostri
+    # servizi e UNA frase discreta per chi legge dal widget di un cliente — che
+    # non è il cliente, è il cliente del cliente, e non deve sapere niente dei
+    # conti di chi lo ospita (il perché è in testa a `freno.py`).
+    _blocco = freno.controlla(tenant, "chat")
+    if _blocco.blocca:
+        raise HTTPException(402, detail=_blocco.come_dizionario())
     # V8/A4 · La memoria si USA, non si mostra soltanto. Il difetto di Zoey era
     # tenere «prefers Italian» al 70% e rispondere in inglese: qui la lingua
     # ricordata batte il default del tenant. NON batte una lingua chiesta
@@ -637,7 +649,10 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
                 # di contabilità — il difetto peggiore possibile, perché
                 # colpisce l'utente per una cosa che non lo riguarda.
                 try:
-                    ledger.addebita(tenant, "chat", misura.finale())
+                    esito = ledger.addebita(tenant, "chat", misura.finale())
+                    # Il freno tiene il saldo in mente per un minuto: quello che
+                    # è appena uscito glielo diciamo noi, invece di rileggerlo.
+                    freno.consumato(tenant, esito.get("righe") or [])
                 except Exception:
                     log.exception("registro token: addebito della chat non scritto")
 
@@ -646,16 +661,36 @@ def do_chat(body: ChatIn, x_tenant_key: str = Header(default=""), origin: str = 
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
+    # S5.1c · Anche il percorso non-stream si conta. `stream` è `false` di
+    # default nel corpo di /chat: chi non chiede lo streaming — il connettore
+    # MCP, uno script, un curl — consumava senza lasciare una riga, e il freno
+    # sul suo saldo non sarebbe mai scattato perché quel saldo non scendeva.
+    misura = uso.UsoInStream(settings.mistral_llm_model
+                             if settings.llm_provider == "mistral"
+                             else settings.claude_llm_model)
     try:
         out = rag.answer(body.message, _grants(tenant), history=turni, lang=lang,
                          tier=tier, web=body.web, web_enabled=web_enabled,
                          focus_slugs=focus_slugs, free=free, memoria=ricordi,
-                         capacita=cap)
+                         capacita=cap, misura=misura)
     except HTTPException:
         raise
     except Exception:
         log.exception("chat failed")
         raise HTTPException(500, "Errore interno del chatbot.")
+    try:
+        # Una risposta che non è passata dal modello (un saluto, un chiarimento,
+        # un «lascia stare») costa zero DAVVERO: si scrive `Uso(0, 0)`, non
+        # `None`. La differenza non è formale — `None` finisce nel registro come
+        # «ignoto», e sono proprio quelle righe che dovranno dirci se il consumo
+        # non misurato è un problema. Contarci dentro le risposte gratuite
+        # vorrebbe dire inseguire un numero che ci siamo fatti da soli.
+        consumo = uso.Uso(0, 0, misura.modello) if misura.nessuna_chiamata \
+            else misura.finale()
+        esito = ledger.addebita(tenant, "chat", consumo)
+        freno.consumato(tenant, esito.get("righe") or [])
+    except Exception:
+        log.exception("registro token: addebito della chat non scritto")
     # Il turno appena chiuso entra nella rete di sicurezza (solo con un id).
     filo.aggiungi(tcode, conv, turni, body.message, out.get("answer", ""))
     if isinstance(out.get("filo"), dict):

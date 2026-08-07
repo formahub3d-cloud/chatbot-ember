@@ -149,7 +149,7 @@ def test_endpoint_login_me_chat(monkeypatch):
         return [SimpleNamespace(score=0.9, payload={"slug": "nota", "scope": "ats",
                                                     "title": "Nota", "text": "contenuto"})]
     monkeypatch.setattr(rag, "_retrieve", fake_retrieve)
-    monkeypatch.setattr(rag, "chat", lambda s, u: "risposta-cervello")
+    monkeypatch.setattr(rag, "chat_con_uso", lambda s, u: ("risposta-cervello", None))
 
     r = client.post("/client/login", json={"email": "anna@ats.it",
                                            "credential": "password-lunga"})
