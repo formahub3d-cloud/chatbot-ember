@@ -160,7 +160,7 @@ promessa qualitativa.
 
 ---
 
-## 2026-08-07 · DA DECIDERE — Il freno si può accecare, e fallisce aperto
+## 2026-08-07 · RISOLTO (era DA DECIDERE) — Il freno si può accecare, e fallisce aperto
 
 **Dove:** `app/ledger.py::_sessione` → `rls.set_grants(cur, allowed_scopes)`.
 
@@ -181,6 +181,22 @@ log quando il saldo è vuoto E il tenant non è fra gli scope — cheap, locale,
 ma è una spia dentro un percorso caldo. Propendo per (a). La scrittura, va
 detto, il difetto lo mostrerebbe comunque: l'INSERT verrebbe rifiutato dal
 `with check` e finirebbe nei log.
+
+> **Fatto la sera stessa, via libera di Andrea, in un commit a parte.** Strada
+> (a): `app/coerenza.py` legge le chiavi (`manage_apikeys.list_keys`, che i
+> segreti non li restituisce) e confronta `branding.tenant_code` con gli scope.
+> Una riga all'avvio e un campo `chiavi_registro` in `/admin/status`, coi tre
+> esiti che non si confondono — e con il **nome** della chiave, perché «una
+> chiave incoerente» senza sapere quale non si ripara.
+>
+> Due difetti tenuti separati perché hanno conseguenze diverse: `fuori_scope`
+> (la RLS nasconde le righe → registro cieco e freno che passa tutto) e
+> `senza_codice` (il consumo non si scrive affatto → il cliente usa il prodotto
+> a gratis). La chiave master è esclusa per disegno: `*` non è un cliente, e
+> segnalarla vorrebbe dire un allarme sempre acceso, cioè un allarme spento.
+>
+> Non blocca l'avvio: un guardrail che impedisce di partire sarebbe peggio del
+> guasto che sorveglia (stessa regola di `dbcheck`).
 
 ---
 

@@ -52,7 +52,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import settings
-from . import autodoc, ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti, uso, ledger, freno
+from . import autodoc, ingest, rag, ocr, extract, tenants, security, voice, writeback, metrics, events, gdpr, billing, manage_apikeys, obs, crypto, costs, contracts, esign, agents_bridge, roadmap, braintasks, proposals, brain, clientauth, flags, learned, dbcheck, filo, memoria, clientkb, degrado, sitokb, riassunti, uso, ledger, freno, coerenza
 
 obs.init_sentry()   # osservabilità errori (inerte senza SENTRY_DSN)
 
@@ -156,6 +156,23 @@ def _startup_dbcheck():
         log.info(dbcheck.riga_boot())
     except Exception:  # pragma: no cover
         log.warning("dbcheck all'avvio non riuscito (ignorato)", exc_info=True)
+
+
+@app.on_event("startup")
+def _startup_coerenza_chiavi():
+    """S5.1c/2 · Il registro filtra per `tenant_code`, la RLS per gli scope.
+
+    Oggi combaciano per disciplina. Il giorno che qualcuno emette una chiave con
+    uno scope diverso dal proprio codice, il saldo torna vuoto e il freno passa
+    tutto **in silenzio** — e il silenzio, su un percorso che vale soldi, si
+    scopre da una bolletta. Una riga all'avvio costa niente e toglie il
+    silenzio. Best-effort come `dbcheck`: un controllo che impedisce l'avvio
+    sarebbe peggio del guasto che sorveglia."""
+    try:
+        riga = coerenza.riga_boot()
+        (log.warning if "→" in riga else log.info)(riga)
+    except Exception:  # pragma: no cover
+        log.warning("coerenza chiavi all'avvio non riuscita (ignorata)", exc_info=True)
 
 
 @app.on_event("startup")
@@ -1432,6 +1449,10 @@ def admin_status(authorization: str = Header(default="")):
         # V7/A1 · Quanti fili di conversazione vivi in memoria. Una memoria che
         # non si vede è peggio di una che non c'è: qui si sa quanta ce n'è.
         "fili_in_memoria": filo.quante(),
+        # S5.1c/2 · Le chiavi il cui `tenant_code` non è compreso nei propri
+        # scope: per quelle il registro è cieco e il freno passa tutto senza
+        # dirlo. Tre esiti — ok · guasto (coi nomi) · non-so.
+        "chiavi_registro": coerenza.stato(),
     }
 
 
