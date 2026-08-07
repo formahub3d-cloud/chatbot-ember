@@ -58,6 +58,33 @@ order by 1
 """
 
 
+# I tre GUC che la RLS legge (`ovyon.grants`). Il tenant va SOLO nel primo:
+# `allowed_sub_tenants` finisce anch'esso per «tenants», e una condizione
+# scritta come `nome.endswith("tenants")` lo riempirebbe con un codice che è di
+# un altro livello. Qui sono elencati a mano apposta — tre righe esplicite
+# invece di una regola che sembra furba e sbaglia.
+def guc_per(tenant: str) -> list[tuple[str, str]]:
+    """`[(nome_guc, valore)]` per questo tenant. Funzione pura."""
+    return [("ovyon.allowed_tenants", tenant),
+            ("ovyon.allowed_orgs", ""),
+            ("ovyon.allowed_sub_tenants", "")]
+
+
+def imposta_guc(cur, tenant: str) -> None:
+    """I GUC della RLS, per la sola transazione (`is_local=true`).
+
+    Tre segnaposto e tre parametri. La prima versione ne aveva due nella query
+    (`true` scritto dentro l'SQL) e tre nella tupla: `TypeError: not all
+    arguments converted`, e lo script non partiva proprio — trovato da Kimi
+    ESEGUENDOLO, dopo che io avevo verificato solo che l'SQL fosse sintatticamente
+    valido. La forma qui sotto è la stessa di `app/rls.set_grants`, che gira in
+    produzione a ogni chat: due copie della stessa riga devono essere identiche,
+    non somigliarsi.
+    """
+    for nome, valore in guc_per(tenant):
+        cur.execute("SELECT set_config(%s, %s, %s)", (nome, valore, True))
+
+
 def main() -> int:
     dsn = (os.environ.get("DATABASE_URL_LEDGER") or "").strip()
     if not dsn:
@@ -78,12 +105,7 @@ def main() -> int:
     import psycopg2
     with psycopg2.connect(dsn, connect_timeout=10) as conn:
         with conn.cursor() as cur:
-            # I GUC della RLS, per la sola transazione. Senza, ogni SELECT
-            # torna vuota — in silenzio.
-            for nome in ("ovyon.allowed_tenants", "ovyon.allowed_orgs",
-                         "ovyon.allowed_sub_tenants"):
-                cur.execute("SELECT set_config(%s, %s, true)",
-                            (nome, tenant if nome.endswith("tenants") else "", True))
+            imposta_guc(cur, tenant)
             try:
                 cur.execute(QUERY_TOTALI, (giorni,))
             except psycopg2.errors.UndefinedColumn:

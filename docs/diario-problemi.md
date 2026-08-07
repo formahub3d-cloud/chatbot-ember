@@ -9,6 +9,80 @@
 
 ---
 
+## 2026-08-07 (sera) · RISOLTO — Lo script del rapporto non partiva, e l'avevo «verificato»
+
+**Dove:** `scripts/rapporto_misura.py` · trovato da Kimi **eseguendolo** in
+produzione, poche ore dopo che l'avevo corretto per un altro difetto.
+
+```
+cur.execute("SELECT set_config(%s, %s, true)", (nome, valore, True))
+                               └── due ─┘        └──── tre ────┘
+TypeError: not all arguments converted during string formatting
+```
+
+Due segnaposto e tre parametri: `true` l'avevo scritto dentro l'SQL e il `True`
+in coda alla tupla era rimasto lì, copiato da `rls.set_grants` — che ha tre
+segnaposto. Lo script non si avviava affatto.
+
+**Come l'ho lasciato passare.** Ho fatto due controlli e nessuno dei due poteva
+vederlo: `ast.parse` dice che il Python è valido (lo era), e l'ho lanciato
+**senza `DATABASE_URL_LEDGER`**, cioè su un percorso che esce alla seconda riga
+di `main()` e non tocca il database. Ho verificato la FORMA di una correzione
+che serviva esattamente a far vedere il COMPORTAMENTO. Sesta variante dello
+strumento di misura fuori posizione, e la più imbarazzante: stavolta lo
+strumento ero io che guardavo dalla parte sbagliata di una funzione che avevo
+appena scritto.
+
+Fatto, in tre pezzi:
+
+1. la riga adesso è **identica** a quella di `app/rls.set_grants`, che gira in
+   produzione a ogni chat. Due copie della stessa istruzione devono essere
+   uguali, non somigliarsi — e la differenza era proprio il segnaposto;
+2. `tests/test_rapporto_misura.py` **esegue** lo script (importato da file) con
+   un cursore che conta i segnaposto e li confronta coi parametri, cioè che
+   rifiuta quello che psycopg2 rifiuterebbe. Verificato rosso rimettendo la
+   riga com'era;
+3. lo stesso controllo è entrato nel **cursore finto della suite
+   dell'orchestratore** (`tests/conftest.py`): non copre solo questo caso, copre
+   tutte le query di quel repo. 319 test restano verdi, quindi non c'era
+   dell'altro nascosto — ma da adesso non ci può entrare.
+
+Secondo difetto nelle stesse tre righe, che nessuno aveva ancora visto:
+`nome.endswith("tenants")` è vero anche per **`allowed_sub_tenants`**, quindi il
+codice del tenant finiva anche nel GUC di un altro livello. Innocuo qui (la
+policy di `token_ledger` passa `null` come sub), ma è una regola che sembra
+furba e sbaglia: adesso i tre GUC sono elencati a mano, e c'è il test.
+
+---
+
+## 2026-08-07 (sera) · DA DECIDERE — Il client Qdrant è due minor indietro dal server
+
+**Dove:** avviso all'avvio dell'ingest, visto nei log da Kimi.
+
+```
+Qdrant client version 1.16.1 is incompatible with server version 1.19.0
+```
+
+Non blocca niente oggi — l'ingest gira e il retrieval risponde — ma il divario
+supera la finestra che il client dichiara di supportare, e questo genere di
+avvisi diventa un errore secco senza preavviso, di solito il giorno di un
+deploy che non c'entra niente.
+
+Non l'ho toccato adesso per due motivi: è una dipendenza (`requirements.txt`) e
+**da qui non posso provarla contro il Qdrant vero** — l'unica verifica che
+conta è un ingest completo con l'indice di produzione, e un client nuovo che
+rompe l'ingest è peggio di un avviso.
+
+Proposta: alzare `qdrant-client` a `>=1.19,<2` in un commit da solo, e la prova
+è un ingest su produzione guardato da Kimi. Da fare **prima** che diventi
+un'urgenza, non dopo.
+
+Nota minore dello stesso log: `insecure connection` — il motore parla al
+Qdrant interno in HTTP. È traffico dentro la rete privata di Railway, quindi non
+è una falla, ma va detto invece che lasciato a fondo pagina.
+
+---
+
 ## 2026-08-07 · RISOLTO — Il freno avrebbe murato il dogfood al secondo messaggio
 
 **Dove:** `app/ledger.py::mai_visto` → `mai_accreditato` (e la gemella
