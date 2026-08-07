@@ -9,6 +9,107 @@
 
 ---
 
+## 2026-08-07 · RISOLTO — Il freno avrebbe murato il dogfood al secondo messaggio
+
+**Dove:** `app/ledger.py::mai_visto` → `mai_accreditato` (e la gemella
+nell'orchestratore) · trovato **da Kimi sui dati veri, prima del merge**.
+
+Il freno rifiuta solo con una prova, e la prova comprendeva «il tenant esiste
+nel registro». L'avevo scritta come *«c'è una riga qualunque»* — e **il nome
+che le avevo dato era il difetto**: `mai_visto` risponde a «è mai esistito qui
+dentro», mentre la domanda che conta è «è mai stato aperto».
+
+Un ADDEBITO prova che il cliente ha usato il prodotto, non che gli sia stata
+data una dotazione. E siccome oggi in produzione i consumi si scrivono già
+(tre righe di `forma-core`, tutte `misurato`) mentre gli accrediti non ancora,
+al merge il dogfood sarebbe andato in 402 al messaggio dopo: saldo zero, righe
+presenti, freno chiuso. Esattamente il difetto che questa prova doveva
+impedire, ripresentato una riga più in là.
+
+Adesso la prova è `direzione='accredito'`. E il test non guarda il risultato ma
+la **forma della query** — un cursore finto risponde a qualunque SQL, quindi
+«ha chiesto la cosa giusta» non si deduce da «ha risposto»: stessa lezione
+della JOIN mancante in `_anagrafica`, questa volta applicata prima.
+
+Vale oltre il caso: **quando un predicato ha un nome che descrive la query
+invece della domanda, prima o poi qualcuno (io) risponde alla domanda
+sbagliata.** `mai_visto` era leggibile e falso.
+
+---
+
+## 2026-08-07 · RISOLTO — Il rapporto sulla misura era cieco, e diceva «niente da misurare»
+
+**Dove:** `scripts/rapporto_misura.py` · trovato **da Kimi in produzione**,
+confrontandolo con la query manuale.
+
+Lo script si connette col ruolo `divina`, che ha la RLS attiva: la policy
+chiama `ovyon.can_read`, che legge `ovyon.allowed_tenants` dalla sessione.
+Senza quel GUC la `SELECT` **non dà errore**: restituisce zero righe. Il
+rapporto stampava «nessun addebito nel periodo» a registro pieno.
+
+La riga più pericolosa era una che avevo scritto apposta per essere onesta —
+«zero righe non è tutto bene, è non è passato traffico» — e che diceva la cosa
+sbagliata perché il terzo caso non l'avevo previsto: *non ho potuto guardare*.
+Tre esiti mai confusi vale anche per gli script, non solo per le schermate.
+
+Fatto: `--tenant` **obbligatorio** (`'*'` = vista completa, ed è il carattere
+che `ovyon.is_master()` riconosce — verificato in `db/schema.sql`, non
+supposto), GUC impostati per la transazione, e il tenant guardato stampato in
+testa al rapporto, così un risultato vuoto dice anche *con quali occhi* è stato
+guardato.
+
+Quinta volta in tre giorni che il difetto è **lo strumento di misura fuori
+posizione**. Le prime quattro erano finte che rispondevano meglio del vero;
+questa è l'opposto — il vero che risponde di meno, perché una difesa stava
+funzionando. La forma è la stessa: *chi misura non era nella posizione di chi
+consuma*.
+
+---
+
+## 2026-08-07 · DECISO — `MISTRAL_STREAM_USAGE` resta SPENTO: non serve
+
+**Dove:** `app/config.py` (`mistral_stream_usage: bool = False`).
+
+Misurato in produzione il 7/08 (Kimi, tre chat vere): le righe escono
+`misurato` **col flag spento**. Mistral manda `usage` nell'ultimo blocco dello
+stream anche senza `stream_options.include_usage`.
+
+Il flag resta nel codice come via di fuga se un giorno smettesse di arrivare,
+ma **non si accende**: accenderlo adesso vorrebbe dire cambiare una richiesta
+in produzione per ottenere una cosa che già si ottiene.
+
+Il dato che ne esce vale più della decisione: **una chat costa 2.673 · 3.007 ·
+3.016 token** — circa 3k. Serve al freno, che dichiara di poter andare sotto
+«al massimo di un'operazione»: adesso quel massimo ha un numero, ed è lo
+**0,15% di una dotazione mensile**. Lo scoperto accettato non è più una
+promessa qualitativa.
+
+---
+
+## 2026-08-07 · DA DECIDERE — Il freno si può accecare, e fallisce aperto
+
+**Dove:** `app/ledger.py::_sessione` → `rls.set_grants(cur, allowed_scopes)`.
+
+Il registro filtra per `tenant_code` (da `branding.tenant_code`), ma la RLS
+filtra per gli **scope** della chiave. Oggi combaciano — una chiave cliente
+nasce con `tenants: [tenant_code]` e la dogfood ha `forma-core` fra gli scope —
+ma sono due cose diverse, e nessuno lo impone.
+
+Se un giorno divergessero, la `SELECT` del saldo tornerebbe vuota: il freno
+leggerebbe zero, `mai_accreditato` direbbe «mai aperto», e passerebbe tutto —
+in silenzio. Fallisce nella direzione giusta (aperto, non chiuso), ma **senza
+dirlo**, che è la parte che non mi piace.
+
+Non l'ho risolto adesso perché le strade costano diverso: (a) un controllo
+all'avvio che confronta `branding.tenant_code` con `allowed_scopes` di ogni
+chiave e lo dichiara in `/admin/status`; (b) far scrivere al freno una riga di
+log quando il saldo è vuoto E il tenant non è fra gli scope — cheap, locale,
+ma è una spia dentro un percorso caldo. Propendo per (a). La scrittura, va
+detto, il difetto lo mostrerebbe comunque: l'INSERT verrebbe rifiutato dal
+`with check` e finirebbe nei log.
+
+---
+
 ## 2026-08-07 · RISOLTO — La chat senza streaming non contava niente
 
 **Dove:** `app/main.py` (`do_chat`), `app/rag.py` · trovato costruendo il freno,

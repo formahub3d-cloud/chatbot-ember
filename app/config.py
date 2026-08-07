@@ -16,11 +16,15 @@ class Settings(BaseSettings):
     # modelli
     mistral_llm_model: str = "mistral-small-latest"
     # S5.1a · Chiede a Mistral di mandare `usage` nell'ultimo blocco dello
-    # stream (`stream_options.include_usage`). **Spento di default, apposta**:
-    # è un campo in più nella richiesta della chat in produzione, e non l'ho
-    # verificato contro l'API vera. Il codice che lo legge c'è già ed è testato;
-    # si accende dopo una prova su staging, non su un'ipotesi. Da spento, il
-    # consumo dello stream Mistral risulta NON MISURATO — dichiarato, non zero.
+    # stream (`stream_options.include_usage`).
+    #
+    # **Spento, e ci resta: MISURATO il 7/08 in produzione che non serve.** Le
+    # prime tre chat vere hanno scritto righe `misurato` col flag a false —
+    # Mistral manda `usage` comunque. Accenderlo adesso vorrebbe dire cambiare
+    # una richiesta in produzione per ottenere una cosa che già si ottiene.
+    # Resta nel codice come via di fuga se un giorno smettesse di arrivare;
+    # a sorvegliarlo c'è `scripts/rapporto_misura.py`, che deve stare a ~0% di
+    # `ignoto`.
     mistral_stream_usage: bool = False
     mistral_embed_model: str = "mistral-embed"
     claude_llm_model: str = "claude-haiku-4-5"

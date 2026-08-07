@@ -145,17 +145,26 @@ def saldi(cur, tenant_code: str) -> dict[str, int]:
     return fuori
 
 
-def mai_visto(cur, tenant_code: str) -> bool:
-    """Il registro non ha NESSUNA riga per questo tenant.
+def mai_accreditato(cur, tenant_code: str) -> bool:
+    """A questo tenant non è MAI stato accreditato niente.
 
     Serve al freno (S5.1c/2): un cliente a zero perché ha consumato tutto e uno
     a zero perché non gli è mai stata data una dotazione sono situazioni
-    opposte, e `saldi()` le restituisce identiche. Nessun filtro di scadenza,
-    apposta: la domanda è «è mai esistito qui dentro», e un accredito scaduto è
-    comunque la prova che il cliente era stato aperto.
+    opposte, e `saldi()` le restituisce identiche.
+
+    **Solo gli accrediti**, ed è una correzione. La prima versione guardava una
+    riga qualunque e si chiamava `mai_visto`: il nome era il difetto —
+    rispondeva a «è mai esistito qui dentro» mentre la domanda è «è mai stato
+    aperto». Un addebito prova che il cliente ha usato il prodotto, e i consumi
+    si scrivono già mentre gli accrediti no: `forma-core` in produzione aveva
+    tre chat e zero dotazioni, quindi col controllo vecchio il dogfood si
+    sarebbe murato da solo al messaggio dopo il merge.
+
+    Nessun filtro di scadenza, apposta: un accredito scaduto è comunque la
+    prova che il cliente era stato aperto.
     """
-    cur.execute("SELECT 1 FROM token_ledger WHERE tenant_code=%s LIMIT 1",
-                (tenant_code,))
+    cur.execute("SELECT 1 FROM token_ledger WHERE tenant_code=%s "
+                "AND direzione='accredito' LIMIT 1", (tenant_code,))
     return cur.fetchone() is None
 
 

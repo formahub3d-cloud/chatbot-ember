@@ -98,7 +98,7 @@ def rinnovo_il(quando: datetime | date | None = None) -> date:
 
 
 def decidi(saldi: dict[str, int] | None, *, operazione: str,
-           mai_visto: bool = False,
+           mai_accreditato: bool = False,
            lista_propria: bool = False,
            quando: datetime | None = None) -> Decisione:
     """La decisione, come funzione pura. Gemella di quella dell'orchestratore.
@@ -119,8 +119,9 @@ def decidi(saldi: dict[str, int] | None, *, operazione: str,
                          rinnovo=rinnovo_il(quando))
 
     if residuo <= 0:
-        if mai_visto:
+        if mai_accreditato:
             # Zero perché non è mai stato aperto ≠ zero perché ha consumato.
+            # E «aperto» vuol dire ACCREDITATO: un consumo non è una dotazione.
             return Decisione(NON_SO, residuo, "senza-dotazione",
                              rinnovo=rinnovo_il(quando))
         return Decisione(FERMO, residuo, "credito-esaurito",
@@ -215,8 +216,8 @@ def controlla(tenant: dict, operazione: str, *,
             # non può uscire un rifiuto, ed è voluto.
             return decidi(saldi, operazione=operazione, lista_propria=lista_propria)
 
-        saldi, mai_visto = _leggi(codice, tenant)
-        d = decidi(saldi, operazione=operazione, mai_visto=mai_visto,
+        saldi, mai_accreditato = _leggi(codice, tenant)
+        d = decidi(saldi, operazione=operazione, mai_accreditato=mai_accreditato,
                    lista_propria=lista_propria)
 
         if d.motivo == "credito-esaurito":
@@ -241,13 +242,13 @@ def controlla(tenant: dict, operazione: str, *,
 
 
 def _leggi(codice: str, tenant: dict) -> tuple[dict[str, int] | None, bool]:
-    """`(saldi, mai_visto)` dal database. `saldi=None` = non si è riusciti."""
+    """`(saldi, mai_accreditato)` dal database. `saldi=None` = non si è riusciti."""
     try:
         with ledger._sessione(tenant) as cur:
             saldi = ledger.saldi(cur, codice)
-            mai_visto = (ledger.mai_visto(cur, codice)
-                         if sum(saldi.values()) <= 0 else False)
-            return saldi, mai_visto
+            mai_accreditato = (ledger.mai_accreditato(cur, codice)
+                               if sum(saldi.values()) <= 0 else False)
+            return saldi, mai_accreditato
     except Exception:
         log.exception("freno: saldo non leggibile per tenant=%s. La chat PASSA — "
                       "un guasto nostro non è un credito esaurito.", codice)

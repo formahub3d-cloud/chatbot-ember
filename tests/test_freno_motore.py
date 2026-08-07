@@ -53,8 +53,48 @@ def test_un_saldo_non_letto_non_e_un_saldo_a_zero():
 
 
 def test_a_zero_senza_aver_mai_ricevuto_niente_non_e_esaurito():
-    d = freno.decidi(VUOTO, operazione="chat", mai_visto=True)
+    d = freno.decidi(VUOTO, operazione="chat", mai_accreditato=True)
     assert d.blocca is False and d.motivo == "senza-dotazione"
+
+
+def test_i_CONSUMI_non_accendono_il_freno_da_soli():
+    """Trovato da Kimi sui dati veri, prima del merge: `forma-core` aveva tre
+    righe di consumo e zero accrediti. Col controllo vecchio («una riga
+    qualunque») il dogfood sarebbe andato in 402 al messaggio dopo."""
+    assert freno.decidi(VUOTO, operazione="chat", mai_accreditato=True).blocca is False
+    assert freno.decidi(VUOTO, operazione="chat", mai_accreditato=False).blocca is True
+
+
+def test_la_prova_che_il_freno_cerca_e_un_ACCREDITO(monkeypatch):
+    """La forma della query, non solo il risultato: un cursore finto risponde a
+    qualunque SQL, quindi «ha chiesto la cosa giusta» non si deduce da «ha
+    risposto». Stessa lezione della JOIN mancante in `_anagrafica`."""
+    viste = []
+
+    class _Cur:
+        def execute(self, sql, params=None):
+            viste.append(" ".join(sql.split()))
+
+        def fetchall(self):
+            return []
+
+        def fetchone(self):
+            return None
+
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _sess(tenant):
+        yield _Cur()
+
+    monkeypatch.setattr(ledger, "_sessione", _sess)
+    monkeypatch.setattr(ledger, "attivo", lambda: True)
+    freno.controlla(TENANT, "chat")
+
+    prova = [q for q in viste if "SELECT 1 FROM token_ledger" in q]
+    assert prova, "il freno non ha chiesto se il tenant è mai stato accreditato"
+    assert "direzione='accredito'" in prova[0], \
+        "un consumo non è una dotazione: «una riga qualunque» mura chi ha solo chattato"
 
 
 def test_la_voce_e_inclusa_e_passa_lo_stesso():

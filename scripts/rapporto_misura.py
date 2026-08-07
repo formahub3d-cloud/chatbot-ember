@@ -1,19 +1,34 @@
 #!/usr/bin/env python3
 """S5.1c · Quante volte NON abbiamo saputo misurare un consumo.
 
-È il numero da cui nascerà la soglia del secondo freno (S5.1c/2), e per adesso
-serve a una cosa più semplice: **vedere se l'accensione di
-`MISTRAL_STREAM_USAGE` ha funzionato**. Prima dell'accensione le righe della
-chat sono tutte `ignoto`; dopo devono crollare. Se non crollano, il problema è
-altrove e si vede subito invece che a fine mese.
+È il numero da cui nascerà la soglia del secondo freno, e serve a sorvegliare
+una cosa che il 7/08 si è già rivelata diversa da come la immaginavamo:
+**`usage` arriva anche senza `MISTRAL_STREAM_USAGE`**. Le prime tre chat vere
+sono uscite `misurato` col flag spento, quindi il flag resta spento e questo
+rapporto non serve più a verificarne l'accensione — serve a **accorgersi se un
+giorno smette di arrivare**, che è il caso in cui il conto si sfalsa in
+silenzio.
 
 Legge e basta: nessuna scrittura, nessuna decisione. Si connette con la
 `DATABASE_URL_LEDGER` (ruolo `divina`), che ha `select` e `insert` — quindi
 anche sbagliando non può rovinare niente.
 
+**Il GUC va impostato, altrimenti il rapporto è cieco e non lo dice.** Il ruolo
+`divina` ha la RLS attiva: la policy chiama `ovyon.can_read`, che legge
+`ovyon.allowed_tenants` dalla sessione. Senza quel GUC la `SELECT` non dà
+errore — **restituisce zero righe**, e lo script stampava «nessun addebito nel
+periodo» a registro pieno. Trovato da Kimi in produzione il 7/08, con la query
+manuale che le righe le vedeva: è la RLS che fa il suo lavoro, non un guasto.
+
+Da qui la regola: `--tenant` è OBBLIGATORIO. `--tenant '*'` dà la vista
+completa (è il carattere che `ovyon.can_read` tratta come «tutti», lo stesso
+che l'orchestratore usa per l'anagrafica); un codice singolo dà quel cliente.
+Non c'è un default, apposta: un default silenzioso qui vuol dire un rapporto
+che sembra vuoto invece di uno che chiede una cosa.
+
 Uso:
-    DATABASE_URL_LEDGER='postgresql://…' python3 scripts/rapporto_misura.py
-    DATABASE_URL_LEDGER='…' python3 scripts/rapporto_misura.py --giorni 7
+    DATABASE_URL_LEDGER='postgresql://…' python3 scripts/rapporto_misura.py --tenant '*'
+    DATABASE_URL_LEDGER='…' python3 scripts/rapporto_misura.py --tenant forma-core --giorni 7
 
 Gira col Python di sistema: l'unica dipendenza è psycopg2, che il motore ha già.
 """
@@ -51,10 +66,24 @@ def main() -> int:
     giorni = 30
     if "--giorni" in sys.argv:
         giorni = int(sys.argv[sys.argv.index("--giorni") + 1])
+    if "--tenant" not in sys.argv:
+        print("manca --tenant: usa `--tenant '*'` per la vista completa, oppure "
+              "un codice singolo (es. --tenant forma-core).\n"
+              "Senza, la RLS del ruolo `divina` nasconde tutto e il rapporto "
+              "esce vuoto invece di dire che non ha potuto guardare.",
+              file=sys.stderr)
+        return 2
+    tenant = sys.argv[sys.argv.index("--tenant") + 1]
 
     import psycopg2
     with psycopg2.connect(dsn, connect_timeout=10) as conn:
         with conn.cursor() as cur:
+            # I GUC della RLS, per la sola transazione. Senza, ogni SELECT
+            # torna vuota — in silenzio.
+            for nome in ("ovyon.allowed_tenants", "ovyon.allowed_orgs",
+                         "ovyon.allowed_sub_tenants"):
+                cur.execute("SELECT set_config(%s, %s, true)",
+                            (nome, tenant if nome.endswith("tenants") else "", True))
             try:
                 cur.execute(QUERY_TOTALI, (giorni,))
             except psycopg2.errors.UndefinedColumn:
@@ -67,11 +96,15 @@ def main() -> int:
             per_giorno = cur.fetchall()
 
     totale = sum(r[1] for r in righe) or 0
-    print(f"\nAddebiti degli ultimi {giorni} giorni: {totale}")
+    print(f"\nAddebiti degli ultimi {giorni} giorni (tenant {tenant}): {totale}")
     if not totale:
         # Zero righe non è «tutto bene»: è «non è passato traffico», e sono due
-        # cose diverse da dire a chi legge un rapporto.
-        print("nessun addebito nel periodo — niente da misurare, non «tutto a posto»")
+        # cose diverse da dire a chi legge un rapporto. Terza possibilità, la
+        # più insidiosa: la RLS non ci fa vedere niente — per questo il tenant
+        # visto è scritto qui sopra, e non è un dettaglio di cortesia.
+        print("nessun addebito nel periodo — niente da misurare, non «tutto a posto».\n"
+              f"Se il registro NON è vuoto, controlla il tenant: con --tenant {tenant!r} "
+              "la RLS mostra solo quello (usa '*' per la vista completa).")
         return 0
 
     for misura, n, token in righe:
@@ -80,8 +113,9 @@ def main() -> int:
 
     ignote = next((r[1] for r in righe if r[0] == "ignoto"), 0)
     print(f"\nTasso di NON misurato: {ignote / totale * 100:.2f}%")
-    print("(prima di MISTRAL_STREAM_USAGE=true ci si aspetta ~100% sulla chat;\n"
-          " dopo l'accensione deve crollare. Se non crolla, il problema è altrove.)\n")
+    print("(misurato il 7/08: `usage` arriva anche col flag spento, quindi qui ci\n"
+          " si aspetta ~0%. Se risale, qualcosa ha smesso di dirci quanto è costato\n"
+          " — e il conto si sfalsa in silenzio.)\n")
 
     if per_giorno:
         print("Per giorno:")
